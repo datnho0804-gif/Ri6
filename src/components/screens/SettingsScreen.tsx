@@ -1,42 +1,36 @@
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   Download,
   HardDrive,
   Info,
+  Palette,
   Smartphone,
+  Vibrate,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { type DatabaseInitResult, requestPersistentStorage } from '../../db/database';
+import { formatBytesVN } from '../../lib/format';
+import { Banner, Button, Card, ListItem, StatusPill } from '../ui';
 
 interface SettingsScreenProps {
   appVersion: string;
   dbState: DatabaseInitResult | null;
   isStandalone: boolean;
+  hapticsEnabled: boolean;
+  onToggleHaptics: (next: boolean) => void;
   onInstallClick: () => void;
-  onBack: () => void;
-}
-
-const vnNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
-
-function formatStorageBytesVN(bytes: number | null): string {
-  if (bytes === null) return 'Không đo được';
-  if (bytes < 1024) return `${vnNumber.format(bytes)} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${vnNumber.format(kb)} KB`;
-  const mb = kb / 1024;
-  if (mb < 1024) return `${vnNumber.format(mb)} MB`;
-  const gb = mb / 1024;
-  return `${vnNumber.format(gb)} GB`;
+  onOpenDesignShowcase: () => void;
 }
 
 export function SettingsScreen({
   appVersion,
   dbState,
   isStandalone,
+  hapticsEnabled,
+  onToggleHaptics,
   onInstallClick,
-  onBack,
+  onOpenDesignShowcase,
 }: SettingsScreenProps) {
   const [liveStorage, setLiveStorage] = useState<{
     persisted: boolean;
@@ -44,7 +38,6 @@ export function SettingsScreen({
     quota: number | null;
   } | null>(null);
 
-  // Re-measure storage estimate every time Settings opens (so SW precache & new data are reflected)
   useEffect(() => {
     let active = true;
     void requestPersistentStorage().then((info) => {
@@ -58,126 +51,170 @@ export function SettingsScreen({
   const persisted = liveStorage?.persisted ?? dbState?.persistentGranted ?? false;
   const usageBytes = liveStorage ? liveStorage.usage : (dbState?.storageUsageBytes ?? null);
   const quotaBytes = liveStorage ? liveStorage.quota : (dbState?.storageQuotaBytes ?? null);
-
-  const usageLabel = formatStorageBytesVN(usageBytes);
-  const quotaLabel = formatStorageBytesVN(quotaBytes);
+  const usageLabel = formatBytesVN(usageBytes);
+  const quotaLabel = formatBytesVN(quotaBytes);
 
   return (
-    <div className="space-y-5">
-      {/* Back Header */}
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-[48px] px-4 rounded-xl bg-white border border-sand-300 hover:bg-sand-100 text-ink text-base font-bold inline-flex items-center gap-2 transition"
-        >
-          <ArrowLeft className="w-5 h-5" aria-hidden="true" />
-          Quay lại
-        </button>
-        <span className="font-mono text-sm font-bold text-durian-900 bg-durian-100 px-3 py-1.5 rounded-xl">
-          v{appVersion}
-        </span>
-      </div>
-
-      {/* Main Settings Scaffold */}
-      <section className="bg-white rounded-2xl border border-sand-200 p-5 sm:p-6 shadow-xs space-y-5">
-        <div>
-          <h2 className="text-xl font-extrabold text-ink">Cài đặt ứng dụng</h2>
-          <p className="text-base text-ink-muted mt-1">
-            Khung màn Cài đặt (các mục đồng bộ GitHub, Gemini AI và xuất/nhập JSON sẽ được kích hoạt từ T02 và T04).
-          </p>
-        </div>
-
-        {/* Device & Version Info */}
-        <div className="rounded-xl bg-sand border border-sand-200 p-4 space-y-2 text-base">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-semibold text-ink-muted">Phiên bản ứng dụng</span>
-            <span className="font-mono font-bold text-ink">v{appVersion}</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-sand-200">
-            <span className="font-semibold text-ink-muted">Mã thiết bị (deviceId)</span>
-            <span className="font-mono text-sm font-semibold text-ink break-all">
-              {dbState?.settings.deviceId ?? 'Đang tạo…'}
-            </span>
-          </div>
-        </div>
-
-        {/* PWA Install Section */}
-        <div className="rounded-xl bg-durian-50 border border-durian-200 p-4 space-y-3">
-          <h3 className="text-base font-bold text-durian-900 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 shrink-0" aria-hidden="true" />
-            Cài ứng dụng ra màn hình chính
-          </h3>
-          {isStandalone ? (
-            <p className="text-base text-durian-900 font-medium flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-status-ok shrink-0" aria-hidden="true" />
-              Ứng dụng đang chạy ở chế độ đã cài trên màn hình chính.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-base text-ink">
-                Cài từ Chrome để mở toàn màn hình, chạy offline ngoài vườn và tự cập nhật khi có phiên bản mới.
-              </p>
-              <button
-                type="button"
-                onClick={onInstallClick}
-                className="min-h-[48px] px-5 rounded-xl bg-durian-900 hover:bg-durian-950 text-white text-base font-bold inline-flex items-center gap-2 transition"
-              >
-                <Download className="w-5 h-5 shrink-0" aria-hidden="true" />
-                Cài app lên điện thoại
-              </button>
+    <div className="space-y-4">
+      {/* Touch & Haptics (D01 AC6) */}
+      <section aria-labelledby="sec-feel-heading">
+        <h2 id="sec-feel-heading" className="text-title font-bold text-text px-0.5 mb-2">
+          Cảm giác thao tác
+        </h2>
+        <Card padding="none">
+          <div className="flex items-center gap-3 px-4 py-3 min-h-17">
+            <div
+              className="w-11 h-11 rounded-tile bg-primary-container text-on-primary-container flex items-center justify-center shrink-0"
+              aria-hidden="true"
+            >
+              <Vibrate className="w-5.5 h-5.5" />
             </div>
-          )}
-        </div>
+            <div className="flex-1 min-w-0">
+              <div id="haptics-label" className="text-body font-semibold text-text leading-snug">
+                Rung nhẹ khi lưu thao tác
+              </div>
+              <p className="text-caption text-text-3 leading-snug mt-0.5">
+                Rung 10 ms khi lưu nhật ký hoặc hoàn tất việc (tắt nếu không cần).
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hapticsEnabled}
+              aria-labelledby="haptics-label"
+              onClick={() => onToggleHaptics(!hapticsEnabled)}
+              className="pressable min-w-14 min-h-12 px-1 flex items-center justify-center rounded-pill shrink-0"
+            >
+              <span
+                className={[
+                  'w-13 h-8 rounded-pill p-1 transition-colors flex items-center',
+                  hapticsEnabled
+                    ? 'bg-primary justify-end'
+                    : 'bg-surface-2 border border-outline-strong justify-start',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'w-6 h-6 rounded-pill shadow-e1 transition-transform',
+                    hapticsEnabled ? 'bg-on-primary' : 'bg-text-3',
+                  ].join(' ')}
+                />
+              </span>
+            </button>
+          </div>
+        </Card>
+      </section>
 
-        {/* Persistent Storage Status (SPEC §7.0) */}
-        <div className="rounded-xl bg-white border border-sand-200 p-4 space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-bold text-ink flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-durian-900 shrink-0" aria-hidden="true" />
-              Bộ nhớ bền vững
-            </h3>
-            {persisted ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-ok-bg text-status-ok text-sm font-bold">
-                <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                Đã cấp
-              </span>
+      {/* PWA Install Section */}
+      <section aria-labelledby="sec-pwa-heading">
+        <h2 id="sec-pwa-heading" className="text-title font-bold text-text px-0.5 mb-2">
+          Cài ứng dụng ra màn hình chính
+        </h2>
+        <Card padding="md" className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 text-body font-semibold text-text">
+              <Smartphone className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
+              <span>Trạng thái PWA</span>
+            </div>
+            {isStandalone ? (
+              <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
+                Đã cài toàn màn hình
+              </StatusPill>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-warn-bg text-status-warn text-sm font-bold">
-                <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-                Chưa cấp
-              </span>
+              <StatusPill tone="info" icon={<Info className="w-4 h-4" />}>
+                Đang mở trên trình duyệt
+              </StatusPill>
             )}
           </div>
-          <p className="text-base text-ink-muted tabular-nums">
-            Dung lượng đang dùng: <strong className="text-ink">{usageLabel}</strong>
-            {quotaBytes !== null ? ` / ${quotaLabel}` : ''}
-          </p>
-          {!persisted && (
-            <p className="text-sm text-status-warn font-medium">
-              Khuyến nghị: hãy cài app ra màn hình chính và bật đồng bộ GitHub (T04) để trình duyệt ưu tiên giữ dữ liệu lâu dài.
+
+          {isStandalone ? (
+            <p className="text-caption text-text-2">
+              Ứng dụng đang chạy toàn màn hình và tự cập nhật khi có phiên bản mới.
             </p>
+          ) : (
+            <>
+              <p className="text-caption text-text-2">
+                Cài từ Chrome để mở toàn màn hình, chạy offline ngoài vườn và tự cập nhật khi có bản
+                mới.
+              </p>
+              <Button
+                variant="filled"
+                size="lg"
+                leadingIcon={<Download className="w-5 h-5" />}
+                onClick={onInstallClick}
+              >
+                Cài app lên điện thoại
+              </Button>
+            </>
           )}
-        </div>
-
-        {/* Mandatory Chrome Warning (SPEC §7.0) */}
-        <div className="rounded-xl bg-status-danger-bg border border-red-300 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-6 h-6 text-status-danger shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-base text-ink font-medium leading-relaxed">
-            Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ
-            GitHub để luôn có bản sao.
-          </p>
-        </div>
-
-        {/* Upcoming T04 Placeholder */}
-        <div className="rounded-xl bg-sand border border-dashed border-sand-300 p-4 flex items-start gap-3 text-ink-muted">
-          <Info className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-base">
-            Cấu hình đồng bộ repo riêng tư <code className="font-mono text-ink">Ri6-data</code>, khóa
-            Gemini cục bộ và sao lưu JSON sẽ hiển thị tại đây trong T02 và T04.
-          </p>
-        </div>
+        </Card>
       </section>
+
+      {/* Device & Storage Info */}
+      <section aria-labelledby="sec-storage-heading">
+        <h2 id="sec-storage-heading" className="text-title font-bold text-text px-0.5 mb-2">
+          Thiết bị &amp; Lưu trữ offline
+        </h2>
+        <Card padding="none">
+          <ListItem
+            title="Phiên bản ứng dụng"
+            subtitle="Tự nhúng từ package.json khi build"
+            trailing={<span className="font-mono text-text">v{appVersion}</span>}
+          />
+          <ListItem
+            divider
+            title="Mã thiết bị (deviceId)"
+            subtitle={dbState?.settings.deviceId ?? 'Đang khởi tạo…'}
+          />
+          <ListItem
+            divider
+            leadingIcon={<HardDrive className="w-5.5 h-5.5" />}
+            leadingTone={persisted ? 'ok' : 'warn'}
+            title="Bộ nhớ bền vững"
+            subtitle={`Đang dùng ${usageLabel}${quotaBytes !== null ? ` / ${quotaLabel}` : ''}`}
+            trailing={
+              persisted ? (
+                <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
+                  Đã cấp
+                </StatusPill>
+              ) : (
+                <StatusPill tone="warn" icon={<AlertTriangle className="w-4 h-4" />}>
+                  Chưa cấp
+                </StatusPill>
+              )
+            }
+          />
+        </Card>
+      </section>
+
+      {/* Mandatory Chrome Warning (SPEC §7.0) */}
+      <Banner
+        tone="danger"
+        icon={<AlertTriangle className="w-5 h-5" />}
+        title="Lưu ý giữ an toàn dữ liệu"
+      >
+        Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ GitHub
+        (sẽ mở ở T04) để luôn có bản sao.
+      </Banner>
+
+      {/* Upcoming sync / AI note + QA Design showcase shortcut */}
+      <Card padding="none">
+        <ListItem
+          leadingIcon={<Info className="w-5.5 h-5.5" />}
+          leadingTone="info"
+          title="Đồng bộ GitHub & Trợ lý AI"
+          subtitle="Khóa GitHub token (T04) và Gemini API key (T06) chỉ lưu trên máy, không xuất JSON và không đồng bộ lên repo."
+        />
+        <ListItem
+          divider
+          leadingIcon={<Palette className="w-5.5 h-5.5" />}
+          leadingTone="ph"
+          title="Trang hệ thống thiết kế (#/design)"
+          subtitle="Mở bộ sưu tập mọi component ở mọi trạng thái để kiểm tra nhanh"
+          showChevron
+          onClick={onOpenDesignShowcase}
+        />
+      </Card>
     </div>
   );
 }
