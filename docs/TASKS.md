@@ -7,7 +7,7 @@
 | Task | Tên | Trạng thái |
 |---|---|---|
 | T01 | Khung dự án, PWA, CI/CD | ✅ Đã merge (PR #7, 25/11) |
-| **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ⏳ Làm ngay sau T01 |
+| **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ✅ Đã duyệt (PR #10) |
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
 | T04 | Cài đặt, đồng bộ GitHub | ⏳ |
@@ -140,6 +140,14 @@
 
 ## T02 — Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON
 **Nhánh:** `ag/T02-tong-quan-ho-so`
+
+**AC0. Chuyển tiếp từ QA D01 (PR #10).**
+- Bỏ hết thuật ngữ kỹ thuật khỏi giao diện ("Dexie", "IndexedDB", "T02", "#/design"…). Viết bằng lời người dùng theo DESIGN §7.
+- Liên kết tới `#/design` chỉ hiện khi đang ở `?design=1` hoặc khi chạy dev.
+- Lazy-load `DesignShowcaseScreen` (`React.lazy`) để nó không nằm trong bundle chính.
+- Lối tắt `#/photo` mở thẳng luồng **chụp ảnh tuần**. Đổi hash trong cùng trang thì đóng lớp nổi cũ, không để chồng lên nhau.
+- Thêm `padding-bottom` cuối nội dung, khoảng FAB 56 + 16 px, để FAB không che mục cuối.
+- Nâng các action trong workflow lên bản major chạy Node 24 (`checkout`, `setup-node`, `configure-pages`, `upload-pages-artifact`, `deploy-pages`).
 
 **AC1. Màn Tổng quan (M1).**
 - KPI (tổng số cây **tính động [1.1]**), nút đổi mùa kèm khuyến cáo, lưới ô **cho mọi cây cá thể [1.1]** có trạng thái chữ + màu. Bấm ô thì mở đúng hồ sơ cây.
