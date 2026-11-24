@@ -2,7 +2,7 @@
 
 | Mục | Giá trị |
 |---|---|
-| Phiên bản đặc tả | **1.1** — 24/11/2026 |
+| Phiên bản đặc tả | **1.2** — 25/11/2026 |
 | Nguồn | `docs/muctieu-goc.md` (yêu cầu gốc của chủ vườn); file này chuẩn hóa và bổ sung |
 | Người soạn / duyệt | Claude (reviewer) / anh Đạt (chủ vườn) |
 | Bên thực hiện | Antigravity — xem `AGENTS.md`, `docs/TASKS.md` |
@@ -10,6 +10,11 @@
 Các mục đánh dấu **[BS]** là phần Claude bổ sung hoặc sửa so với yêu cầu gốc. Mỗi mục có ghi lý do.
 
 **Lịch sử thay đổi:**
+- **1.2 (25/11/2026)**, theo chỉ thị của chủ vườn (Issue #21), đánh dấu **[1.2]**:
+  1. Vườn mới khởi tạo **3 cây** `SR01`–`SR03` kèm ô **"+ Thêm cây"** (§2, M1).
+  2. Thuốc BVTV, phân bón, vật tư ghi rõ **thương hiệu, quy cách, giá tham khảo, cách dùng** — danh mục vật tư §3.7, M4. Bỏ quy định cũ cấm nêu tên thương mại; **giữ nguyên tắc không bịa số liệu**.
+  3. Trợ lý AI **tự học và ghi nhớ** (`aiMemories`), chủ động đề xuất việc cần làm và điều nên ghi nhớ (M7.1, §5, §6).
+  4. Khuyến cáo theo mùa lấy từ một nguồn `SEASON_ADVICE` (§3.4).
 - **1.1 (24/11/2026)**, theo yêu cầu của chủ vườn, đánh dấu **[1.1]**:
   1. PWA dùng `injectManifest` + `src/sw.ts` (§7.0).
   2. Ghi nhật ký hàng loạt (M2).
@@ -36,17 +41,19 @@ Ngoài phạm vi: backend riêng, đăng nhập nhiều người dùng, iOS app 
 | Lô | Số cây | Tuổi | Cách quản lý |
 |---|---|---|---|
 | **A** | 50 | 1 năm (kiến thiết cơ bản) | Theo **lô** (`LOT_A`): một hồ sơ chung, nhật ký chung, ảnh lô tùy chọn |
-| **B** | 15 (lúc khởi tạo) | 3–5 năm | Theo **từng cây** `SR01`–`SR15`, khởi tạo trống |
+| **B** | 3 (lúc khởi tạo vườn mới) **[1.2]** | 3–5 năm | Theo **từng cây** `SR01`–`SR03`, khởi tạo trống; thêm cây bằng ô "+ Thêm cây" |
 
-**[1.1] Danh sách cây cá thể không khóa cứng 15 cây.**
-- Con số 15 và 50 chỉ dùng **lúc khởi tạo** (hằng `INITIAL_INDIVIDUAL_TREES = 15`, `INITIAL_LOT_A_COUNT = 50`). Code và giao diện không được giả định số cố định.
+**[1.1] Danh sách cây cá thể không khóa cứng số cây.**
+- **[1.2]** Vườn mới khởi tạo **3 cây** `SR01`–`SR03` (hằng `DEFAULT_INITIAL_TREES = 3` trong `src/lib/agronomy.ts`; `src/db/seed.ts` đọc hằng này) và Lô A 50 cây (`INITIAL_LOT_A_COUNT = 50`). Code và giao diện không được giả định số cố định.
+- **[1.2]** Vườn **đã khởi tạo** trước bản 1.2 (đã có `seededAt`) **giữ nguyên** 15 cây — không xóa, không seed lại.
+- **[1.2]** Nhập sao lưu app cũ (`SR01`–`SR15`) vào vườn 3 cây: cây thiếu được tạo với `id = code = 'SRnn'`; cây đã thêm tay có cùng `code` (id UUID) được **vá đúng cây đó**, không tạo cây trùng mã.
 - Người dùng **thêm được cây cá thể mới**.
 - Khi cây Lô A bước sang năm thứ 3, người dùng có thể **tách dần từng cây khỏi Lô A** sang theo dõi cá thể. Cây tách ra vẫn mang `lot: 'A'`; `LOT_A.treeCount` giảm tương ứng.
 - **Tổng số cây** = số cây cá thể chưa xóa + `LOT_A.treeCount`. Mọi KPI, lưới ảnh và máy tính đều tính động từ dữ liệu.
 - **Chống trùng khi đồng bộ:**
   - Hai máy cùng offline thêm cây sẽ cùng nghĩ ra mã "SR16". Nếu dùng mã làm khóa, đồng bộ sẽ **gộp nhầm hai cây khác nhau làm một**.
   - Vì vậy cây thêm mới có `id` là **UUID**, còn mã hiển thị nằm ở trường `code` (sửa được).
-  - Cây khởi tạo giữ `id = code = 'SR01'…'SR15'`.
+  - Cây khởi tạo giữ `id = code = 'SR01'…'SR03'` (vườn tạo trước 1.2: `'SR01'…'SR15'`).
   - Có hai `code` trùng nhau thì hiện huy hiệu "Trùng mã — đổi mã" trên cả hai cây; dữ liệu không bị gộp.
 
 Hai lô có phác đồ phân và nước **riêng**, không gộp chung.
@@ -96,7 +103,7 @@ Ví dụ: mắt cua → thu hoạch = **145–162 ngày**.
 - Mùa khô: **T11–T4**. Mùa mưa: **T5–T10**.
 - App tự chọn mùa theo tháng hiện tại; người dùng có thể đổi tay.
 
-Khuyến cáo tối thiểu theo mùa:
+Khuyến cáo tối thiểu theo mùa. **[1.2]** Nội dung nằm ở **một nơi** `SEASON_ADVICE` trong `src/lib/season.ts`, số liệu đọc từ `agronomy.ts`; banner Tổng quan và prompt AI đều dùng hằng này, không ghi cứng trong giao diện:
 - **Mùa khô:**
   - Tưới theo lịch béc; giữ lớp tủ gốc.
   - Xiết nước làm bông cho Lô B (chỉ cây đã đủ cơi đọt).
@@ -133,7 +140,8 @@ Năm bước gồm: (1) Nhận định → (2) Kiểm tra tại vườn → (3) 
 
 - **[BS]** Yêu cầu gốc gộp "Cháy lá *Rhizoctonia*/Nấm hồng" làm một. Đặc tả này tách thành 2 phác đồ, vì đây là hai tác nhân khác nhau và cách xử lý khác nhau.
 - **[BS]** Luân phiên thuốc phải theo **nhóm cơ chế FRAC/IRAC**. Chỉ đổi tên thương mại mà vẫn cùng nhóm thì không có tác dụng.
-- Mỗi phác đồ đều phải hiện dòng: *"Chỉ dùng hoạt chất có trong Danh mục thuốc BVTV được phép sử dụng tại Việt Nam hiện hành; liều lượng và PHI theo nhãn."*
+- Mỗi phác đồ đều phải hiện dòng (**[1.2]** `PROTOCOL_DISCLAIMER`): *"Chỉ dùng thuốc có trong Danh mục thuốc BVTV được phép sử dụng tại Việt Nam hiện hành; liều pha và PHI đối chiếu nhãn sản phẩm. Giá trong mục Vật tư chỉ để tham khảo."*
+- **[1.2]** Thẻ phác đồ nêu hoạt chất + nhóm; **thương hiệu, quy cách, giá, cách dùng** lấy từ danh mục vật tư §3.7 (`getSuppliesForProtocol(protocolId)`), hiện ngay dưới bước "Hoạt chất luân phiên".
 
 ### 3.6 Cắt tỉa
 
@@ -166,6 +174,29 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 - Vết cắt > 2 cm thì quét keo liền sẹo hoặc thuốc gốc đồng.
 - **[BS]** Khử trùng dụng cụ bằng cồn 70% khi chuyển sang cây khác, để không lây *Phytophthora*.
 
+### 3.7 Danh mục vật tư — thuốc BVTV, phân bón, vật tư [1.2]
+
+**Yêu cầu của chủ vườn:** ghi rõ thương hiệu, quy cách, giá thị trường, cách sử dụng. Quy định cũ cấm nêu tên thương mại **được bỏ**.
+
+**Nguyên tắc dữ liệu — không bịa:**
+- **Thương hiệu, hoạt chất, nhóm FRAC/IRAC, quy cách thường gặp, cách dùng**: ghi cho mọi mục.
+- **Giá**: chỉ ghi khi có **nguồn công khai**, kèm tháng (`asOf: 'YYYY-MM'`) và nguồn (`source`). Hiển thị luôn có chữ "giá tham khảo". Không có nguồn → "Chưa có giá tham khảo".
+- **Liều pha**: chỉ ghi khi có trên **nhãn đăng ký** cho sầu riêng / cây ăn trái. Không chắc → "Theo nhãn đăng ký — đọc kỹ nhãn trước khi pha". Tương tự với PHI.
+- **"Tự học" giá**: chủ vườn ghi `supplyId` + `priceVnd` (giá thực trả cho 1 đơn vị đóng gói) vào nhật ký. App và AI **ưu tiên giá vườn đã mua** (`learnedPrice`, `priceLine`) hơn giá tham khảo.
+- **Cấm**: hoạt chất đã bị loại khỏi Danh mục (`BANNED_ACTIVE_INGREDIENTS`: Carbendazim, Benomyl, Thiophanate-methyl, Chlorpyrifos ethyl, Fipronil, Glyphosate, 2,4-D, Paraquat). Test kiểm danh mục không chứa các chất này.
+- Mọi màn vật tư hiện dòng `SUPPLY_LABEL_NOTE` và `SUPPLY_PRICE_DISCLAIMER`.
+
+**Dữ liệu** (`src/lib/supplies.ts`, hằng `SUPPLIES` — dữ liệu tĩnh của app, không đồng bộ):
+```ts
+type SupplyCategory = 'thuoc_bvtv' | 'phan_bon' | 'vat_tu';
+interface SupplyPrice { rangeVnd: [number, number]; per: string /* 'bao 50 kg' */; asOf: string /* 'YYYY-MM' */; source: string }
+interface SupplyItem { id; category; name /* 'Ridomil Gold 68WG' */; brand /* 'Syngenta' */; activeIngredient;
+  moaGroup? /* 'FRAC 4 + M03' */; packaging: string[]; price?: SupplyPrice; usageGuide; doseNote; phiDays?;
+  protocolIds: string[] /* liên kết PROTOCOLS */; targets: string[]; safetyNote }
+```
+
+**Luân phiên:** `moaGroupOf(log)` (theo `supplyId`, nếu không có thì dò tên hoạt chất) và `rotationAlerts(logs, today, ROTATION_ALERT)`: cùng cây phun **≥ 2 lần cùng nhóm trong 30 ngày** thì nhắc đổi nhóm (hiện ở hồ sơ cây và đưa vào prompt AI).
+
 ## 4. Chức năng
 
 ### M1. Tổng quan và nhắc lịch tuần
@@ -179,7 +210,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 
 **Các phần khác:**
 - Nút đổi **Mùa khô / Mùa mưa** kèm khuyến cáo theo mùa (mục 3.4).
-- Lưới ô ảnh cho **tất cả cây cá thể** (lúc khởi tạo là 15 ô SR01–SR15) **[1.1]**: điện thoại 3 cột, máy tính 5 cột. Mỗi ô hiện mã, tên, số ngày kể từ ảnh gần nhất và trạng thái màu kèm chữ. Bấm vào ô thì mở hồ sơ cây.
+- Lưới ô ảnh cho **tất cả cây cá thể** (vườn mới: 3 ô SR01–SR03) **[1.1][1.2]**, **ô cuối luôn là "+ Thêm cây"** (viền đứt, icon +, mở form thêm cây với mã gợi ý `nextTreeCode`) **[1.2]**: điện thoại 3 cột, máy tính 5 cột. Mỗi ô hiện mã, tên, số ngày kể từ ảnh gần nhất và trạng thái màu kèm chữ. Bấm vào ô thì mở hồ sơ cây.
 - **[BS]** Khối **Hôm nay cần làm**: 5 việc ưu tiên nhất từ M6, kèm link "Xem tất cả".
 
 **Quy tắc trạng thái chụp ảnh tuần.** `d` = số ngày từ ảnh tuần (`kind = weekly`) gần nhất đến hôm nay.
@@ -253,7 +284,8 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 - Khung nhắc khi cắt (mục 3.6).
 
 ### M4. Tra cứu và máy tính
-- **Phác đồ:** 8 thẻ phác đồ (mục 3.5) **[1.1]**, có ô tìm kiếm.
+- **Phác đồ:** 8 thẻ phác đồ (mục 3.5) **[1.1]**, có ô tìm kiếm. Mỗi thẻ có danh sách sản phẩm liên quan (§3.7) **[1.2]**.
+- **[1.2] Vật tư:** tab thứ 4 "Vật tư" — lọc 3 nhóm (Thuốc BVTV / Phân bón / Vật tư), tìm không dấu (`searchSupplies`). Mỗi thẻ: tên, hãng, hoạt chất + nhóm, quy cách, dòng giá (`priceLine`), cách dùng, liều (`doseNote`), lưu ý an toàn. Nút **"Ghi giá mua"** mở form nhật ký có sẵn `supplyId`.
 - **Máy tính Ri6:**
   - Chọn *mắt cua* hoặc *xổ nhụy* rồi nhập ngày.
   - Kết quả là bảng các mốc ở mục 3.2, mỗi mốc ghi khoảng ngày (từ – đến).
@@ -353,6 +385,7 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
 - Hồ sơ vườn (§2) và mùa hiện tại.
 - Quy tắc nông học (§3), lấy **từ cùng hằng số** mà máy tính và thẻ phác đồ dùng.
 - Nếu đã chọn cây: hồ sơ cây, 10 nhật ký gần nhất, các việc cần làm của cây đó.
+- **[1.2]** Khuyến cáo mùa (`SEASON_ADVICE`), danh mục vật tư (§3.7), **ghi nhớ của vườn** đã duyệt (M7.1) và **kinh nghiệm rút từ nhật ký** (`logInsights`: nhắc luân phiên, giá vườn đã mua).
 - **Không bao giờ** chứa token hoặc API key.
 
 **Yêu cầu trả lời** (system instruction):
@@ -361,7 +394,7 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
   2. Mức tin cậy (thấp / vừa / cao).
   3. Cần kiểm tra hoặc chụp thêm gì.
   4. Xử lý: canh tác và nước trước, thuốc sau.
-  5. Hoạt chất theo nhóm FRAC/IRAC, ghi "theo nhãn". **Không** nêu liều hay tên thương mại.
+  5. **[1.2]** Khi đề xuất thuốc/phân/vật tư: nêu **thương hiệu** (ưu tiên danh mục §3.7, ghi kèm mã `[id]`), hoạt chất + nhóm FRAC/IRAC, quy cách, giá (ưu tiên giá vườn đã mua; giá thị trường ghi rõ "giá tham khảo" kèm tháng; **không đoán giá**), cách dùng. Liều pha chỉ nêu khi chắc chắn đúng nhãn đăng ký và luôn kèm "đối chiếu nhãn trước khi pha"; không chắc thì ghi "theo nhãn". Không đề xuất hoạt chất bị cấm.
   6. PHI.
   7. Khi nào cần mời cán bộ khuyến nông hoặc kỹ sư.
 - Không chắc thì phải nói rõ.
@@ -370,7 +403,8 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
 **Đầu ra có cấu trúc:**
 - Dùng `responseMimeType: application/json` với `responseSchema`:
   ```
-  { answer: string (markdown), confidence: 'thap'|'vua'|'cao', actions: [{ title, dueInDays (0–60), targetId? }] }
+  { answer: string (markdown), confidence: 'thap'|'vua'|'cao', actions: [{ title, dueInDays (0–60), targetId? }],
+    learnedMemories?: [{ content, category, targetIds? }] /* [1.2] tối đa 3 */ }
   ```
 - App hiện `answer`. Mỗi `action` có nút **"Thêm vào Việc cần làm"**, tạo bản ghi `tasks` với `source: 'ai'`.
 - Hàm thuần `parseAiActions`:
@@ -380,17 +414,37 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
 
 **Nút "Lưu vào nhật ký"** lưu kết quả thành log loại "Ghi chú AI", để kết quả được đồng bộ.
 
-**Cảnh báo dưới mỗi câu trả lời** (luôn hiện): *"AI chỉ để tham khảo. Thuốc BVTV: dùng theo nhãn và Danh mục được phép tại VN; tuân thủ PHI."* Cảnh báo PHI của app vẫn luôn hiển thị; AI không ghi đè được.
+**Cảnh báo dưới mỗi câu trả lời** (luôn hiện, `AI_DISCLAIMER`): *"AI chỉ để tham khảo. Thuốc BVTV: đối chiếu nhãn và Danh mục được phép tại VN; giá chỉ là tham khảo; tuân thủ PHI."* Cảnh báo PHI của app vẫn luôn hiển thị; AI không ghi đè được.
 
 **Xử lý lỗi.** Lỗi mạng, hết hạn mức (429) hay key sai đều hiện Toast rõ ràng và giữ nguyên câu hỏi để gửi lại.
 
 **[1.1] Fallback khi model không hỗ trợ schema:**
 - Nếu gọi có `responseMimeType: application/json` + `responseSchema` mà bị **HTTP 400**, app **tự gọi lại 1 lần** không kèm hai trường đó.
-- Lần gọi lại hiện câu trả lời Markdown thuần, coi `actions = []` và `confidence` là không rõ. Người dùng không thấy lỗi.
+- Lần gọi lại hiện câu trả lời Markdown thuần, coi `actions = []`, `learnedMemories = []` và `confidence` là không rõ. Người dùng không thấy lỗi.
 - Ghi tên model vào `settings.geminiSchemaUnsupported` (cục bộ). Các lần sau với model đó gọi thẳng chế độ Markdown.
 - Chỉ fallback khi gặp 400. Lỗi 401, 403, 429 và lỗi mạng vẫn xử lý như mục trên.
 
 **Kỹ thuật.** Gọi REST bằng `fetch`, không cần SDK. Ảnh gửi dạng inline base64, đã nén về cạnh dài ≤ 1280 px.
+
+### M7.1 Trợ lý tự học và ghi nhớ [1.2]
+
+**Ý nghĩa của "tự học":** app **ghi nhớ** điều chủ vườn dạy và **rút kinh nghiệm từ nhật ký**, rồi nạp lại vào mỗi câu hỏi. App **không** huấn luyện lại model Gemini. Phải nói rõ điều này ở màn Ghi nhớ.
+
+**Vòng đời một ghi nhớ (`AiMemory`):**
+1. **Đề xuất.** Câu trả lời AI có `learnedMemories[]` (tối đa 3). Dưới câu trả lời hiện từng mục với nút **"Ghi nhớ"** / **"Bỏ qua"** / sửa nội dung. Hàm `deduplicateMemories` bỏ mục trùng (không dấu, không hoa thường) với ghi nhớ đang có. Chủ vườn cũng **tự thêm** được ghi nhớ.
+2. **Duyệt.** `createMemory`: nguồn `manual` → đã duyệt; nguồn `ai` → chờ duyệt cho tới khi bấm "Ghi nhớ" (`approveMemory`).
+3. **Dùng lại.** `selectRelevantMemories(memories, { targetId })`: chỉ mục **đã duyệt, chưa xóa**; có cây đang hỏi thì ưu tiên ghi nhớ của cây đó, rồi ghi nhớ chung, **bỏ ghi nhớ riêng của cây khác**; tối đa `AI_MEMORY.maxInPrompt = 20` mục, mới trước.
+4. **Sửa / xóa.** Màn **Cài đặt → Ghi nhớ của trợ lý** liệt kê theo nhóm (`AI_MEMORY_CATEGORY_LABEL`), sửa (`editMemory`), xóa mềm (`deleteMemory`, có Hoàn tác).
+
+**An toàn:**
+- Nội dung trông như mật khẩu, token, API key (`looksSensitive`) **bị từ chối** ở mọi bước.
+- Mỗi ghi nhớ tối đa `AI_MEMORY.maxLength = 280` ký tự.
+
+**Kinh nghiệm từ nhật ký** (`logInsights`, tính lại mỗi lần, không lưu): nhắc luân phiên khi phun cùng nhóm nhiều lần (§3.7), giá vườn mua gần nhất của từng vật tư.
+
+**Chủ động đề xuất.** AI luôn được yêu cầu đề xuất `actions` (→ "Thêm vào Việc cần làm") và `learnedMemories` khi có thông tin đáng nhớ. Hồ sơ cây hiện nút **"Hỏi AI về cây này"** kèm sẵn ngữ cảnh.
+
+**Đồng bộ:** `aiMemories` là dữ liệu của vườn nên **được đồng bộ** lên repo (khác `aiChats` chỉ cục bộ) và nằm trong file xuất JSON.
 
 ## 5. Mô hình dữ liệu (Dexie, `schemaVersion = 1`)
 
@@ -399,7 +453,7 @@ type ISODate = string;  // 'YYYY-MM-DD' (giờ VN)
 type ISOTime = string;  // ISO 8601 UTC
 interface SyncMeta { id: string; updatedAt: ISOTime; updatedBy: string /*deviceId*/; deletedAt?: ISOTime }
 type Stage = 'kien-thiet'|'coi-dot'|'xiet-nuoc-lam-bong'|'mat-cua'|'xo-nhuy'|'nuoi-trai'|'thu-hoach'|'phuc-hoi';
-interface Tree extends SyncMeta { /* id: 'SR01'..'SR15' khi khởi tạo; cây thêm sau: UUID [1.1] */
+interface Tree extends SyncMeta { /* id: 'SR01'..'SR03' khi khởi tạo [1.2] (vườn cũ 'SR01'..'SR15'); cây thêm sau: UUID [1.1] */
   code: string /* mã hiển thị, vd 'SR16'; sửa được; cảnh báo khi trùng [1.1] */; lot: 'A'|'B' /* [1.1] */;
   label: string; location: string;
   ageYears: number|null /* [1.1] không giới hạn 3–5 */; stage: Stage|null; health: 'tot'|'theo-doi'|'benh';
@@ -409,7 +463,8 @@ interface Lot extends SyncMeta { /* id: 'LOT_A' */ treeCount: number; stage: Sta
 type LogType = 'bon-phan'|'phun-thuoc'|'cat-tia'|'sau-benh'|'lam-bong'|'tuoi'|'do-ph' /* [1.1] */|'ai'|'khac';
 interface Log extends SyncMeta { targetId: string; date: ISODate; type: LogType; note: string;
   activeIngredient?: string; phiDays?: number; fertilizerKind?: FertKind /* bắt buộc khi type = 'bon-phan' */;
-  soilPh?: number /* bắt buộc khi type = 'do-ph', 3.0–9.0 [1.1] */; batchId?: string /* nhật ký hàng loạt [1.1] */ }
+  soilPh?: number /* bắt buộc khi type = 'do-ph', 3.0–9.0 [1.1] */; batchId?: string /* nhật ký hàng loạt [1.1] */;
+  supplyId?: string /* SupplyItem.id [1.2] */; priceVnd?: number /* giá thực trả / 1 đơn vị đóng gói [1.2] */ }
 type FertKind = 'voi-dolomite'|'huu-co-trichoderma'|'dam-ure'|'lan'|'npk'|'khac';
 interface Task extends SyncMeta { /* id = key quy tắc (khi Xong/Hoãn) hoặc UUID (việc tự thêm/AI) */
   title?: string; targetId?: string; dueDate?: ISODate; done: boolean; snoozeUntil?: ISODate;
@@ -424,6 +479,10 @@ interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; a
   notify?: { enabled: boolean; lastNotifiedAt?: ISOTime; lastKeys: string[] };
   geminiSchemaUnsupported?: string[] /* [1.1] */ }
 // Bảng chỉ cục bộ, KHÔNG đồng bộ: aiChats (hội thoại AI, tối đa 50).
+// [1.2] Bảng ĐỒNG BỘ aiMemories (Dexie schema v2, index 'id, updatedAt'):
+type AiMemoryCategory = 'kinh-nghiem'|'so-thich'|'phan-ung'|'vat-tu'|'khac';
+interface AiMemory extends SyncMeta { category: AiMemoryCategory; content: string /* ≤ 280 ký tự */;
+  targetIds?: string[]; source: 'ai'|'manual'|'log'; confidence?: 'thap'|'vua'|'cao'; approved: boolean; createdAt: ISOTime }
 ```
 - Gọi `navigator.storage.persist()` khi khởi động.
 - Bản ghi bị xóa vẫn giữ lại dưới dạng tombstone `deletedAt`, để không "sống lại" khi đồng bộ.
@@ -434,10 +493,10 @@ interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; a
 
 **Cấu trúc repo dữ liệu:**
 ```
-data/state.json                         # { schemaVersion, trees[], lots[], logs[], tasks[], photos[] (chỉ meta) }
+data/state.json                         # { schemaVersion, trees[], lots[], logs[], tasks[], photos[] (chỉ meta), aiMemories[] [1.2] }
 photos/<targetId>/<YYYY-MM-DD>_<photoId>.jpg   # bất biến, không bao giờ sửa
 ```
-`state.json` ghi thụt lề 2 dấu cách, mảng sắp xếp theo `id` để diff ổn định.
+`state.json` ghi thụt lề 2 dấu cách, mảng sắp xếp theo `id` để diff ổn định. **[1.2]** File cũ chưa có `aiMemories` vẫn đọc được (coi là `[]`); `schemaVersion` giữ nguyên 1 vì chỉ thêm khóa tùy chọn.
 
 **Xác thực.** Fine-grained PAT, chỉ cấp cho repo `Ri6-data`, quyền **Contents: Read and write**. Nhập ở Cài đặt của từng máy.
 - *Kiểm tra kết nối* gọi `GET /repos/{repo}`. Báo lỗi nếu `permissions.push` khác `true`. **Cảnh báo đỏ nếu repo không riêng tư.**

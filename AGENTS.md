@@ -68,7 +68,7 @@ Mỗi bên **chỉ sửa thư mục của mình**. Cần thay đổi ở phần 
 - **Offline-first:** không tải gì từ CDN khi chạy (font, icon, CSS đều đóng gói vào bản build).
 - Giao diện tiếng Việt. Tên biến, hàm, file tiếng Anh.
 - **Cấm `alert()`, `confirm()`, `prompt()`** (ESLint `no-alert: "error"`). Dùng Toast và Modal của app.
-- **Logic thuần** đặt trong `src/lib/`, không import React, phải có unit test Vitest. Gồm: tính mốc Ri6, tính nước béc tưới, mức cắt tỉa, trạng thái chụp ảnh, cảnh báo PHI, merge đồng bộ, mã hóa base64 UTF-8, việc cần làm (`buildAgenda`), quyết định thông báo (`shouldNotify`), link Google Calendar, prompt AI (`buildSystemPrompt`, `parseAiActions`).
+- **Logic thuần** đặt trong `src/lib/`, không import React, phải có unit test Vitest. Gồm: tính mốc Ri6, tính nước béc tưới, mức cắt tỉa, trạng thái chụp ảnh, cảnh báo PHI, merge đồng bộ, mã hóa base64 UTF-8, việc cần làm (`buildAgenda`), quyết định thông báo (`shouldNotify`), link Google Calendar, prompt AI (`buildSystemPrompt`, `parseAiActions`, `parseLearnedMemories`), **[1.2]** danh mục vật tư và luân phiên (`supplies.ts`), ghi nhớ AI (`ai/memory.ts`), khuyến cáo mùa (`SEASON_ADVICE`).
 - Các hằng số nông học (SPEC §3) đặt ở **một nơi duy nhất** (`src/lib/agronomy.ts`). Máy tính, thẻ phác đồ, việc cần làm và prompt AI đều đọc từ đó.
 - **Ngày giờ:**
   - Ngày lưu dạng `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh`; mốc thời gian lưu ISO 8601 UTC.
@@ -78,8 +78,10 @@ Mỗi bên **chỉ sửa thư mục của mình**. Cần thay đổi ở phần 
   - Không bao giờ commit GitHub token, Gemini API key, keystore (`*.jks`, `*.keystore`), `.env*` (đưa hết vào `.gitignore`).
   - Khóa chỉ nhập trong màn **Cài đặt** và chỉ lưu trên máy. Khóa **không** có trong file xuất JSON và **không** được đồng bộ lên repo.
 - **Dữ liệu:**
-  - SR01–SR15 và Lô A khởi tạo **trống**, không có lịch sử giả.
-  - Không bịa liều lượng hay tên thương mại thuốc BVTV; chỉ ghi hoạt chất, nhóm cơ chế và chữ "theo nhãn".
+  - Vườn mới khởi tạo SR01–SR03 (`DEFAULT_INITIAL_TREES`) và Lô A **trống**, không có lịch sử giả. Vườn đã khởi tạo trước đó giữ nguyên **[1.2]**.
+  - **[1.2]** Thuốc BVTV, phân bón, vật tư **được ghi thương hiệu, quy cách, giá, cách dùng** — chỉ lấy từ `src/lib/supplies.ts` (SPEC §3.7), không ghi cứng trong giao diện.
+  - **Không bịa số liệu:** giá phải có nguồn + tháng và luôn ghi "giá tham khảo"; liều pha, PHI chỉ ghi khi có trên nhãn đăng ký, không chắc thì "theo nhãn". Không đưa hoạt chất đã bị loại khỏi Danh mục.
+  - **[1.2]** Ghi nhớ AI (`aiMemories`) được đồng bộ; không bao giờ chứa token, API key, mật khẩu.
 - **Giao diện:**
   - Vùng bấm tối thiểu 48×48 px; chữ thân ≥ 16 px; tương phản ≥ 4,5:1.
   - Trạng thái phải có chữ hoặc icon đi kèm màu, không chỉ dùng màu.
