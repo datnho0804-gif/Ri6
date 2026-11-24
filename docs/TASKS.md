@@ -7,7 +7,7 @@
 | Task | Tên | Trạng thái |
 |---|---|---|
 | T01 | Khung dự án, PWA, CI/CD | ✅ Đã merge (PR #7, 25/11) |
-| **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ⏳ Làm ngay sau T01 |
+| **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ✅ Đã duyệt (PR #10, #12) |
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
 | T04 | Cài đặt, đồng bộ GitHub | ⏳ |
