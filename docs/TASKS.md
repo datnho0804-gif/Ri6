@@ -3,6 +3,10 @@
 - Làm theo thứ tự, mỗi task là một nhánh và một PR. Quy trình xem `AGENTS.md`; đặc tả xem `docs/SPEC.md`.
 - Trạng thái do Claude cập nhật sau mỗi lần review.
 - Theo **SPEC 1.1**. Các AC đánh dấu **[1.1]** là phần mới thêm.
+- **Phân công code (AGENTS §1b):**
+  - Mọi AC dạng **"Hàm `…`"**, phần xử lý dữ liệu và client GitHub/Gemini, `src/sw/*` là **Claude (T0x-L)**.
+  - Màn hình, Dexie và phần ghép nối là **Antigravity (T0x-U)**.
+  - Báo cáo `docs/reports/T0x.md` do Antigravity viết, kèm mục "API từ T0x-L đã dùng".
 
 | Task | Tên | Trạng thái |
 |---|---|---|
