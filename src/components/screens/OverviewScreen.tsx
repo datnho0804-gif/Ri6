@@ -11,13 +11,14 @@ import {
 import { useMemo, useState } from 'react';
 import {
   getLatestWeeklyPhotoRecords,
-  getTreePhiDisplay,
+  latestPhiSprayEnd,
   SEASON_BANNER_COPY,
 } from '../../hooks/treePresentation';
 import { SOIL_PH } from '../../lib/agronomy';
 import { formatDateVN, todayVN } from '../../lib/date';
 import { formatNumberVN } from '../../lib/format';
 import { totalTreeCount } from '../../lib/lotSplit';
+import { phiMessage, phiWarning } from '../../lib/phi';
 import { lastWeeklyByTarget, photoStatus } from '../../lib/photoStatus';
 import type { TreeFilter } from '../../lib/treeFilters';
 import type { Log, Lot, Photo, Season, Tree } from '../../types/models';
@@ -43,10 +44,10 @@ interface OverviewScreenProps {
 }
 
 /**
- * M1 Overview screen (SPEC M1, T02 AC1):
+ * M1 Overview screen (SPEC M1, T02 AC1, T03 AC6):
  * - Dynamic total tree count KPI, overdue photo count, union pruning/disease watch count, pH target
  * - Season toggle (Dry/Rainy) with Southeast Vietnam agronomic recommendations
- * - Active PHI harvest conflict alerts
+ * - Active PHI harvest conflict alerts computed via src/lib/phi.ts
  * - Photo grid for ALL active individual trees (3 cols mobile, 5 cols desktop) opening tree profiles
  */
 export function OverviewScreen({
@@ -77,7 +78,7 @@ export function OverviewScreen({
     let overdueCount = 0;
     let dueSoonCount = 0;
     let careAttentionCount = 0; // union of needsPruning OR diseaseWatch/benh (counted once per tree per SPEC M1)
-    const phiAlerts: Array<{ tree: Tree; phiEndDate: string; conflictsHarvest: boolean }> = [];
+    const phiAlerts: Array<{ tree: Tree; message: string; conflictsHarvest: boolean }> = [];
 
     for (const tree of trees) {
       const st = photoStatus(latestWeeklyDates.get(tree.id), today);
@@ -88,13 +89,24 @@ export function OverviewScreen({
         careAttentionCount += 1;
       }
 
-      const phi = getTreePhiDisplay(tree, logs, today);
-      if (phi && (phi.conflictsHarvest || phi.isActiveToday)) {
+      const harvestConflict = tree.flowerDate
+        ? phiWarning(tree.flowerDate, logs, tree.id)
+        : null;
+      if (harvestConflict) {
         phiAlerts.push({
           tree,
-          phiEndDate: phi.phiEndDate,
-          conflictsHarvest: phi.conflictsHarvest,
+          message: phiMessage(harvestConflict),
+          conflictsHarvest: true,
         });
+      } else {
+        const activeSpray = latestPhiSprayEnd(logs, tree.id);
+        if (activeSpray && activeSpray.endDate > today) {
+          phiAlerts.push({
+            tree,
+            message: `Không thu hoạch trước ${formatDateVN(activeSpray.endDate)} (đang trong thời gian cách ly PHI)`,
+            conflictsHarvest: false,
+          });
+        }
       }
     }
 
@@ -192,7 +204,7 @@ export function OverviewScreen({
 
       {stats.phiAlerts.length > 0 && (
         <div className="space-y-2">
-          {stats.phiAlerts.slice(0, 3).map(({ tree, phiEndDate, conflictsHarvest }) => (
+          {stats.phiAlerts.slice(0, 3).map(({ tree, message, conflictsHarvest }) => (
             <Banner
               key={tree.id}
               tone={conflictsHarvest ? 'danger' : 'warn'}
@@ -204,9 +216,7 @@ export function OverviewScreen({
               }
             >
               <span className="tabular-nums">
-                <strong>{tree.code}:</strong> Không thu hoạch trước{' '}
-                <strong>{formatDateVN(phiEndDate)}</strong>
-                {conflictsHarvest ? ' (vượt mốc thu sớm nhất Ri6).' : ' (đang trong thời gian cách ly PHI).'}
+                <strong>{tree.code}:</strong> {message}.
               </span>
             </Banner>
           ))}

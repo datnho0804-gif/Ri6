@@ -1,7 +1,6 @@
 import { CheckCircle2, Cloud, CloudOff, Plus } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OverviewScreen } from './components/screens/OverviewScreen';
-import { PlaceholderTab } from './components/screens/PlaceholderTab';
 import { Banner } from './components/ui/Banner';
 import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
@@ -14,18 +13,18 @@ import { Skeleton } from './components/ui/Skeleton';
 import { Snackbar } from './components/ui/Snackbar';
 import { StatusPill } from './components/ui/StatusPill';
 import { TopAppBar } from './components/ui/TopAppBar';
-import { LOT_A_ID } from './db/seed';
+import { generateDeviceId, LOT_A_ID } from './db/seed';
 import { useOrchardData } from './hooks/useOrchardData';
 import { usePwa } from './hooks/usePwa';
 import { useSnackbar } from './hooks/useSnackbar';
 import { useThemeColor } from './hooks/useThemeColor';
-import { todayVN } from './lib/date';
+import { nowUTC, todayVN } from './lib/date';
 import { formatHeaderDateVN } from './lib/format';
 import { triggerHaptic } from './lib/haptics';
 import { effectiveSeason as resolveSeason } from './lib/season';
 import { duplicateCodes } from './lib/treeCodes';
 import type { TreeFilter } from './lib/treeFilters';
-import type { Log, Season, TabId, Tree, ViewId } from './types/models';
+import type { Log, PhotoKind, Season, TabId, Tree, ViewId } from './types/models';
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -50,6 +49,16 @@ const TreeProfileScreen = lazy(() =>
 const LotADetailScreen = lazy(() =>
   import('./components/screens/LotADetailScreen').then((m) => ({
     default: m.LotADetailScreen,
+  })),
+);
+const PruningScreen = lazy(() =>
+  import('./components/screens/PruningScreen').then((m) => ({
+    default: m.PruningScreen,
+  })),
+);
+const ReferenceScreen = lazy(() =>
+  import('./components/screens/ReferenceScreen').then((m) => ({
+    default: m.ReferenceScreen,
   })),
 );
 const SettingsScreen = lazy(() =>
@@ -360,6 +369,31 @@ export function App() {
       showSnackbar('Đã lưu ảnh cho Lô A.', { tone: 'ok' });
     },
     [hapticsEnabled, orchard, showSnackbar],
+  );
+
+  const handleSavePruningAssessment = useCallback(
+    async (tree: Tree, note: string) => {
+      await orchard.updateTree(tree, { needsPruning: true });
+      const now = nowUTC();
+      const log: Log = {
+        id: generateDeviceId(),
+        targetId: tree.id,
+        date: todayVN(),
+        type: 'cat-tia',
+        note,
+        updatedAt: now,
+        updatedBy: deviceId,
+      };
+      await orchard.saveLogs([log]);
+    },
+    [deviceId, orchard],
+  );
+
+  const handleCapturePrunePhoto = useCallback(
+    async (tree: Tree, file: File, kind: PhotoKind) => {
+      await orchard.saveCapturedPhoto(tree.id, file, kind);
+    },
+    [orchard],
   );
 
   const handleDemoUndoSnackbar = useCallback(
@@ -683,11 +717,38 @@ export function App() {
                     onNotify={notify}
                   />
                 </Suspense>
+              ) : activeView === 'pruning' ? (
+                <Suspense
+                  fallback={
+                    <div className="space-y-3">
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </div>
+                  }
+                >
+                  <PruningScreen
+                    trees={orchard.trees}
+                    photos={orchard.photos}
+                    thumbUrls={orchard.thumbUrls}
+                    season={effectiveSeason}
+                    hapticsEnabled={hapticsEnabled}
+                    onSavePruningAssessment={handleSavePruningAssessment}
+                    onCapturePrunePhoto={handleCapturePrunePhoto}
+                    getPhotoFullUrl={orchard.getPhotoFullUrl}
+                    onNotify={notify}
+                  />
+                </Suspense>
               ) : (
-                <PlaceholderTab
-                  tab={activeView}
-                  onBackOverview={() => navigateToView('overview')}
-                />
+                <Suspense
+                  fallback={
+                    <div className="space-y-3">
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </div>
+                  }
+                >
+                  <ReferenceScreen trees={orchard.trees} lotA={orchard.lotA} />
+                </Suspense>
               )}
             </div>
           </main>

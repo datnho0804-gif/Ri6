@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOverlayBack } from '../../hooks/useOverlayBack';
 import { Button } from './Button';
@@ -126,10 +127,10 @@ function BottomSheetContent({
     }
   };
 
-  return (
+  const content = (
     <>
       <div
-        className="fixed inset-x-0 top-0 z-40 flex items-end justify-center bg-scrim animate-fade-in"
+        className="fixed inset-x-0 top-0 z-50 flex items-end justify-center bg-scrim animate-fade-in"
         style={{ bottom: `${viewportMetrics.bottomInset}px` }}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) {
@@ -174,8 +175,13 @@ function BottomSheetContent({
             </IconButton>
           </div>
 
-          {/* Scrollable form body */}
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-5">{children}</div>
+          {/* Scrollable form/detail body (tabIndex=0 for keyboard scrolling when content is read-only) */}
+          <div
+            tabIndex={0}
+            className="flex-1 overflow-y-auto overscroll-contain px-4 pb-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+          >
+            {children}
+          </div>
 
           {/* Sticky bottom action bar (never obscured by keyboard) */}
           {footer && (
@@ -221,4 +227,6 @@ function BottomSheetContent({
       </Dialog>
     </>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

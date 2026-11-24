@@ -16,13 +16,15 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import sampleCanopyUrl from '../../assets/sample-canopy.svg';
 import { copyTextToClipboard } from '../../hooks/clipboard';
-import { buildRi6PreviewRows, getTreePhiDisplay } from '../../hooks/treePresentation';
+import { formatMilestoneDates, latestPhiSprayEnd } from '../../hooks/treePresentation';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { buildTreeCopyPrompt } from '../../lib/copyPrompt';
-import { diffDays, formatDateVN, todayVN } from '../../lib/date';
+import { formatDateVN, todayVN } from '../../lib/date';
 import { formatBytesVN, formatRelativeDateVN, formatShortDateVN } from '../../lib/format';
 import { triggerHaptic } from '../../lib/haptics';
 import { HEALTH_LABEL, PHOTO_KIND_LABEL, STAGE_LABEL } from '../../lib/labels';
+import { phiMessage, phiWarning, sprayLogsWithoutPhi } from '../../lib/phi';
+import { harvestWindow, ri6Day, ri6Milestones } from '../../lib/ri6';
 import type {
   ISODate,
   Log,
@@ -87,7 +89,7 @@ const HEALTH_OPTIONS = (Object.entries(HEALTH_LABEL) as Array<[TreeHealth, strin
 );
 
 /**
- * Full-bleed M2 Tree Profile screen matching docs/design/mockup.jpg panel #2 (T02 AC4, AC5, AC6).
+ * Full-bleed M2 Tree Profile screen matching docs/design/mockup.jpg panel #2 (T02 AC4–AC6, T03 AC6).
  */
 export function TreeProfileScreen({
   tree,
@@ -141,11 +143,22 @@ export function TreeProfileScreen({
 
   const heroSrc = latestWeeklyPhoto ? thumbUrls.get(latestWeeklyPhoto.id) : undefined;
   const isDuplicate = duplicateCodeSet.has(tree.code.trim().toUpperCase());
-  const phiInfo = useMemo(() => getTreePhiDisplay(tree, logs, today), [logs, today, tree]);
-  const forecastRows = useMemo(() => buildRi6PreviewRows(tree), [tree]);
 
-  const daysSinceFlower = tree.flowerDate ? Math.max(0, diffDays(tree.flowerDate, today)) : null;
-  const harvestRow = forecastRows.find((r) => r.key === 'thu-hoach');
+  const harvestPhiWarning = useMemo(
+    () => (tree.flowerDate ? phiWarning(tree.flowerDate, logs, tree.id) : null),
+    [logs, tree.flowerDate, tree.id],
+  );
+  const latestSprayPhi = useMemo(() => latestPhiSprayEnd(logs, tree.id), [logs, tree.id]);
+  const missingPhiCount = useMemo(() => sprayLogsWithoutPhi(logs, tree.id).length, [logs, tree.id]);
+
+  const forecastRows = useMemo(() => {
+    if (tree.flowerDate) return ri6Milestones({ kind: 'xo-nhuy', date: tree.flowerDate });
+    if (tree.budDate) return ri6Milestones({ kind: 'mat-cua', date: tree.budDate });
+    return [];
+  }, [tree.budDate, tree.flowerDate]);
+
+  const daysSinceFlower = tree.flowerDate ? Math.max(0, ri6Day(tree.flowerDate, today)) : null;
+  const expectedHarvest = tree.flowerDate ? harvestWindow(tree.flowerDate) : null;
   const fruitOverLimit =
     tree.fruitCount !== undefined &&
     tree.fruitLimit !== undefined &&
@@ -296,35 +309,43 @@ export function TreeProfileScreen({
           </Banner>
         )}
 
-        {/* Active PHI conflict warning (SPEC M2) */}
-        {phiInfo && (phiInfo.conflictsHarvest || phiInfo.isActiveToday) && (
-          <Banner
-            tone={phiInfo.conflictsHarvest ? 'danger' : 'warn'}
-            icon={<AlertTriangle className="w-5 h-5" />}
-          >
+        {/* Active PHI conflict warning (SPEC M2 & T03 AC6) */}
+        {harvestPhiWarning ? (
+          <Banner tone="danger" icon={<AlertTriangle className="w-5 h-5" />}>
+            <span className="tabular-nums font-semibold">{phiMessage(harvestPhiWarning)}</span>
+          </Banner>
+        ) : latestSprayPhi && latestSprayPhi.endDate > today ? (
+          <Banner tone="warn" icon={<AlertTriangle className="w-5 h-5" />}>
             <span className="tabular-nums">
-              Không thu hoạch trước <strong>{formatDateVN(phiInfo.phiEndDate)}</strong> (phun{' '}
-              {phiInfo.activeIngredient} ngày {formatShortDateVN(phiInfo.logDate)}, PHI{' '}
-              {phiInfo.phiDays} ngày).
+              Không thu hoạch trước <strong>{formatDateVN(latestSprayPhi.endDate)}</strong> (phun{' '}
+              {latestSprayPhi.log.activeIngredient?.trim() || 'chưa rõ'} ngày{' '}
+              {formatShortDateVN(latestSprayPhi.log.date)}, PHI {latestSprayPhi.log.phiDays} ngày).
             </span>
+          </Banner>
+        ) : null}
+
+        {missingPhiCount > 0 && (
+          <Banner tone="info" icon={<AlertTriangle className="w-5 h-5" />}>
+            Có {missingPhiCount} lần phun thuốc chưa ghi số ngày cách ly (PHI). Hãy kiểm tra lại
+            trong tab Nhật ký để cảnh báo thu hoạch luôn chính xác.
           </Banner>
         )}
 
-        {/* Ri6 Progress card when flowerDate is recorded (mockup #2) */}
+        {/* Ri6 Progress card when flowerDate is recorded (mockup #2 & T03 AC6) */}
         {daysSinceFlower !== null && tree.flowerDate && (
           <Ri6Progress day={daysSinceFlower} subtitle={`sau xổ nhụy ${formatShortDateVN(tree.flowerDate)}`}>
-            {harvestRow && (
+            {expectedHarvest && (
               <Banner tone="tc" icon={<Calendar className="w-5 h-5" />}>
                 <strong className="tabular-nums">
-                  Thu hoạch dự kiến {formatShortDateVN(harvestRow.from)} –{' '}
-                  {formatShortDateVN(harvestRow.to ?? harvestRow.from)}
+                  Thu hoạch dự kiến {formatShortDateVN(expectedHarvest.from)} –{' '}
+                  {formatShortDateVN(expectedHarvest.to)}
                 </strong>
               </Banner>
             )}
-            {phiInfo && !phiInfo.conflictsHarvest && (
+            {latestSprayPhi && !harvestPhiWarning && (
               <Banner tone="ok" icon={<ShieldCheck className="w-5 h-5" />}>
                 <span className="tabular-nums">
-                  Hết PHI ngày {formatShortDateVN(phiInfo.phiEndDate)} — an toàn trước mốc thu sớm nhất
+                  Hết PHI ngày {formatShortDateVN(latestSprayPhi.endDate)} — an toàn trước mốc thu sớm nhất
                 </span>
               </Banner>
             )}
@@ -534,9 +555,7 @@ export function TreeProfileScreen({
                     subtitle={row.note}
                     trailing={
                       <span className="tabular-nums text-text">
-                        {row.to
-                          ? `${formatShortDateVN(row.from)} – ${formatShortDateVN(row.to)}`
-                          : `Từ ${formatShortDateVN(row.from)}`}
+                        {formatMilestoneDates(row)}
                       </span>
                     }
                   />
