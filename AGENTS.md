@@ -16,7 +16,7 @@
 ## 2. Quy trình mỗi task
 
 1. `git checkout main && git pull`.
-2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T05**, mỗi lần một task.
+2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T06**, mỗi lần một task.
 3. Tạo nhánh từ `main`: `ag/T0x-<ten-ngan>` (ví dụ `ag/T01-khung-du-an`).
 4. Viết code. Trước **mỗi lần push**, các lệnh sau phải chạy xanh:
    ```bash
@@ -34,6 +34,11 @@
 - **Stack cố định:** Vite, React, TypeScript (`strict: true`), Tailwind CSS, `lucide-react`, Dexie (IndexedDB), `vite-plugin-pwa`, Vitest, ESLint. Capacitor chỉ thêm từ T05.
   Muốn thêm thư viện khác thì phải nêu lý do trong báo cáo.
 - Dùng Node 20 LTS trở lên. Commit `package-lock.json`.
+- **Phiên bản** (bắt buộc từ T05, xem SPEC §7.1). Mỗi PR có thay đổi app phải tăng `version` trong `package.json`:
+  - sửa lỗi → tăng PATCH;
+  - thêm tính năng → tăng MINOR.
+
+  Thay đổi phần native phải tăng thêm `ri6.nativeVersion`. Merge vào `main` là tự phát hành, nên **không bao giờ** gắn tag hay tạo Release bằng tay.
 - **Offline-first:** không tải gì từ CDN khi chạy (font, icon, CSS đều đóng gói vào bản build).
 - Giao diện tiếng Việt. Tên biến, hàm, file tiếng Anh.
 - **Cấm `alert()`, `confirm()`, `prompt()`** (ESLint `no-alert: "error"`). Dùng Toast và Modal của app.
