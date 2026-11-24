@@ -1,11 +1,8 @@
 import {
   AlertTriangle,
-  BookOpen,
   Camera,
   CheckCircle2,
-  Database,
-  Palette,
-  Scissors,
+  HardDrive,
   Sprout,
   Sun,
 } from 'lucide-react';
@@ -30,7 +27,6 @@ interface PlaceholderTabProps {
   onOpenSampleSheet: () => void;
   onOpenDemoDialog: () => void;
   onDemoUndoSnackbar: () => void;
-  onOpenDesignShowcase: () => void;
   onNavigateTab: (tab: TabId) => void;
 }
 
@@ -42,7 +38,6 @@ export function PlaceholderTab({
   onOpenSampleSheet,
   onOpenDemoDialog,
   onDemoUndoSnackbar,
-  onOpenDesignShowcase,
   onNavigateTab,
 }: PlaceholderTabProps) {
   const [checkedPhotoTask, setCheckedPhotoTask] = useState(false);
@@ -59,8 +54,8 @@ export function PlaceholderTab({
           icon={<Sun className="w-6 h-6" />}
           title="Mùa khô · Lộc Tấn, Đồng Nai"
         >
-          Giữ ẩm gốc bằng béc tưới, theo dõi nhện đỏ &amp; rầy xanh trên đọt non. Dữ liệu vườn khởi
-          tạo trống — sẵn sàng cho T02.
+          Giữ ẩm gốc bằng béc tưới, soi nhện đỏ &amp; rầy xanh trên đọt non. Sổ tay đã sẵn sàng để
+          bắt đầu ghi chép cho vườn.
         </Banner>
 
         {dbState ? (
@@ -96,37 +91,27 @@ export function PlaceholderTab({
         <section aria-labelledby="sec-today-heading">
           <div className="flex items-baseline justify-between px-0.5 mb-2">
             <h2 id="sec-today-heading" className="text-title font-bold text-text">
-              Sẵn sàng vận hành
+              Cần chuẩn bị
             </h2>
-            <button
-              type="button"
-              onClick={onOpenDesignShowcase}
-              className="pressable min-h-12 px-2 inline-flex items-center gap-1.5 text-label font-semibold text-primary rounded-sm"
-            >
-              <Palette className="w-4 h-4" aria-hidden="true" />
-              Xem #/design
-            </button>
           </div>
           <Card padding="none">
             <ListItem
               leadingIcon={<Camera className="w-5.5 h-5.5" />}
               leadingTone="tc"
-              title="Chụp ảnh gốc Lô B (SR01–SR15)"
-              subtitle="Khởi tạo trống theo quy tắc · mở ở bước T02"
+              title={`Sắp có: chụp ảnh gốc cho ${treeCount || 15} cây Lô B`}
+              subtitle="Theo dõi tán cây hằng tuần ngay trên máy"
               checked={checkedPhotoTask}
               onToggleCheck={() => setCheckedPhotoTask((v) => !v)}
             />
             <ListItem
               divider
-              leadingIcon={<Database className="w-5.5 h-5.5" />}
+              leadingIcon={<HardDrive className="w-5.5 h-5.5" />}
               leadingTone={dbState?.versionError ? 'danger' : 'ok'}
-              title={`Cơ sở dữ liệu Dexie v1 (${dbState?.tableCount ?? 8} bảng)`}
+              title="Dữ liệu vườn trên máy"
               subtitle={
                 dbState
-                  ? `Lô B: ${treeCount} cây · Lô A: ${lotACount} cây · ${
-                      dbState.persistentGranted ? 'Bộ nhớ bền vững: Đã cấp' : 'Bộ nhớ: Chưa cấp'
-                    }`
-                  : 'Đang khởi tạo cơ sở dữ liệu offline…'
+                  ? `Lô B: ${treeCount} cây · Lô A: ${lotACount} cây · lưu ngoại tuyến`
+                  : 'Đang mở dữ liệu vườn…'
               }
               trailing={
                 dbState?.versionError ? (
@@ -165,19 +150,19 @@ export function PlaceholderTab({
           </div>
         </section>
 
-        {/* Quick D01 interactive controls */}
+        {/* Preview interactive actions without developer jargon */}
         <Card padding="md" className="space-y-3">
-          <h2 className="text-title font-bold text-text">Kiểm thử nhanh hệ thống thiết kế</h2>
+          <h2 className="text-title font-bold text-text">Bản xem trước thao tác</h2>
           <p className="text-caption text-text-2">
-            Mở các lớp nổi Material 3 mới của D01: BottomSheet (có kéo đóng &amp; cảnh báo bỏ nháp),
-            Dialog và Snackbar có nút Hoàn tác.
+            Thử nhanh thông báo hoàn tác trong 5 giây hoặc hộp xác nhận trước khi tính năng lưu dữ
+            liệu hoàn thiện.
           </p>
           <div className="flex flex-wrap gap-2.5">
             <Button variant="tonal" onClick={onDemoUndoSnackbar}>
-              Thử Snackbar Hoàn tác
+              Thử hoàn tác
             </Button>
             <Button variant="outlined" onClick={onOpenDemoDialog}>
-              Mở Dialog xác nhận
+              Xem hộp xác nhận
             </Button>
           </div>
         </Card>
@@ -191,10 +176,10 @@ export function PlaceholderTab({
         <EmptyState
           illustration="durian"
           title={`Danh sách cây (${treeCount} Lô B · ${lotACount} Lô A)`}
-          description="Hồ sơ từng cây SR01–SR15, tách cây khỏi Lô A, dòng thời gian ảnh tuần 1600 px WebP và ghi nhật ký hàng loạt sẽ triển khai ở T02."
+          description="Sắp có: quản lý hồ sơ từng cây SR01–SR15, tách cây khỏi Lô A, lưu ảnh chụp hằng tuần và ghi nhật ký chăm sóc hàng loạt."
           action={
             <Button variant="filled" size="lg" onClick={onOpenSampleSheet}>
-              Mở biểu mẫu Ghi nhật ký mẫu
+              Xem trước biểu mẫu Ghi nhật ký
             </Button>
           }
         />
@@ -203,7 +188,7 @@ export function PlaceholderTab({
             leadingIcon={<Sprout className="w-5.5 h-5.5" />}
             leadingTone="ok"
             title="Cây cá thể (Lô B)"
-            subtitle="Khởi tạo trống SR01–SR15, không tạo lịch sử giả"
+            subtitle="Khởi tạo trống SR01–SR15, chưa có lịch sử chăm sóc"
             trailing={`${treeCount} cây`}
           />
           <ListItem
@@ -211,7 +196,7 @@ export function PlaceholderTab({
             leadingIcon={<Sprout className="w-5.5 h-5.5" />}
             leadingTone="tc"
             title="Lô A (cây kiến thiết)"
-            subtitle="Quản lý theo lô, hỗ trợ tách cây cá thể ở T02"
+            subtitle="Theo dõi theo lô và tách cây riêng khi cần"
             trailing={`${lotACount} cây`}
           />
         </Card>
@@ -224,14 +209,10 @@ export function PlaceholderTab({
       <EmptyState
         illustration="camera"
         title="Phân tích cắt tỉa & 3 góc chụp chuẩn"
-        description="Checklist 6 dấu hiệu cắt tỉa, chấm mức độ (Không cần / Nhẹ / Vừa / Mạnh), cảnh báo chồi gốc ghép và 3 ô ảnh chuẩn sẽ triển khai ở T03."
+        description="Sắp có: kiểm tra 6 dấu hiệu cắt tỉa, tự gợi ý mức độ (Không cần / Nhẹ / Vừa / Mạnh), nhắc bỏ chồi gốc ghép và lưu 3 góc chụp tán cây."
         action={
-          <Button
-            variant="tonal"
-            leadingIcon={<Scissors className="w-5 h-5" />}
-            onClick={onOpenDesignShowcase}
-          >
-            Xem component ở #/design
+          <Button variant="tonal" onClick={() => onNavigateTab('overview')}>
+            Quay lại Tổng quan
           </Button>
         }
       />
@@ -242,14 +223,10 @@ export function PlaceholderTab({
     <EmptyState
       illustration="logs"
       title="Tra cứu phác đồ & Máy tính Ri6"
-      description="8 phác đồ sâu bệnh × 5 bước (FRAC/IRAC + PHI), máy tính mốc sinh lý giống Ri6 (0–105 ngày) và máy tính lưu lượng béc tưới sẽ triển khai ở T03."
+      description="Sắp có: tra cứu 8 phác đồ sâu bệnh theo hoạt chất & thời gian cách ly, tính mốc nuôi trái Ri6 (0–105 ngày) và tính lượng nước béc tưới."
       action={
-        <Button
-          variant="tonal"
-          leadingIcon={<BookOpen className="w-5 h-5" />}
-          onClick={onOpenDesignShowcase}
-        >
-          Xem thanh Ri6Progress ở #/design
+        <Button variant="tonal" onClick={() => onNavigateTab('overview')}>
+          Quay lại Tổng quan
         </Button>
       }
     />

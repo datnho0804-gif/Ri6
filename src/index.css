@@ -291,12 +291,12 @@
 }
 
 .main-safe-bottom {
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(10rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 840px) {
   .main-safe-bottom {
-    padding-bottom: 2.5rem;
+    padding-bottom: 6rem;
   }
 }
 

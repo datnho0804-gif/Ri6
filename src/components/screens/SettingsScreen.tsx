@@ -18,6 +18,7 @@ interface SettingsScreenProps {
   dbState: DatabaseInitResult | null;
   isStandalone: boolean;
   hapticsEnabled: boolean;
+  showDesignEntry: boolean;
   onToggleHaptics: (next: boolean) => void;
   onInstallClick: () => void;
   onOpenDesignShowcase: () => void;
@@ -28,6 +29,7 @@ export function SettingsScreen({
   dbState,
   isStandalone,
   hapticsEnabled,
+  showDesignEntry,
   onToggleHaptics,
   onInstallClick,
   onOpenDesignShowcase,
@@ -74,7 +76,7 @@ export function SettingsScreen({
                 Rung nhẹ khi lưu thao tác
               </div>
               <p className="text-caption text-text-3 leading-snug mt-0.5">
-                Rung 10 ms khi lưu nhật ký hoặc hoàn tất việc (tắt nếu không cần).
+                Phản hồi rung ngắn khi lưu nhật ký hoặc đánh dấu xong việc.
               </p>
             </div>
             <button
@@ -105,7 +107,7 @@ export function SettingsScreen({
         </Card>
       </section>
 
-      {/* PWA Install Section */}
+      {/* Install Section */}
       <section aria-labelledby="sec-pwa-heading">
         <h2 id="sec-pwa-heading" className="text-title font-bold text-text px-0.5 mb-2">
           Cài ứng dụng ra màn hình chính
@@ -114,7 +116,7 @@ export function SettingsScreen({
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 text-body font-semibold text-text">
               <Smartphone className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
-              <span>Trạng thái PWA</span>
+              <span>Chế độ mở ứng dụng</span>
             </div>
             {isStandalone ? (
               <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
@@ -129,13 +131,13 @@ export function SettingsScreen({
 
           {isStandalone ? (
             <p className="text-caption text-text-2">
-              Ứng dụng đang chạy toàn màn hình và tự cập nhật khi có phiên bản mới.
+              Ứng dụng đang chạy toàn màn hình và tự cập nhật khi có bản mới.
             </p>
           ) : (
             <>
               <p className="text-caption text-text-2">
-                Cài từ Chrome để mở toàn màn hình, chạy offline ngoài vườn và tự cập nhật khi có bản
-                mới.
+                Cài từ Chrome để mở toàn màn hình, dùng không cần mạng ngoài vườn và tự cập nhật khi
+                có bản mới.
               </p>
               <Button
                 variant="filled"
@@ -153,18 +155,18 @@ export function SettingsScreen({
       {/* Device & Storage Info */}
       <section aria-labelledby="sec-storage-heading">
         <h2 id="sec-storage-heading" className="text-title font-bold text-text px-0.5 mb-2">
-          Thiết bị &amp; Lưu trữ offline
+          Thiết bị &amp; Lưu trữ ngoại tuyến
         </h2>
         <Card padding="none">
           <ListItem
             title="Phiên bản ứng dụng"
-            subtitle="Tự nhúng từ package.json khi build"
+            subtitle="Tự cập nhật khi có bản mới"
             trailing={<span className="font-mono text-text">v{appVersion}</span>}
           />
           <ListItem
             divider
-            title="Mã thiết bị (deviceId)"
-            subtitle={dbState?.settings.deviceId ?? 'Đang khởi tạo…'}
+            title="Mã máy"
+            subtitle={dbState?.settings.deviceId ?? 'Đang tạo…'}
           />
           <ListItem
             divider
@@ -193,27 +195,29 @@ export function SettingsScreen({
         icon={<AlertTriangle className="w-5 h-5" />}
         title="Lưu ý giữ an toàn dữ liệu"
       >
-        Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ GitHub
-        (sẽ mở ở T04) để luôn có bản sao.
+        Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ sao
+        lưu khi tính năng sẵn sàng để luôn có bản dự phòng.
       </Banner>
 
-      {/* Upcoming sync / AI note + QA Design showcase shortcut */}
+      {/* Upcoming sync / AI note (+ #/design link only in dev or ?design=1 mode) */}
       <Card padding="none">
         <ListItem
           leadingIcon={<Info className="w-5.5 h-5.5" />}
           leadingTone="info"
-          title="Đồng bộ GitHub & Trợ lý AI"
-          subtitle="Khóa GitHub token (T04) và Gemini API key (T06) chỉ lưu trên máy, không xuất JSON và không đồng bộ lên repo."
+          title="Sao lưu & Trợ lý AI"
+          subtitle="Sắp có: đồng bộ sao lưu hai chiều và trợ lý chăm sóc vườn. Các khóa kết nối chỉ lưu trên máy này, không xuất ra ngoài."
         />
-        <ListItem
-          divider
-          leadingIcon={<Palette className="w-5.5 h-5.5" />}
-          leadingTone="ph"
-          title="Trang hệ thống thiết kế (#/design)"
-          subtitle="Mở bộ sưu tập mọi component ở mọi trạng thái để kiểm tra nhanh"
-          showChevron
-          onClick={onOpenDesignShowcase}
-        />
+        {showDesignEntry && (
+          <ListItem
+            divider
+            leadingIcon={<Palette className="w-5.5 h-5.5" />}
+            leadingTone="ph"
+            title="Hệ thống thiết kế (#/design)"
+            subtitle="Xem toàn bộ component ở các trạng thái"
+            showChevron
+            onClick={onOpenDesignShowcase}
+          />
+        )}
       </Card>
     </div>
   );
