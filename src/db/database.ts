@@ -109,11 +109,12 @@ export async function initDatabase(
   appVersion: string,
   database: Ri6Database = db
 ): Promise<DatabaseInitResult> {
-  const storageInfo = await requestPersistentStorage();
+  const storagePromise = requestPersistentStorage();
 
   try {
     await database.open();
   } catch (err) {
+    const storageInfo = await storagePromise;
     if (err instanceof Error && err.name === 'VersionError') {
       return {
         settings: createInitialSettings(generateDeviceId(), appVersion),
@@ -171,8 +172,11 @@ export async function initDatabase(
     }
   );
 
-  const activeTrees = await database.trees.filter((t) => !t.deletedAt).count();
-  const lotA = await database.lots.get(LOT_A_ID);
+  const [activeTrees, lotA, storageInfo] = await Promise.all([
+    database.trees.filter((t) => !t.deletedAt).count(),
+    database.lots.get(LOT_A_ID),
+    storagePromise,
+  ]);
 
   return {
     settings,

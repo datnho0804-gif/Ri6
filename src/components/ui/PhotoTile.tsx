@@ -58,14 +58,16 @@ export function PhotoTile({
           className="w-full h-full object-cover"
         />
       ) : (
-        <span className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 pt-7 text-text-2 text-center">
-          <Camera className="w-6 h-6 text-primary shrink-0" aria-hidden="true" />
-          <span className="text-label font-semibold leading-tight">{emptyLabel}</span>
+        <span className="w-full h-full flex flex-col items-center justify-center gap-0.5 px-2 pt-7 pb-9 text-text-2 text-center">
+          <Camera className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
+          <span className="text-label font-semibold leading-tight truncate max-w-full">
+            {emptyLabel}
+          </span>
         </span>
       )}
 
-      {src && statusLabel && (
-        <span className="absolute left-1 bottom-1 right-1 z-10 flex">
+      {statusLabel && (
+        <span className="absolute left-1.5 bottom-1.5 right-1.5 z-10 flex justify-center">
           <StatusPill
             tone={statusTone}
             icon={statusIcon}

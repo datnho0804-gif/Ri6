@@ -44,7 +44,7 @@ export function usePwa() {
     navigator.serviceWorker?.addEventListener('controllerchange', handleControllerChange);
 
     registerSW({
-      immediate: true,
+      immediate: false,
     });
 
     return () => {
