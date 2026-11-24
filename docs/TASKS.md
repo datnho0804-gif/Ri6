@@ -53,6 +53,12 @@
 - Có nút **"Cài app lên điện thoại"** theo SPEC §7.0, gồm cả nhánh `beforeinstallprompt` lẫn Modal hướng dẫn và mẹo cho Xiaomi.
 - Báo cáo có ảnh app chạy toàn màn hình sau khi cài từ Chrome Android. Dùng máy thật hoặc emulator; nếu không có thì ghi rõ lý do.
 
+**AC7b. Logo trái sầu riêng** (SPEC §8.1).
+- Có `public/icons/logo.svg` và đủ bộ icon sinh từ file đó.
+- Header dùng logo này.
+- Manifest khai báo icon `purpose: "maskable"`.
+- Báo cáo kèm ảnh: logo ở 512 px và 48 px; icon trên màn hình chính Android (hoặc ảnh xem trước trên maskable.app với mặt nạ tròn).
+
 **AC8. Đường dẫn gốc.**
 - Build cho Pages dùng `base '/Ri6/'`. Có sẵn cơ chế (biến môi trường hoặc mode) để build `base './'` cho APK sau này.
 

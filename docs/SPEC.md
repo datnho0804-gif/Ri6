@@ -529,3 +529,40 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
   - Máy tính: thanh điều hướng trên.
 - Thao tác một tay; vùng bấm ≥ 48 px; tương phản cao để đọc được ngoài nắng.
 - Không dùng `alert/confirm/prompt`; dùng Toast và Modal (có focus trap, đóng bằng Esc hoặc Back).
+
+### 8.1 Logo — một trái sầu riêng [BS]
+
+**File gốc duy nhất:** `public/icons/logo.svg`, vẽ vector tay. Không dùng ảnh chụp, ảnh AI hay clipart có bản quyền. Mọi icon khác đều sinh ra từ file này.
+
+**Hình vẽ:**
+- **Một** trái sầu riêng, dáng bầu dục đứng, hơi thuôn về phía cuống. Cuống ngắn và mập ở đỉnh.
+- Vỏ có gai tam giác, vẽ đơn giản: 4–6 gai lộ ra ở viền, khoảng 6–10 gai bên trong.
+- Một **múi bổ hé** lộ cơm vàng. Đây là chi tiết để phân biệt với trái mít ở kích thước nhỏ.
+- Phong cách phẳng (flat), nét dày. Không dùng chữ, gradient phức tạp hay bóng đổ mềm.
+
+**Màu:**
+
+| Phần | Mã màu |
+|---|---|
+| Vỏ | `#4d7c0f` |
+| Gai, đường múi | `#3f6212` |
+| Viền ngoài | `#14532d` |
+| Cơm | `#fbbf24` |
+| Cuống (đỏ bazan) | `#9a3412` |
+| Nền icon | `#faf8f5` |
+
+**Bộ icon cần có:**
+- `favicon.svg` và `favicon.ico` (32 px).
+- `apple-touch-icon` 180 px.
+- `pwa-192.png` và `pwa-512.png`.
+- `maskable-512.png`: trái sầu riêng nằm gọn trong **vùng an toàn**, là hình tròn đường kính 80% ở giữa, phủ nền `#faf8f5` kín cạnh.
+- Dùng `@vite-pwa/assets-generator` (devDependency) để sinh từ `logo.svg`.
+
+**Nơi dùng:**
+- Header app, thay icon `trees`.
+- Manifest và favicon.
+- Màn chào (splash) của PWA.
+
+**Kiểm tra nhận diện:**
+- Khi thu nhỏ còn **48×48 px** vẫn nhận ra là sầu riêng: thấy cuống, gai và múi vàng.
+- Trên launcher Android với mặt nạ tròn, vuông bo góc và giọt nước, hình không bị cắt.
