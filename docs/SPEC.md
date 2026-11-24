@@ -115,9 +115,9 @@ Năm bước gồm: (1) Nhận định → (2) Kiểm tra tại vườn → (3) 
 | # | Phác đồ | Gợi ý hoạt chất (nhóm FRAC/IRAC) |
 |---|---|---|
 | 1 | Xì mủ, thối rễ *Phytophthora palmivora* | Metalaxyl-M (FRAC 4), Fosetyl-Al / Phosphonate (P07), Dimethomorph (40); sinh học: Trichoderma |
-| 2 | **[BS]** Cháy lá *Rhizoctonia solani* | Validamycin (U18), Hexaconazole (3), Azoxystrobin (11) |
+| 2 | **[BS]** Cháy lá *Rhizoctonia solani* | Validamycin (FRAC 26 — **[T03-L]** bảng FRAC hiện hành; bản trước ghi U18), Hexaconazole (3), Azoxystrobin (11) |
 | 3 | **[BS]** Nấm hồng *Erythricium salmonicolor* — cạo vết bệnh, quét thuốc | Đồng hydroxide / oxychloride (M01), Validamycin, Hexaconazole |
-| 4 | Rầy xanh (*Allocaridara malayensis*) | Thiamethoxam / Imidacloprid (IRAC 4A, **không phun khi hoa nở**, độc với ong), Buprofezin (16), dầu khoáng |
+| 4 | Rầy hại đọt non — rầy xanh (*Amrasca* sp.) và rầy phấn (*Allocaridara malayensis*) **[T03-L]** | Thiamethoxam / Imidacloprid (IRAC 4A, **không phun khi hoa nở**, độc với ong), Buprofezin (16), dầu khoáng |
 | 5 | Nhện đỏ | Abamectin (6), Hexythiazox (10A), Fenpyroximate (21A), Propargite (12C), dầu khoáng |
 | 6 | Rụng trái non & cháy múi Ri6 | **[BS]** Đây là rối loạn sinh lý, nên bước 4 là "Dinh dưỡng & nước" (Ca-Bo, Kali, ổn định ẩm, chặn đọt, tỉa bớt trái), không phải thuốc |
 | 7 | **[1.1]** Sâu đục trái (*Conogethes punctiferalis*) & Rệp sáp (*Planococcus* spp.), giai đoạn nuôi trái Ri6 | **Sâu đục trái:** Emamectin benzoate (IRAC 6), Chlorantraniliprole (28), Spinetoram (5), Indoxacarb (22A), *Bacillus thuringiensis* (11A). **Rệp sáp:** Spirotetramat (23), Buprofezin (16), dầu khoáng; Thiamethoxam/Dinotefuran (4A) chỉ dùng ngoài thời gian hoa nở |
