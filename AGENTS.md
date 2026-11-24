@@ -7,7 +7,8 @@
 | Ai | Làm gì |
 |---|---|
 | **Antigravity** | Lập trình viên: viết code, viết test, chạy kiểm tra, đẩy nhánh lên GitHub. |
-| **Claude** | Giao việc và review. Sở hữu `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`. Đạt thì merge, chưa đạt thì ghi nhận xét trên PR. |
+| **Claude** | **Kiểm thử và phản biện (QA):** chạy thử app, test chức năng theo AC, đánh giá giao diện, tìm lỗi. Đăng "Báo cáo QA" trên PR với 🔴 lỗi chặn / 🟡 nên sửa / 💡 đề xuất. Soạn và giữ `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`. **Không merge.** |
+| **Gemini** | **Duyệt và merge** PR (từ 24/11/2026), có tham khảo Báo cáo QA của Claude. |
 | **Chủ repo (anh Đạt)** | Quyết định cuối cùng. Tự làm các bước cần tài khoản: token, secrets, keystore, bật Pages. |
 
 - Antigravity **không sửa** `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`, `docs/muctieu-goc.md`.
@@ -16,7 +17,7 @@
 ## 2. Quy trình mỗi task
 
 1. `git checkout main && git pull`.
-2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T06**, mỗi lần một task. **A01–A02 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
+2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → D01 → T02 → … → T06**, mỗi lần một task. Mọi màn hình phải theo **`docs/DESIGN.md`** và chỉ dùng component trong `src/components/ui/`. **A01–A02 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
 3. Tạo nhánh từ `main`: `ag/T0x-<ten-ngan>` (ví dụ `ag/T01-khung-du-an`).
 4. Viết code. Trước **mỗi lần push**, các lệnh sau phải chạy xanh:
    ```bash
@@ -24,7 +25,7 @@
    ```
 5. Viết báo cáo `docs/reports/T0x.md` theo mẫu ở mục 4 và commit cùng nhánh.
 6. `git push -u origin ag/T0x-...`. Máy có `gh` thì mở PR vào `main` với tiêu đề `[T0x] <tên task>`. Không có `gh` thì chỉ push, Claude sẽ tự mở PR.
-7. Nhận xét review nằm trên trang PR: https://github.com/datnho0804-gif/Ri6/pulls (repo công khai, mở bằng trình duyệt là đọc được).
+7. Nhận xét review (Gemini) và Báo cáo QA (Claude) nằm trên trang PR: https://github.com/datnho0804-gif/Ri6/pulls (repo công khai, mở bằng trình duyệt là đọc được). Sửa hết mọi mục 🔴; mục 🟡 sửa luôn trong cùng lượt nếu không quá lớn.
    Sửa trên **cùng nhánh**, push thêm commit và cập nhật báo cáo. Không mở PR mới.
 
 **Cấm:** push thẳng vào `main`; tự merge; force-push nhánh đã có PR; xóa hoặc bỏ qua test để CI xanh; commit thư mục `node_modules`, `dist`, `android/app/build`.
@@ -68,7 +69,7 @@
 ## Lệnh đã chạy
 npm ci / lint / typecheck / test (x passed) / build — kết quả
 ## Ảnh chụp màn hình
-docs/reports/img/T0x-*.png (điện thoại 390×844 và máy tính 1280×800; PNG, mỗi ảnh < 300 KB)
+docs/reports/img/T0x-*.png (điện thoại 390×844 và máy tính 1280×800, chụp ở deviceScaleFactor 3 cho điện thoại; PNG/WebP, mỗi ảnh < 400 KB)
 ## Thay đổi ngoài phạm vi / thư viện thêm
 ## Câu hỏi cho reviewer
 ```

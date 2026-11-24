@@ -6,7 +6,8 @@
 
 | Task | Tên | Trạng thái |
 |---|---|---|
-| T01 | Khung dự án, PWA, CI/CD | ⏳ Chờ làm |
+| T01 | Khung dự án, PWA, CI/CD | ✅ Đã merge (PR #7, 25/11) |
+| **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ⏳ Làm ngay sau T01 |
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
 | T04 | Cài đặt, đồng bộ GitHub | ⏳ |
@@ -50,7 +51,8 @@
 - **[1.1]** Index tối thiểu:
   - `trees`: `id, code, lot`;
   - `logs`: `id, targetId, date, type, batchId`;
-  - `tasks`: `id, targetId, dueDate, done`.
+  - `tasks`: `id, targetId, dueDate`.
+- **Không** lập index cho trường boolean (`needsPruning`, `diseaseWatch`, `done`...), vì IndexedDB không index được giá trị `true`/`false`. Các cờ này lọc trong bộ nhớ.
 - Lần chạy đầu tạo SR01–SR15 (`id = code`) và `LOT_A` **trống**, sinh `deviceId` (UUID).
 - **[1.1]** Số 15 và 50 chỉ nằm trong hằng số seed `INITIAL_INDIVIDUAL_TREES` và `INITIAL_LOT_A_COUNT`. Có test chứng minh seed **không chạy lại** khi DB đã có dữ liệu, kể cả khi đã thêm hoặc xóa cây.
 - Gọi `navigator.storage.persist()`.
@@ -84,6 +86,55 @@
 - Báo cáo `docs/reports/T01.md` kèm ảnh chụp khung app trên điện thoại và máy tính.
 
 > Việc của chủ repo sau khi T01 được merge: **Settings → Pages → Source: GitHub Actions**.
+
+---
+
+## D01 — Hệ thống thiết kế và trang `#/design`
+**Nhánh:** `ag/D01-he-thong-thiet-ke`. Theo `docs/DESIGN.md`, hình mẫu `docs/design/mockup.jpg`.
+
+**AC1. Token.**
+- Đủ token màu, chữ, khoảng cách, bo góc, đổ bóng, chuyển động theo DESIGN §2, đặt trong `@theme` (CSS variables, tên theo vai trò).
+- Không còn mã hex rời rạc trong `src/components/`.
+
+**AC2. Font Be Vietnam Pro.**
+- Tự host qua `@fontsource/be-vietnam-pro` (subset `vietnamese` + `latin`, độ đậm 400–700).
+- Thử offline: font vẫn đúng, dấu tiếng Việt không vỡ.
+
+**AC3. Đủ component trong DESIGN §4.**
+- Mỗi component có đủ các trạng thái: thường, nhấn, focus, tắt, lỗi.
+- BottomSheet:
+  - kéo để đóng được;
+  - có thanh hành động dính đáy, không bị bàn phím ảo che (dùng `visualViewport`);
+  - **form đã có thay đổi thì hỏi trước khi bỏ**.
+- Snackbar có nút "Hoàn tác".
+
+**AC4. Trang `#/design?design=1`** bày toàn bộ component.
+- Báo cáo có ảnh chụp trang này ở **DPR 3**, khổ 390 px.
+
+**AC5. Làm lại khung app T01 theo DESIGN §3.**
+- TopAppBar 64 px, có nút đồng bộ dạng icon với chấm màu (bỏ dòng trạng thái riêng).
+- NavBar có chỉ báo dạng pill.
+- NavRail cho màn ≥ 840 px.
+- ExtendedFAB "Ghi nhật ký" (tạm thời mở BottomSheet mẫu).
+- Không khóa xoay màn hình. Xoay ngang 844×390 thì header ≤ 15% chiều cao.
+
+**AC6. Cảm giác app thật** theo DESIGN §6:
+- `overscroll-behavior`, `tap-highlight`, `touch-action`;
+- trạng thái nhấn; rung nhẹ (có công tắc trong Cài đặt);
+- chuyển màn mượt; nút Back đóng sheet trước;
+- `color-scheme: only light`;
+- `prefers-reduced-motion`.
+
+**AC7. Manifest** theo DESIGN §5:
+- có `id`, `shortcuts` (3 mục), `screenshots` (3 dọc + 1 ngang, chụp từ app thật).
+- Báo cáo có ảnh hộp cài đặt của Chrome, nếu có máy Android.
+
+**AC8. Tự kiểm bằng checklist DESIGN §8.**
+- Ghi số đo vào báo cáo: chữ nhỏ nhất, vùng bấm nhỏ nhất, axe, điểm Lighthouse.
+- Có ảnh so sánh cạnh nhau với `mockup.jpg`.
+
+**AC9. Báo cáo.**
+- `docs/reports/D01.md`: ảnh ở DPR 3 cho các khổ 360/390/412 px, tablet 800×1280, máy tính 1280.
 
 ---
 
@@ -123,12 +174,14 @@ Test với `today = '2026-11-24'`:
 
 **AC4. Hồ sơ cây.**
 - Sửa được mọi trường theo SPEC M2, gồm **`code`, `fruitCount`, `fruitLimit` [1.1]**.
-- Ảnh tuần được nén (cạnh dài ≤ 1280 px). Test hàm tính kích thước: ảnh 4000×3000 → 1280×960.
+- Ảnh tuần được nén theo DESIGN §5. Test hàm tính kích thước:
+  - ảnh 4000×3000 → bản đầy đủ 1600×1200 và thumbnail 480×360;
+  - ảnh dọc 3000×4000 → 1200×1600 và 360×480.
 - Có dòng thời gian ảnh.
 - Lưu ảnh xong thì ô tương ứng ở Tổng quan chuyển sang "Đã chụp".
 
 **AC5. Nhật ký.**
-- Thêm và xóa mục nhật ký. Xóa phải hỏi lại bằng Modal, lưu tombstone.
+- Thêm và xóa mục nhật ký. Xóa một mục thì lưu tombstone và hiện Snackbar "Hoàn tác" (DESIGN §6). Bấm Hoàn tác thì mục trở lại nguyên vẹn (có test).
 - Loại *Phun thuốc* bắt buộc nhập hoạt chất và PHI.
 - Loại *Bón phân* bắt buộc chọn **loại phân** (`fertilizerKind`, SPEC §5).
 - **[1.1]** Loại *Đo pH đất* bắt buộc nhập `soilPh` từ 3,0 đến 9,0. Nhập 2,5 hoặc 9,5 thì báo lỗi ngay trên form.
