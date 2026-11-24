@@ -7,9 +7,34 @@
 | Ai | Làm gì |
 |---|---|
 | **Antigravity** | Lập trình viên: viết code, viết test, chạy kiểm tra, đẩy nhánh lên GitHub. |
-| **Claude** | **Kiểm thử và phản biện (QA):** chạy thử app, test chức năng theo AC, đánh giá giao diện, tìm lỗi. Đăng "Báo cáo QA" trên PR với 🔴 lỗi chặn / 🟡 nên sửa / 💡 đề xuất. Soạn và giữ `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`. **Không merge.** |
+| **Claude** | **Lập trình phần logic** (xem mục 1b) **và kiểm thử/phản biện (QA):** chạy thử app, test chức năng theo AC, đánh giá giao diện, tìm lỗi. Đăng "Báo cáo QA" trên PR với 🔴 lỗi chặn / 🟡 nên sửa / 💡 đề xuất. Soạn và giữ `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`. **Không merge.** |
 | **Gemini** | **Duyệt và merge** PR (từ 24/11/2026), có tham khảo Báo cáo QA của Claude. |
 | **Chủ repo (anh Đạt)** | Quyết định cuối cùng. Tự làm các bước cần tài khoản: token, secrets, keystore, bật Pages. |
+
+## 1b. Phân công code — chia theo lớp (từ 25/11/2026)
+
+Mỗi bên **chỉ sửa thư mục của mình**. Cần thay đổi ở phần của bên kia thì ghi yêu cầu trên PR, bên sở hữu sẽ sửa.
+
+| Phần | Chủ sở hữu | Gồm |
+|---|---|---|
+| `src/lib/**` (+ `*.test.ts`) | **Claude** | Logic thuần, không React, không Dexie: hằng số nông học, mốc Ri6, PHI, tưới, cắt tỉa, trạng thái ảnh, lọc cây, mã cây, tách lô, nhật ký hàng loạt, kiểm tra nhật ký, merge đồng bộ, xuất/nhập JSON, prompt AI, việc cần làm, thông báo, link lịch; client GitHub (`src/lib/sync/`) và Gemini (`src/lib/ai/`) |
+| `src/sw/**` | **Claude** | Module Service Worker: `sync.ts`, `agenda.ts`, `notification.ts` |
+| `src/components/**`, `src/hooks/**`, `src/App.tsx`, `src/main.tsx`, `src/index.css` | **Antigravity** | Toàn bộ giao diện, theo `docs/DESIGN.md` |
+| `src/db/**`, `src/sw.ts` | **Antigravity** | Dexie (đọc/ghi, tombstone), nối các module của `src/sw/` vào `sw.ts` |
+| `src/types/models.ts`, `package.json`, cấu hình build | **Dùng chung** | Ai sửa thì phải ghi rõ trong mô tả PR. Chỉ Antigravity tăng `version`. |
+
+**Quy trình mỗi task T02–T06:**
+1. **Claude làm phần logic trước**, trên nhánh `claude/T0x-lib`, PR `[T0x-L] …`.
+   - Viết đủ hàm thuần và test vector trong `docs/TASKS.md`.
+   - Mô tả PR có **danh sách hàm xuất ra (API)** để Antigravity gọi.
+2. **Antigravity làm phần giao diện**, trên nhánh `ag/T0x-…`, PR `[T0x-U] …`.
+   - Chỉ gọi API của `src/lib`, **không viết lại logic**.
+   - Có thể bắt đầu ngay khi PR `T0x-L` đã mở, bằng cách tạo nhánh từ nhánh `claude/T0x-lib`.
+3. **Duyệt:**
+   - Gemini duyệt cả hai PR.
+   - Claude QA PR giao diện của Antigravity.
+   - Antigravity được mời review PR logic của Claude (để QA chéo).
+   - Thứ tự merge: **L trước, U sau**.
 
 - Antigravity **không sửa** `AGENTS.md`, `docs/SPEC.md`, `docs/TASKS.md`, `docs/muctieu-goc.md`.
 - Thấy yêu cầu sai, thiếu hoặc mâu thuẫn: ghi vào mục **"Câu hỏi cho reviewer"** trong báo cáo, chọn phương án an toàn nhất rồi làm tiếp. Không tự ý mở rộng phạm vi.
