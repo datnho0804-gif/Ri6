@@ -50,7 +50,8 @@
 - **[1.1]** Index tối thiểu:
   - `trees`: `id, code, lot`;
   - `logs`: `id, targetId, date, type, batchId`;
-  - `tasks`: `id, targetId, dueDate, done`.
+  - `tasks`: `id, targetId, dueDate`.
+- **Không** lập index cho trường boolean (`needsPruning`, `diseaseWatch`, `done`...), vì IndexedDB không index được giá trị `true`/`false`. Các cờ này lọc trong bộ nhớ.
 - Lần chạy đầu tạo SR01–SR15 (`id = code`) và `LOT_A` **trống**, sinh `deviceId` (UUID).
 - **[1.1]** Số 15 và 50 chỉ nằm trong hằng số seed `INITIAL_INDIVIDUAL_TREES` và `INITIAL_LOT_A_COUNT`. Có test chứng minh seed **không chạy lại** khi DB đã có dữ liệu, kể cả khi đã thêm hoặc xóa cây.
 - Gọi `navigator.storage.persist()`.
