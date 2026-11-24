@@ -16,7 +16,7 @@ App ghi chép và quản lý vườn sầu riêng Ri6. Vườn trên đất đ�
 2. Là **web app (PWA)** trên GitHub Pages: `https://datnho0804-gif.github.io/Ri6/`.
    - **Cài lên Android trực tiếp từ Google Chrome.** Chrome tạo một app thật (WebAPK): có icon ở màn hình chính và trong danh sách ứng dụng, mở toàn màn hình, chạy offline, tự cập nhật. Xem §7.0.
    - Dùng được trên trình duyệt máy tính.
-   - *Bản APK riêng (§7 phần APK, §7.1, T05–T06) đang **TẠM HOÃN** theo quyết định của chủ vườn ngày 24/11/2026. Chỉ làm khi được mở lại.*
+   - *Bản APK riêng (§7 phần APK, §7.1, task A01–A02) đang **TẠM HOÃN** theo quyết định của chủ vườn ngày 24/11/2026. Chỉ làm khi được mở lại.*
 3. **[BS] Tự động sao lưu và đồng bộ** dữ liệu giữa nhiều máy qua **repo riêng tư** `datnho0804-gif/Ri6-data`.
 
 Ngoài phạm vi: backend riêng, đăng nhập nhiều người dùng, iOS app store.
@@ -149,6 +149,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 **Các phần khác:**
 - Nút đổi **Mùa khô / Mùa mưa** kèm khuyến cáo theo mùa (mục 3.4).
 - Lưới 15 ô SR01–SR15: điện thoại 3 cột, máy tính 5 cột. Mỗi ô hiện mã, tên, số ngày kể từ ảnh gần nhất và trạng thái màu kèm chữ. Bấm vào ô thì mở hồ sơ cây.
+- **[BS]** Khối **Hôm nay cần làm**: 5 việc ưu tiên nhất từ M6, kèm link "Xem tất cả".
 
 **Quy tắc trạng thái chụp ảnh tuần.** `d` = số ngày từ ảnh tuần (`kind = weekly`) gần nhất đến hôm nay.
 
@@ -179,6 +180,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - Các trường: ngày, loại, ghi chú.
   - Loại: Bón phân / Phun thuốc / Cắt tỉa / Sâu bệnh / Làm bông / Tưới / Ghi chú AI / Khác.
   - **[BS]** Loại *Phun thuốc* bắt buộc nhập **hoạt chất** và **PHI (ngày)**.
+  - **[BS]** Loại *Bón phân* bắt buộc chọn **loại phân**: Vôi/Dolomite · Hữu cơ/Trichoderma · Urê/đạm amoni · Lân · NPK · Khác. Trường này dùng cho nhắc khoảng cách bón vôi ở M6.
   - Xóa phải hỏi lại bằng Modal; xóa mềm (tombstone).
 - **[BS] Dự báo** (khi có ngày xổ nhụy): bảng mốc theo mục 3.2.
 - **[BS] Cảnh báo PHI:** nếu (ngày phun + PHI) > (xổ nhụy + 90) thì hiện "Không thu hoạch trước dd/mm/yyyy" ở hồ sơ cây và ở Tổng quan.
@@ -216,13 +218,111 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - Token, repo dữ liệu (mặc định `datnho0804-gif/Ri6-data`), nhánh (mặc định `main`).
   - Nút **Kiểm tra kết nối**.
   - Bật/tắt tự động đồng bộ.
-- Gemini (tùy chọn):
-  - API key và tên model (ô nhập, có giá trị mặc định sửa được).
-  - Nút **Phân tích bằng Gemini** ở hồ sơ cây và ở màn cắt tỉa. Gửi prompt kèm tối đa 3 ảnh, hiện kết quả, có nút lưu thành nhật ký "Ghi chú AI".
+- Trợ lý AI (Gemini): xem M7.
+- Nhắc nhở và thông báo: xem M6.
 - Sao lưu tay:
   - **Xuất JSON**, có tùy chọn kèm ảnh dạng base64.
   - **Nhập JSON**: hiện số bản ghi sẽ thêm hoặc cập nhật trước khi áp dụng. Dùng **chính hàm merge của mục 6**, không ghi đè.
   - **[BS]** Nhập được file sao lưu của app cũ (`legacy/index.html`): chỉ thông tin cây và nhật ký.
+
+### M6. Việc cần làm và nhắc nhở [BS]
+
+Phần này chạy theo **quy tắc cố định**, hoạt động khi offline và **không phụ thuộc AI**.
+
+Hàm thuần `buildAgenda(state, today)` trả về danh sách việc. Mỗi việc gồm `{ key, title, reason, targetId?, dueDate, priority: 'cao'|'vua'|'thap' }`. Danh sách gồm mọi việc quá hạn cộng các việc trong **7 ngày tới**.
+
+| Nguồn | Quy tắc | `key` |
+|---|---|---|
+| Ảnh tuần | Cây ở trạng thái `due-soon` hoặc `overdue` (M1) | `photo:<treeId>` |
+| Mốc Ri6 | Mốc của cây (theo §3.2, cần có `flowerDate` hoặc `budDate`) đang diễn ra hoặc bắt đầu trong 7 ngày | `ri6-<moc>:<treeId>` |
+| PHI | Đang trong thời gian cách ly | `phi:<logId>` |
+| Kiểm tra lại | Sau log *Phun thuốc* hoặc *Sâu bệnh*: kiểm tra lại ở ngày +7 và +14 (bước 5 phác đồ) | `recheck7:<logId>`, `recheck14:<logId>` |
+| Khoảng cách vôi | Sau log *Bón phân* loại Vôi/Dolomite: không bón Hữu cơ/Trichoderma trước **+15 ngày**, không bón Urê/Lân trước **+10 ngày** (lấy cận trên của §3.3 cho an toàn) | `lime-gap:<logId>` |
+| Mùa vụ | Tháng 5: "Bón vôi đầu mùa mưa". Tháng 10: "Bón vôi cuối mùa mưa". Tháng 11: "Kiểm tra béc, soi nhện đỏ đầu mùa khô" | `season:<ma>:<nam>` |
+| Tự thêm hoặc do AI gợi ý | Lấy từ bảng `tasks` | `task:<id>` |
+
+**Thao tác với từng việc:**
+- **Xong**: lưu vào bảng `tasks` với `id = key`, `done = true`. Bảng này được đồng bộ, nên máy khác không nhắc lại.
+- **Hoãn 1 ngày**: đặt `snoozeUntil`.
+- **Thêm vào Google Calendar**.
+- Việc ảnh tuần tự biến mất khi đã chụp ảnh, không cần bấm Xong.
+
+**Cảnh báo khoảng cách vôi.** Khi thêm log vi phạm khoảng cách bón vôi thì hiện Modal cảnh báo, nhưng không chặn lưu.
+
+**Giao diện.** Màn "Việc cần làm" chia 3 nhóm: Quá hạn / Hôm nay / 7 ngày tới. Có nút thêm việc tự tạo. Số việc hiện trên tab Tổng quan.
+
+**Thông báo trên điện thoại (không cần server):**
+- Có nút **"Bật nhắc nhở"**. Chỉ xin quyền Notification khi người dùng bấm nút này, không xin lúc mở app.
+- Dùng Periodic Background Sync, tag `ri6-agenda`, `minInterval` 12 giờ.
+  - Chỉ chạy khi app đã được cài từ Chrome.
+  - Service Worker tính `buildAgenda` từ IndexedDB.
+- Quy tắc báo, do hàm thuần `shouldNotify(...)` quyết định:
+  - **tối đa 1 thông báo tổng hợp mỗi ngày**;
+  - không báo trong **21:00–06:00** giờ VN;
+  - chỉ báo khi có việc mới so với lần báo trước.
+- Bấm vào thông báo thì mở màn Việc cần làm.
+- **Giới hạn:** Chrome tự quyết tần suất của periodicsync, có thể thưa hơn 1 ngày. Vì vậy với mốc quan trọng (thu hoạch, PHI, bón vôi), app gợi ý **"Thêm vào Google Calendar"** để chắc chắn có chuông báo.
+- **Link Google Calendar:**
+  - Dạng `https://calendar.google.com/calendar/render?action=TEMPLATE&text=…&dates=…&details=…`.
+  - Sự kiện cả ngày dùng `YYYYMMDD/YYYYMMDD`, ngày kết thúc **cộng 1** (exclusive).
+  - Nút "Tạo nhắc chụp ảnh hằng tuần" thêm `recur=RRULE:FREQ=WEEKLY`. Cần thử thực tế; nếu không được thì hướng dẫn người dùng chọn "Lặp lại hằng tuần".
+
+### M7. Trợ lý AI (Gemini) [BS]
+
+Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI Studio). Khi chưa có key hoặc đang offline, mọi nút AI chuyển thành **Copy Prompt** để dán vào bất kỳ app AI nào.
+
+**Cài đặt:**
+- Ô API key dạng mật khẩu.
+- Chọn model từ danh sách `GET /v1beta/models`: lọc các model hỗ trợ `generateContent`; mặc định chọn model "flash" mới nhất có trong danh sách. **Không hard-code tên model.**
+- Nút Kiểm tra.
+- Dòng ghi chú: *"Gói miễn phí: Google có thể dùng nội dung gửi lên để cải thiện dịch vụ."*
+
+**Màn Hỏi AI** (nút nổi trên mọi màn):
+- Hỏi đáp tự do, nhiều lượt, bằng tiếng Việt.
+- Đính kèm tối đa 3 ảnh: chụp mới hoặc chọn từ ảnh của cây.
+- Chọn cây đang hỏi (tùy chọn).
+- Lịch sử hội thoại lưu cục bộ trong bảng `aiChats`, tối đa 50 hội thoại, **không đồng bộ**, xóa được.
+
+**Nút "Phân tích bằng AI":**
+- Ở hồ sơ cây: phân tích sức khỏe, sâu bệnh.
+- Ở màn cắt tỉa: gửi 3 góc chụp kèm checklist.
+
+**Ngữ cảnh tự gửi kèm** (hàm thuần `buildSystemPrompt`):
+- Hồ sơ vườn (§2) và mùa hiện tại.
+- Quy tắc nông học (§3), lấy **từ cùng hằng số** mà máy tính và thẻ phác đồ dùng.
+- Nếu đã chọn cây: hồ sơ cây, 10 nhật ký gần nhất, các việc cần làm của cây đó.
+- **Không bao giờ** chứa token hoặc API key.
+
+**Yêu cầu trả lời** (system instruction):
+- Trả lời bằng tiếng Việt, theo cấu trúc:
+  1. Nhận định.
+  2. Mức tin cậy (thấp / vừa / cao).
+  3. Cần kiểm tra hoặc chụp thêm gì.
+  4. Xử lý: canh tác và nước trước, thuốc sau.
+  5. Hoạt chất theo nhóm FRAC/IRAC, ghi "theo nhãn". **Không** nêu liều hay tên thương mại.
+  6. PHI.
+  7. Khi nào cần mời cán bộ khuyến nông hoặc kỹ sư.
+- Không chắc thì phải nói rõ.
+- Nếu mâu thuẫn với quy tắc của app thì ưu tiên quy tắc app và chỉ ra chỗ mâu thuẫn.
+
+**Đầu ra có cấu trúc:**
+- Dùng `responseMimeType: application/json` với `responseSchema`:
+  ```
+  { answer: string (markdown), confidence: 'thap'|'vua'|'cao', actions: [{ title, dueInDays (0–60), targetId? }] }
+  ```
+- App hiện `answer`. Mỗi `action` có nút **"Thêm vào Việc cần làm"**, tạo bản ghi `tasks` với `source: 'ai'`.
+- Hàm thuần `parseAiActions`:
+  - loại action sai định dạng;
+  - bỏ `targetId` không tồn tại;
+  - kẹp `dueInDays` vào khoảng 0–60.
+
+**Nút "Lưu vào nhật ký"** lưu kết quả thành log loại "Ghi chú AI", để kết quả được đồng bộ.
+
+**Cảnh báo dưới mỗi câu trả lời** (luôn hiện): *"AI chỉ để tham khảo. Thuốc BVTV: dùng theo nhãn và Danh mục được phép tại VN; tuân thủ PHI."* Cảnh báo PHI của app vẫn luôn hiển thị; AI không ghi đè được.
+
+**Xử lý lỗi.** Lỗi mạng, hết hạn mức (429) hay key sai đều hiện Toast rõ ràng và giữ nguyên câu hỏi để gửi lại.
+
+**Kỹ thuật.** Gọi REST bằng `fetch`, không cần SDK. Ảnh gửi dạng inline base64, đã nén về cạnh dài ≤ 1280 px.
 
 ## 5. Mô hình dữ liệu (Dexie, `schemaVersion = 1`)
 
@@ -237,14 +337,20 @@ interface Tree extends SyncMeta { /* id: 'SR01'..'SR15' */ lot: 'B'; label: stri
 interface Lot extends SyncMeta { /* id: 'LOT_A' */ treeCount: number; stage: Stage|null; note?: string }
 type LogType = 'bon-phan'|'phun-thuoc'|'cat-tia'|'sau-benh'|'lam-bong'|'tuoi'|'ai'|'khac';
 interface Log extends SyncMeta { targetId: string; date: ISODate; type: LogType; note: string;
-  activeIngredient?: string; phiDays?: number }
+  activeIngredient?: string; phiDays?: number; fertilizerKind?: FertKind /* bắt buộc khi type = 'bon-phan' */ }
+type FertKind = 'voi-dolomite'|'huu-co-trichoderma'|'dam-ure'|'lan'|'npk'|'khac';
+interface Task extends SyncMeta { /* id = key quy tắc (khi Xong/Hoãn) hoặc UUID (việc tự thêm/AI) */
+  title?: string; targetId?: string; dueDate?: ISODate; done: boolean; snoozeUntil?: ISODate;
+  source: 'rule'|'manual'|'ai' }
 type PhotoKind = 'weekly'|'prune-overview'|'prune-under'|'prune-closeup'|'disease';
 interface Photo extends SyncMeta { targetId: string; takenAt: ISODate; kind: PhotoKind;
   width: number; height: number; bytes: number; remotePath?: string }   // blob ở bảng riêng photoBlobs
 // Settings: lưu trong IndexedDB (bảng Dexie `settings`, KHÔNG dùng localStorage vì Service Worker không đọc được),
 // chỉ lưu cục bộ, KHÔNG xuất JSON, KHÔNG đồng bộ:
 interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; autoSync;
-  geminiApiKey?; geminiModel?; seasonOverride?: 'kho'|'mua'|null }
+  geminiApiKey?; geminiModel?; seasonOverride?: 'kho'|'mua'|null;
+  notify?: { enabled: boolean; lastNotifiedAt?: ISOTime; lastKeys: string[] } }
+// Bảng chỉ cục bộ, KHÔNG đồng bộ: aiChats (hội thoại AI, tối đa 50).
 ```
 - Gọi `navigator.storage.persist()` khi khởi động.
 - Bản ghi bị xóa vẫn giữ lại dưới dạng tombstone `deletedAt`, để không "sống lại" khi đồng bộ.
@@ -255,7 +361,7 @@ interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; a
 
 **Cấu trúc repo dữ liệu:**
 ```
-data/state.json                         # { schemaVersion, trees[], lots[], logs[], photos[] (chỉ meta) }
+data/state.json                         # { schemaVersion, trees[], lots[], logs[], tasks[], photos[] (chỉ meta) }
 photos/<targetId>/<YYYY-MM-DD>_<photoId>.jpg   # bất biến, không bao giờ sửa
 ```
 `state.json` ghi thụt lề 2 dấu cách, mảng sắp xếp theo `id` để diff ổn định.
