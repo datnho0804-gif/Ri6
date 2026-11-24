@@ -21,7 +21,7 @@ export type Stage =
 export type TreeHealth = 'tot' | 'theo-doi' | 'benh';
 
 export interface Tree extends SyncMeta {
-  // id: 'SR01'..'SR15' on initial seed; UUID for trees added later (SPEC 1.1)
+  // id: 'SR01'..'SR03' on initial seed (SPEC 1.2; bản cũ seed SR01..SR15); UUID for trees added later (SPEC 1.1)
   code: string;
   lot: 'A' | 'B';
   label: string;
@@ -75,6 +75,10 @@ export interface Log extends SyncMeta {
   fertilizerKind?: FertKind;
   soilPh?: number;
   batchId?: string;
+  /** [1.2] Vật tư đã dùng — `SupplyItem.id` trong `src/lib/supplies.ts`. */
+  supplyId?: string;
+  /** [1.2] Giá chủ vườn thực trả (VNĐ cho 1 đơn vị đóng gói) — app "học" giá thật từ đây. */
+  priceVnd?: number;
 }
 
 export type TaskSource = 'rule' | 'manual' | 'ai';
@@ -103,6 +107,29 @@ export interface Photo extends SyncMeta {
   height: number;
   bytes: number;
   remotePath?: string;
+}
+
+/** [1.2] Nhóm ghi nhớ của trợ lý AI. */
+export type AiMemoryCategory =
+  | 'kinh-nghiem' // kinh nghiệm canh tác của vườn
+  | 'so-thich' // thói quen / sở thích của chủ vườn
+  | 'phan-ung' // cây phản ứng với phân / thuốc
+  | 'vat-tu' // vật tư, giá, nơi mua
+  | 'khac';
+
+/**
+ * [1.2] Ghi nhớ của trợ lý AI (SPEC M7.1). Đồng bộ lên repo như dữ liệu vườn.
+ * Chỉ mục `approved` mới được nạp vào prompt. KHÔNG bao giờ chứa token / API key.
+ */
+export interface AiMemory extends SyncMeta {
+  category: AiMemoryCategory;
+  content: string;
+  /** Mã cây / `LOT_A` liên quan; trống = cả vườn. */
+  targetIds?: string[];
+  source: 'ai' | 'manual' | 'log';
+  confidence?: 'thap' | 'vua' | 'cao';
+  approved: boolean;
+  createdAt: ISOTime;
 }
 
 export interface PhotoBlobRecord {

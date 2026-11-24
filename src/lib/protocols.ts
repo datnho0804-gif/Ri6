@@ -4,10 +4,11 @@ import { normalizeVi } from './text';
 
 /**
  * 8 phác đồ sâu bệnh (SPEC §3.5 + [1.1]) — mỗi phác đồ đủ 5 bước.
- * Chỉ nêu HOẠT CHẤT + nhóm FRAC/IRAC, KHÔNG liều lượng, KHÔNG tên thương mại.
+ * Thẻ phác đồ nêu HOẠT CHẤT + nhóm FRAC/IRAC; thương hiệu, quy cách, giá, cách dùng nằm ở
+ * danh mục vật tư `src/lib/supplies.ts` (`getSuppliesForProtocol`) — SPEC 1.2.
  */
 export const PROTOCOL_DISCLAIMER =
-  'Chỉ dùng hoạt chất có trong Danh mục thuốc BVTV được phép sử dụng tại Việt Nam hiện hành; liều lượng và PHI theo nhãn.';
+  'Chỉ dùng thuốc có trong Danh mục thuốc BVTV được phép sử dụng tại Việt Nam hiện hành; liều pha và PHI đối chiếu nhãn sản phẩm. Giá trong mục Vật tư chỉ để tham khảo.';
 
 export const ROTATION_NOTE = 'Luân phiên theo NHÓM cơ chế FRAC/IRAC — đổi tên thương mại mà cùng nhóm thì không có tác dụng.';
 

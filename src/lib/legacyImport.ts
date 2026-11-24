@@ -96,8 +96,11 @@ export function convertLegacyBackup(
 ): SyncState {
   const state = emptySyncState();
   const byId = new Map(ctx.existingTrees.map((t) => [t.id, t]));
+  // [1.2] Vườn mới chỉ seed SR01–SR03; cây SR04… có thể đã được thêm tay (id UUID, code 'SR04').
+  // Khớp theo `code` để vá đúng cây đó thay vì tạo cây trùng mã.
+  const byCode = new Map(ctx.existingTrees.filter((t) => !t.deletedAt).map((t) => [t.code.trim().toUpperCase(), t]));
   for (const lt of legacy.trees) {
-    const base: Tree = byId.get(lt.id) ?? {
+    const base: Tree = byId.get(lt.id) ?? byCode.get(lt.id.toUpperCase()) ?? {
       id: lt.id,
       code: lt.id,
       lot: 'B',
@@ -125,7 +128,7 @@ export function convertLegacyBackup(
       updatedBy: ctx.deviceId,
     };
     state.trees.push(tree);
-    state.logs.push(...convertLogs(lt.id, lt.logs, ctx.deviceId, ctx.now));
+    state.logs.push(...convertLogs(tree.id, lt.logs, ctx.deviceId, ctx.now));
   }
   state.logs.push(...convertLogs('LOT_A', legacy.youngBatchLogs, ctx.deviceId, ctx.now));
   return state;

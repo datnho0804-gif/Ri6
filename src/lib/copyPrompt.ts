@@ -51,7 +51,7 @@ export function buildTreeCopyPrompt(input: {
     '2. Mức tin cậy (thấp/vừa/cao) và vì sao.',
     '3. Cần kiểm tra hoặc chụp thêm gì.',
     '4. Việc nên làm trong 7 ngày tới (canh tác & nước trước, thuốc sau).',
-    '5. Nếu cần thuốc: chỉ nêu hoạt chất kèm nhóm FRAC/IRAC để luân phiên, ghi "theo nhãn", KHÔNG nêu liều hay tên thương mại; chỉ hoạt chất có trong Danh mục thuốc BVTV được phép tại Việt Nam.',
+    '5. Nếu cần thuốc/phân/vật tư: nêu thương hiệu phổ biến tại Việt Nam, hoạt chất + nhóm FRAC/IRAC để luân phiên, quy cách đóng gói, giá tham khảo (ghi rõ tháng; không biết thì nói chưa rõ giá), cách dùng; liều pha đối chiếu nhãn đăng ký. Chỉ dùng thuốc có trong Danh mục thuốc BVTV được phép tại Việt Nam.',
     '6. Thời gian cách ly (PHI) cần lưu ý trước thu hoạch.',
   );
   return lines.join('\n');

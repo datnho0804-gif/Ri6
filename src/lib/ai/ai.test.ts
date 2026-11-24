@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AiError, createGeminiClient, rememberSchemaUnsupported, type FetchLike } from './gemini';
 import { filterChatModels, pickDefaultModel, type GeminiModelInfo } from './models';
-import { parseAiActions, parseAiAnswer } from './parse';
+import { parseAiActions, parseAiAnswer, parseLearnedMemories } from './parse';
 import { AI_DISCLAIMER, buildCopyPromptFallback, buildSystemPrompt } from './prompt';
 import { makeLog, makeTree } from '../testFixtures';
 
@@ -45,7 +45,35 @@ describe('buildSystemPrompt (T06 AC2)', () => {
   const logs = Array.from({ length: 13 }, (_, i) => makeLog({ id: `l${i}`, targetId: 'SR01', date: `2026-11-${String(i + 1).padStart(2, '0')}`, type: 'tuoi', note: `ghi chú ${i}` }));
   const p = buildSystemPrompt({ season: 'kho', today: '2026-11-24', tree, logs });
   it('có bối cảnh và quy tắc từ agronomy.ts', () => {
-    for (const s of ['Lộc Tấn', 'đất đỏ bazan', 'mùa khô', '5,5–6,5', '90–105', 'FRAC/IRAC', 'theo nhãn', 'KHÔNG nêu liều lượng']) expect(p).toContain(s);
+    for (const s of ['Lộc Tấn', 'đất đỏ bazan', 'mùa khô', '5,5–6,5', '90–105', 'FRAC/IRAC', 'theo nhãn', 'THƯƠNG HIỆU', 'giá tham khảo', 'KHÔNG đoán giá', 'đối chiếu nhãn', 'Carbendazim']) expect(p).toContain(s);
+    expect(p).not.toContain('KHÔNG nêu tên thương mại');
+  });
+  it('[1.2] nạp khuyến cáo mùa + danh mục vật tư (mặc định SUPPLIES, truyền [] để bỏ)', () => {
+    expect(p).toContain('Không để béc phun vào cổ rễ');
+    expect(p).toContain('DANH MỤC VẬT TƯ CỦA APP');
+    expect(p).toContain('Ridomil Gold 68WG (Syngenta) [ridomil-gold-68wg]');
+    expect(buildSystemPrompt({ season: 'kho', today: '2026-11-24', supplies: [] })).not.toContain('DANH MỤC VẬT TƯ CỦA APP');
+  });
+  it('[1.2] ghi nhớ: chỉ mục đã duyệt, của cây đang hỏi + chung vườn; kèm kinh nghiệm từ nhật ký', () => {
+    const base = { category: 'kinh-nghiem' as const, source: 'ai' as const, createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', updatedBy: 'd' };
+    const memories = [
+      { ...base, id: 'a', content: 'SR01 vàng lá khi tưới quá 40 L', targetIds: ['SR01'], approved: true },
+      { ...base, id: 'b', content: 'Chủ vườn chỉ phun buổi chiều', approved: true },
+      { ...base, id: 'c', content: 'SR09 ra hoa sớm', targetIds: ['SR09'], approved: true },
+      { ...base, id: 'd', content: 'Đề xuất chưa duyệt', approved: false },
+    ];
+    const sprays = [
+      makeLog({ id: 's1', targetId: 'SR01', date: '2026-11-10', type: 'phun-thuoc', activeIngredient: 'Abamectin', phiDays: 7 }),
+      makeLog({ id: 's2', targetId: 'SR01', date: '2026-11-20', type: 'phun-thuoc', activeIngredient: 'Emamectin benzoate', phiDays: 7 }),
+    ];
+    const q = buildSystemPrompt({ season: 'kho', today: '2026-11-24', tree, logs: sprays, memories, supplies: [] });
+    expect(q).toContain('GHI NHỚ CỦA VƯỜN');
+    expect(q.indexOf('SR01 vàng lá')).toBeLessThan(q.indexOf('Chủ vườn chỉ phun'));
+    expect(q).not.toContain('SR09 ra hoa sớm');
+    expect(q).not.toContain('chưa duyệt');
+    expect(q).toContain('RÚT RA TỪ NHẬT KÝ');
+    expect(q).toMatch(/SR01 đã phun nhóm IRAC 6 2 lần/);
+    expect(q).toContain('learnedMemories');
   });
   it('cây đang hỏi: label + tối đa 10 nhật ký, mới → cũ', () => {
     expect(p).toContain('SR01 · Góc cổng');
@@ -73,13 +101,36 @@ describe('parseAiActions / parseAiAnswer (T06 AC3)', () => {
       { title: 'C', dueInDays: 3 },
     ]);
   });
-  it('JSON hỏng → actions [] và vẫn lấy được phần chữ', () => {
-    expect(parseAiAnswer('{"answer":"Cây bị nhện đỏ\\nNên soi mặt dưới lá","confid', valid)).toEqual({ answer: 'Cây bị nhện đỏ\nNên soi mặt dưới lá', confidence: null, actions: [] });
-    expect(parseAiAnswer('chữ thường không phải JSON', valid)).toEqual({ answer: 'chữ thường không phải JSON', confidence: null, actions: [] });
+  it('JSON hỏng → actions [], learnedMemories [] và vẫn lấy được phần chữ', () => {
+    expect(parseAiAnswer('{"answer":"Cây bị nhện đỏ\\nNên soi mặt dưới lá","confid', valid)).toEqual({ answer: 'Cây bị nhện đỏ\nNên soi mặt dưới lá', confidence: null, actions: [], learnedMemories: [] });
+    expect(parseAiAnswer('chữ thường không phải JSON', valid)).toEqual({ answer: 'chữ thường không phải JSON', confidence: null, actions: [], learnedMemories: [] });
   });
-  it('JSON hợp lệ (có thể bọc ```json)', () => {
+  it('JSON hợp lệ (có thể bọc ```json); thiếu learnedMemories → []', () => {
     const r = parseAiAnswer('```json\n{"answer":"OK","confidence":"vua","actions":[{"title":"Kiểm tra lại","dueInDays":7,"targetId":"SR01"}]}\n```', valid);
-    expect(r).toEqual({ answer: 'OK', confidence: 'vua', actions: [{ title: 'Kiểm tra lại', dueInDays: 7, targetId: 'SR01' }] });
+    expect(r).toEqual({ answer: 'OK', confidence: 'vua', actions: [{ title: 'Kiểm tra lại', dueInDays: 7, targetId: 'SR01' }], learnedMemories: [] });
+  });
+  it('[1.2] parseLearnedMemories: lọc rỗng/nhạy cảm, nhóm lạ → khac, bỏ targetId lạ, tối đa 3', () => {
+    expect(
+      parseLearnedMemories(
+        [
+          { content: '  SR01 hay rụng trái non khi thiếu nước ', category: 'kinh-nghiem', targetIds: ['SR01', 'SR99'] },
+          { content: '', category: 'khac' },
+          { content: 'Key Gemini là AIzaSyABCDEFGHIJKLMNOP', category: 'khac' },
+          { content: 'Mua Movento ở đại lý X giá 420.000 đ', category: 'gia-ca' },
+          { content: 'Thứ ba', category: 'so-thich', targetIds: 'SR01' },
+          { content: 'Thứ tư — bị bỏ vì quá 3 mục', category: 'khac' },
+          'rác',
+        ],
+        valid,
+      ),
+    ).toEqual([
+      { content: 'SR01 hay rụng trái non khi thiếu nước', category: 'kinh-nghiem', targetIds: ['SR01'] },
+      { content: 'Mua Movento ở đại lý X giá 420.000 đ', category: 'khac' },
+      { content: 'Thứ ba', category: 'so-thich' },
+    ]);
+    expect(parseLearnedMemories(undefined, valid)).toEqual([]);
+    const r = parseAiAnswer(JSON.stringify({ answer: 'OK', confidence: 'cao', actions: [], learnedMemories: [{ content: 'SR01 hợp Movento', category: 'phan-ung', targetIds: ['SR01'] }] }), valid);
+    expect(r.learnedMemories).toEqual([{ content: 'SR01 hợp Movento', category: 'phan-ung', targetIds: ['SR01'] }]);
   });
 });
 
@@ -109,11 +160,13 @@ describe('Gemini client (T06 AC1, AC7 [1.1])', () => {
     const contents = g.reqs[0].body!.contents as Array<{ parts: Array<Record<string, unknown>> }>;
     expect(contents[0].parts[0]).toEqual({ inlineData: { mimeType: 'image/jpeg', data: 'AAAA' } });
     expect(g.reqs[0].body!.generationConfig).toMatchObject({ responseMimeType: 'application/json' });
+    const schema = (g.reqs[0].body!.generationConfig as { responseSchema: { properties: Record<string, unknown> } }).responseSchema;
+    expect(Object.keys(schema.properties)).toEqual(['answer', 'confidence', 'actions', 'learnedMemories']);
   });
   it('(a) lần 1 trả 400 → lần 2 KHÔNG có schema → hiện câu trả lời, actions [], báo model không hỗ trợ', async () => {
     const g = fakeGemini([400, okText('Trả lời dạng **Markdown**')]);
     const r = await createGeminiClient('k', g.fetchFn).generate(req());
-    expect(r).toEqual({ answer: 'Trả lời dạng **Markdown**', confidence: null, actions: [], usedSchema: false, schemaUnsupportedDetected: true });
+    expect(r).toEqual({ answer: 'Trả lời dạng **Markdown**', confidence: null, actions: [], learnedMemories: [], usedSchema: false, schemaUnsupportedDetected: true });
     expect(g.reqs).toHaveLength(2);
     expect(g.reqs[1].body!.generationConfig).toBeUndefined();
     expect(rememberSchemaUnsupported(undefined, 'gemini-3.0-flash')).toEqual(['models/gemini-3.0-flash']);

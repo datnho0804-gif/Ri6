@@ -102,9 +102,8 @@ describe('Copy Prompt (T02 AC6)', () => {
     expect(r.some((l) => l.targetId !== 'SR03')).toBe(false);
     expect(p).toContain('Emamectin benzoate · PHI 21 ngày');
   });
-  it('yêu cầu hoạt chất theo nhóm FRAC/IRAC, theo nhãn, không liều', () => {
-    expect(p).toMatch(/FRAC\/IRAC/);
-    expect(p).toMatch(/theo nhãn/);
-    expect(p).toMatch(/KHÔNG nêu liều/);
+  it('[1.2] yêu cầu thương hiệu, nhóm FRAC/IRAC, quy cách, giá tham khảo, cách dùng; liều đối chiếu nhãn; Danh mục', () => {
+    for (const s of ['thương hiệu', 'FRAC/IRAC', 'quy cách', 'giá tham khảo', 'cách dùng', 'đối chiếu nhãn', 'Danh mục thuốc BVTV']) expect(p).toContain(s);
+    expect(p).not.toMatch(/KHÔNG nêu liều/);
   });
 });

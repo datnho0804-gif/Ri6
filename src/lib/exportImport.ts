@@ -1,6 +1,6 @@
 import type { ISOTime } from '../types/models';
 import { convertLegacyBackup, isLegacyBackup, type LegacyBackup } from './legacyImport';
-import { SYNC_COLLECTIONS, type SyncState } from './merge';
+import { collectionOf, SYNC_COLLECTIONS, type SyncState } from './merge';
 
 export const EXPORT_APP = 'so-tay-vuon-ri6';
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -35,7 +35,7 @@ export function buildExport(
   state: SyncState,
   opts: { exportedAt: ISOTime; appVersion: string; photoData?: Record<string, string> },
 ): ExportFile {
-  const data = Object.fromEntries(SYNC_COLLECTIONS.map((k) => [k, stripSecrets(state[k])])) as unknown as SyncState;
+  const data = Object.fromEntries(SYNC_COLLECTIONS.map((k) => [k, stripSecrets(collectionOf(state, k))])) as unknown as SyncState;
   return {
     app: EXPORT_APP,
     schemaVersion: EXPORT_SCHEMA_VERSION,

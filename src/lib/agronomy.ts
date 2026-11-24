@@ -66,3 +66,22 @@ export const IMAGE = {
 
 /** Số mục nhật ký đưa vào prompt AI. */
 export const PROMPT_RECENT_LOGS = 10;
+
+/** [1.2] Số cây cá thể Lô B khởi tạo cho vườn mới: SR01–SR03 (+ ô "Thêm cây"). */
+export const DEFAULT_INITIAL_TREES = 3;
+
+/** [1.2] Bộ nhớ AI (SPEC M7.1). */
+export const AI_MEMORY = {
+  /** Số ghi nhớ tối đa nạp vào system prompt. */
+  maxInPrompt: 20,
+  /** Độ dài tối đa một ghi nhớ (ký tự). */
+  maxLength: 280,
+  /** Số đề xuất ghi nhớ tối đa nhận từ 1 câu trả lời. */
+  maxProposalsPerAnswer: 3,
+} as const;
+
+/** [1.2] Vật tư: số lần phun cùng nhóm cơ chế trong `window` ngày thì nhắc luân phiên. */
+export const ROTATION_ALERT = { sameGroupCount: 2, windowDays: 30 } as const;
+
+/** Tủ gốc (SPEC §3.1). */
+export const MULCH = { thicknessCm: [10, 20], gapFromTrunkCm: [10, 20] } as const;

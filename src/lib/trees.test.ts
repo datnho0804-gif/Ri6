@@ -69,6 +69,7 @@ describe('nextTreeCode / duplicateCodes (T02 AC3 [1.1])', () => {
   const sr = (n: number) => makeTree({ id: `SR${String(n).padStart(2, '0')}` });
   const fifteen = Array.from({ length: 15 }, (_, i) => sr(i + 1));
   it('SR01–SR15 → SR16', () => expect(nextTreeCode(fifteen)).toBe('SR16'));
+  it('[1.2] vườn mới SR01–SR03 → SR04', () => expect(nextTreeCode([sr(1), sr(2), sr(3)])).toBe('SR04'));
   it('SR16 đã xóa → SR17 (không cấp lại)', () => expect(nextTreeCode([...fifteen, makeTree({ id: 'u1', code: 'SR16', deletedAt: T0 })])).toBe('SR17'));
   it('bỏ qua mã không theo mẫu', () =>
     expect(nextTreeCode([sr(1), sr(9), makeTree({ id: 'x', code: 'Góc cổng' })])).toBe('SR10'));
