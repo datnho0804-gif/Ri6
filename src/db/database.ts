@@ -150,6 +150,7 @@ export async function initDatabase(
           ...current,
           notify: current.notify ?? { enabled: false, lastKeys: [] },
           geminiSchemaUnsupported: current.geminiSchemaUnsupported ?? [],
+          hapticsEnabled: current.hapticsEnabled ?? true,
           lastSeenVersion: appVersion,
         };
       }

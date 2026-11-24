@@ -154,6 +154,7 @@ export interface Settings {
   seasonOverride?: Season | null;
   notify?: NotifySettings;
   geminiSchemaUnsupported?: string[];
+  hapticsEnabled?: boolean;
   seededAt?: ISOTime;
   lastSeenVersion?: string;
 }

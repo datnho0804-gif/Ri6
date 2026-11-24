@@ -1,45 +1,123 @@
 @import "tailwindcss";
 
 @theme {
-  /* Offline-first system typography — zero CDN dependencies */
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  /* DESIGN §2.2: Offline self-hosted Be Vietnam Pro */
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* SPEC §8: Durian leaf green (primary: #14532d) */
-  --color-durian-50: #f0fdf4;
-  --color-durian-100: #dcfce7;
-  --color-durian-200: #bbf7d0;
-  --color-durian-300: #86efac;
-  --color-durian-600: #16a34a;
-  --color-durian-700: #15803d;
-  --color-durian-800: #166534;
-  --color-durian-900: #14532d;
-  --color-durian-950: #0c351d;
+  /* DESIGN §2.1: Role-based color tokens (WCAG AA/AAA measured for sunlight readability) */
+  --color-bg: #faf8f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3efe8;
+  --color-outline: #e7e0d4;
+  --color-outline-strong: #cfc6b8;
 
-  /* SPEC §8: Red basalt soil (accent: #9a3412) */
-  --color-basalt-50: #fff7ed;
-  --color-basalt-100: #ffedd5;
-  --color-basalt-200: #fed7aa;
-  --color-basalt-300: #fdba74;
-  --color-basalt-600: #c2410c;
-  --color-basalt-700: #9a3412;
-  --color-basalt-800: #7c2d12;
+  /* Text hierarchy (never lighter than #57534e) */
+  --color-text: #1c1917;
+  --color-text-2: #44403c;
+  --color-text-3: #57534e;
 
-  /* SPEC §8: Canvas (#faf8f5) & primary ink (#1c1917) */
-  --color-sand: #faf8f5;
-  --color-sand-100: #f3efe8;
-  --color-sand-200: #e7e0d4;
-  --color-sand-300: #d6cbb9;
-  --color-ink: #1c1917;
-  --color-ink-muted: #57534e;
+  /* Brand & accent roles */
+  --color-primary: #14532d;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #dcfce7;
+  --color-on-primary-container: #052e16;
 
-  /* SPEC §8: Semantic status palette (red status explicitly distinct from basalt #9a3412) */
-  --color-status-ok: #15803d;
-  --color-status-ok-bg: #dcfce7;
-  --color-status-warn: #a16207;
-  --color-status-warn-bg: #fef9c3;
-  --color-status-danger: #dc2626;
-  --color-status-danger-bg: #fee2e2;
+  --color-secondary: #9a3412;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ffedd5;
+  --color-on-secondary-container: #7c2d12;
+
+  --color-tertiary: #f59e0b;
+  --color-tertiary-container: #fef3c7;
+  --color-on-tertiary-container: #78350f;
+  --color-season-start: #fff7ed;
+  --color-season-border: #fde68a;
+
+  /* Semantic status & log-type roles */
+  --color-ok: #14532d;
+  --color-ok-container: #dcfce7;
+  --color-ok-accent: #16a34a;
+  --color-ok-track-start: #86efac;
+
+  --color-warn: #713f12;
+  --color-warn-container: #fef9c3;
+
+  --color-danger: #991b1b;
+  --color-danger-container: #fee2e2;
+
+  --color-info: #1e3a8a;
+  --color-info-container: #dbeafe;
+
+  --color-ph: #5b21b6;
+  --color-ph-container: #ede9fe;
+
+  --color-water: #075985;
+  --color-water-container: #e0f2fe;
+
+  --color-ai: #3730a3;
+  --color-ai-container: #e0e7ff;
+
+  /* Scrims & overlays */
+  --color-scrim: rgb(28 25 23 / 0.48);
+  --color-press-overlay: rgb(28 25 23 / 0.08);
+  --color-hero-scrim-top: rgb(0 0 0 / 0.35);
+  --color-hero-scrim-bottom: rgb(0 0 0 / 0.68);
+  --color-hero-control: rgb(0 0 0 / 0.34);
+  --color-hero-pill: rgb(255 255 255 / 0.92);
+  --color-hero-badge: rgb(255 255 255 / 0.22);
+
+  /* DESIGN §2.3: Radii tokens */
+  --radius-sm: 12px;
+  --radius-tile: 14px;
+  --radius-md: 16px;
+  --radius-fab: 18px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  /* DESIGN §2.3: Elevation shadows */
+  --shadow-e1: 0 1px 2px rgb(28 25 23 / 0.06), 0 2px 8px rgb(28 25 23 / 0.05);
+  --shadow-e2: 0 6px 20px rgb(28 25 23 / 0.16);
+  --shadow-sheet: 0 -8px 30px rgb(28 25 23 / 0.18);
+
+  /* DESIGN §2.3: Motion durations & easing */
+  --duration-press: 120ms;
+  --duration-enter: 200ms;
+  --duration-sheet: 280ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+  /* DESIGN §2.2: Typography scale (minimum 14px except 12px numeric counter badge) */
+  --text-display: 1.75rem;
+  --text-display--line-height: 2.125rem;
+  --text-display--letter-spacing: -0.01em;
+
+  --text-headline: 1.375rem;
+  --text-headline--line-height: 1.75rem;
+  --text-headline--letter-spacing: -0.01em;
+
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.5rem;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.25rem;
+
+  --text-kpi: 1.875rem;
+  --text-kpi--line-height: 2.25rem;
+  --text-kpi--letter-spacing: -0.02em;
+
+  --text-badge: 0.75rem;
+  --text-badge--line-height: 1rem;
+
+  /* Breakpoint for NavRail (DESIGN §3: >= 840px) */
+  --breakpoint-rail: 840px;
 }
 
 @layer base {
@@ -47,45 +125,186 @@
     font-family: var(--font-sans);
     font-size: 16px;
     color-scheme: light;
-    background-color: var(--color-sand);
-    color: var(--color-ink);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    overscroll-behavior-y: contain;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
   }
 
   body {
     min-height: 100dvh;
-    background-color: var(--color-sand);
-    color: var(--color-ink);
-    font-size: 1rem;
-    line-height: 1.5;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    overscroll-behavior-y: contain;
+  }
+
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
   }
 
   button,
   [role="button"] {
     cursor: pointer;
+    user-select: none;
+  }
+
+  nav {
+    user-select: none;
   }
 
   :focus-visible {
-    outline: 3px solid var(--color-durian-900);
+    outline: 3px solid var(--color-primary);
     outline-offset: 2px;
   }
 }
 
-/* Free up vertical viewport on landscape phones (e.g. 844x390) */
-@media (max-height: 500px) and (orientation: landscape) {
-  .app-header {
-    position: static;
+/* Tactile press feedback (DESIGN §6: scale(.98) + 8% press layer in 120ms) */
+.pressable {
+  position: relative;
+  transition: transform var(--duration-press) var(--ease-enter),
+    background-color var(--duration-press) var(--ease-enter),
+    box-shadow var(--duration-press) var(--ease-enter),
+    opacity var(--duration-press) var(--ease-enter);
+}
+
+.pressable::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: transparent;
+  pointer-events: none;
+  transition: background-color var(--duration-press) var(--ease-enter);
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.pressable:active:not(:disabled)::after {
+  background-color: var(--color-press-overlay);
+}
+
+/* Screen enter transition (DESIGN §6: fade + 8px slide in 200ms) */
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.safe-bottom {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+.animate-screen-enter {
+  animation: screenEnter var(--duration-enter) var(--ease-enter) both;
+}
+
+@keyframes sheetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-enter {
+  animation: sheetEnter var(--duration-sheet) var(--ease-enter) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-enter) var(--ease-enter) both;
+}
+
+/* DESIGN §2.3 & §8 #10: Reduced motion -> fade only, no slide/scale/pulse */
+@media (prefers-reduced-motion: reduce) {
+  .animate-screen-enter,
+  .animate-sheet-enter {
+    animation-name: fadeIn;
+    animation-duration: var(--duration-press);
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+
+  .skeleton-shimmer {
+    animation: none;
+  }
+}
+
+/* DESIGN AC5: Landscape phones (844x390) -> header <= 15% height (56px = 14.3% of 390px) & unstick */
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-top-bar {
+    position: static;
+    height: 56px;
+    min-height: 56px;
+  }
+}
+
+.season-banner {
+  background-image: linear-gradient(135deg, var(--color-season-start) 0%, var(--color-tertiary-container) 100%);
+  border: 1px solid var(--color-season-border);
+}
+
+.hero-scrim {
+  background-image: linear-gradient(
+    var(--color-hero-scrim-top),
+    transparent 30%,
+    transparent 50%,
+    var(--color-hero-scrim-bottom)
+  );
+}
+
+.ri6-track-fill {
+  background-image: linear-gradient(90deg, var(--color-ok-track-start), var(--color-ok-accent));
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
 
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
+
+.main-safe-bottom {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 840px) {
+  .main-safe-bottom {
+    padding-bottom: 2.5rem;
+  }
+}
+
+.sheet-panel {
+  max-height: 90dvh;
+}
+
+.dialog-panel {
+  max-height: 90dvh;
+}
+

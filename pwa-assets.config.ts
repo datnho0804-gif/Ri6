@@ -6,7 +6,7 @@ export default defineConfig({
   },
   preset: {
     transparent: {
-      sizes: [64, 192, 512],
+      sizes: [48, 72, 96, 144, 192, 512],
       favicons: [[32, 'favicon.ico']],
       padding: 0,
       resizeOptions: {

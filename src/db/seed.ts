@@ -34,6 +34,7 @@ export function createInitialSettings(deviceId: string, appVersion: string): Set
       lastKeys: [],
     },
     geminiSchemaUnsupported: [],
+    hapticsEnabled: true,
     lastSeenVersion: appVersion,
   };
 }
