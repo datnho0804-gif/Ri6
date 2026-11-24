@@ -9,8 +9,10 @@
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
 | T04 | Cài đặt, đồng bộ GitHub, Gemini | ⏳ |
-| T05 | APK Android (Capacitor) và phát hành tự động | ⏳ |
-| T06 | Tự động cập nhật trong app (OTA + APK) | ⏳ |
+| T05 | APK Android (Capacitor) và phát hành tự động | ⏸ Tạm hoãn — không làm |
+| T06 | Tự động cập nhật trong app (OTA + APK) | ⏸ Tạm hoãn — không làm |
+
+> Bản chính là web app cài từ Chrome (SPEC §7.0). T05–T06 giữ lại để tham khảo, chỉ làm khi Claude đổi trạng thái.
 
 ---
 
@@ -45,7 +47,9 @@
 - Manifest và icon theo SPEC §7.
 - Tắt mạng rồi tải lại trang thì app vẫn mở được.
 - Chrome Android cho phép "Thêm vào màn hình chính".
-- Service Worker dùng `registerType: 'autoUpdate'`. Khi có bản mới thì hiện Toast "Đã cập nhật".
+- Service Worker dùng `registerType: 'autoUpdate'`. Khi có bản mới thì hiện Toast "Đã cập nhật lên vX.Y.Z" (phiên bản lấy từ `package.json` lúc build).
+- Có nút **"Cài app lên điện thoại"** theo SPEC §7.0, gồm cả nhánh `beforeinstallprompt` lẫn Modal hướng dẫn và mẹo cho Xiaomi.
+- Báo cáo có ảnh app chạy toàn màn hình sau khi cài từ Chrome Android. Dùng máy thật hoặc emulator; nếu không có thì ghi rõ lý do.
 
 **AC8. Đường dẫn gốc.**
 - Build cho Pages dùng `base '/Ri6/'`. Có sẵn cơ chế (biến môi trường hoặc mode) để build `base './'` cho T05.
@@ -208,7 +212,24 @@ Test với **mắt cua `2026-12-01`**:
 - Nút phân tích gửi prompt kèm tối đa 3 ảnh, hiện kết quả, lưu được thành nhật ký "Ghi chú AI".
 - Có lỗi thì hiện bằng Toast.
 
-**AC8. Báo cáo.**
+**AC8. Đồng bộ nền và lưu Cài đặt.**
+- Cài đặt lưu trong bảng Dexie `settings`, không dùng localStorage.
+- Có Background Sync tag `ri6-sync` theo SPEC §6. Service Worker gọi được `sync()`; mã trong `src/lib/sync/` không dùng `window`, `document`, `localStorage`. CI có lệnh kiểm tra việc này, ví dụ grep hoặc rule ESLint.
+- **Thử thủ công:** bật chế độ máy bay → thêm nhật ký → đóng app → tắt chế độ máy bay → sau ít phút commit mới xuất hiện trong `Ri6-data` mà không cần mở app.
+
+**AC9. Bộ nhớ và cảnh báo trong Cài đặt** (SPEC §7.0 và §6).
+- Hiện trạng thái bộ nhớ bền vững và dung lượng đã dùng.
+- Có cảnh báo "xóa dữ liệu Chrome sẽ mất dữ liệu trên máy".
+- Có cảnh báo về origin chung `*.github.io` đặt cạnh ô token.
+
+**AC10. README hướng dẫn chủ vườn** (tiếng Việt).
+- Cài app từ Chrome lên nhiều máy Android, kèm mẹo cho Xiaomi.
+- Tạo repo riêng tư `Ri6-data` và fine-grained token.
+- Nhập token trên từng máy.
+- Dữ liệu được đồng bộ khi nào.
+- Khôi phục dữ liệu khi đổi máy.
+
+**AC11. Báo cáo.**
 - `docs/reports/T04.md` kèm ảnh: Cài đặt, các trạng thái đồng bộ, và một commit mẫu trong `Ri6-data` (che token).
 
 ---
