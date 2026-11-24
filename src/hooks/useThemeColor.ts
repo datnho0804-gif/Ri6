@@ -1,9 +1,16 @@
 import { useEffect } from 'react';
 
+export type ThemeBarRole = 'bg' | 'dark';
+
+const ROLE_CSS_VAR: Record<ThemeBarRole, string> = {
+  bg: '--color-bg',
+  dark: '--color-text',
+};
+
 /**
- * Synchronizes <meta name="theme-color"> with the active screen's top bar background (DESIGN §6).
+ * Synchronizes <meta name="theme-color"> with semantic design tokens (DESIGN §6).
  */
-export function useThemeColor(color: string) {
+export function useThemeColor(role: ThemeBarRole) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -13,11 +20,16 @@ export function useThemeColor(color: string) {
       document.head.appendChild(meta);
     }
     const previous = meta.content;
-    meta.content = color;
+    const resolved = getComputedStyle(document.documentElement)
+      .getPropertyValue(ROLE_CSS_VAR[role])
+      .trim();
+    if (resolved) {
+      meta.content = resolved;
+    }
     return () => {
-      if (meta) {
-        meta.content = previous || '#faf8f5';
+      if (meta && previous) {
+        meta.content = previous;
       }
     };
-  }, [color]);
+  }, [role]);
 }

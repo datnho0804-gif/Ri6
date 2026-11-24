@@ -1,38 +1,65 @@
 import { CheckCircle2, Cloud, CloudOff, Plus } from 'lucide-react';
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { OverviewScreen } from './components/screens/OverviewScreen';
 import { PlaceholderTab } from './components/screens/PlaceholderTab';
-import { SampleLogSheet } from './components/screens/SampleLogSheet';
-import { SettingsScreen } from './components/screens/SettingsScreen';
-import {
-  Banner,
-  Button,
-  Card,
-  Dialog,
-  ExtendedFab,
-  InstallGuideModal,
-  ListItem,
-  NavBar,
-  NavRail,
-  Skeleton,
-  Snackbar,
-  StatusPill,
-  TopAppBar,
-} from './components/ui';
-import { type DatabaseInitResult, db, initDatabase } from './db/database';
+import { Banner } from './components/ui/Banner';
+import { Button } from './components/ui/Button';
+import { Card } from './components/ui/Card';
+import { Dialog } from './components/ui/Dialog';
+import { ExtendedFab } from './components/ui/Fab';
+import { ListItem } from './components/ui/ListItem';
+import { NavBar } from './components/ui/NavBar';
+import { NavRail } from './components/ui/NavRail';
+import { Skeleton } from './components/ui/Skeleton';
+import { Snackbar } from './components/ui/Snackbar';
+import { StatusPill } from './components/ui/StatusPill';
+import { TopAppBar } from './components/ui/TopAppBar';
+import { LOT_A_ID } from './db/seed';
+import { useOrchardData } from './hooks/useOrchardData';
 import { usePwa } from './hooks/usePwa';
 import { useSnackbar } from './hooks/useSnackbar';
 import { useThemeColor } from './hooks/useThemeColor';
 import { todayVN } from './lib/date';
 import { formatHeaderDateVN } from './lib/format';
 import { triggerHaptic } from './lib/haptics';
-import type { TabId, ViewId } from './types/models';
+import { effectiveSeason as resolveSeason } from './lib/season';
+import { duplicateCodes } from './lib/treeCodes';
+import type { TreeFilter } from './lib/treeFilters';
+import type { Log, Season, TabId, Tree, ViewId } from './types/models';
 
 const APP_VERSION = __APP_VERSION__;
 
+const InstallGuideModal = lazy(() =>
+  import('./components/ui/InstallGuideModal').then((m) => ({
+    default: m.InstallGuideModal,
+  })),
+);
 const DesignShowcaseScreen = lazy(() =>
   import('./components/screens/DesignShowcaseScreen').then((m) => ({
     default: m.DesignShowcaseScreen,
   })),
+);
+const TreesScreen = lazy(() =>
+  import('./components/screens/TreesScreen').then((m) => ({ default: m.TreesScreen })),
+);
+const TreeProfileScreen = lazy(() =>
+  import('./components/screens/TreeProfileScreen').then((m) => ({
+    default: m.TreeProfileScreen,
+  })),
+);
+const LotADetailScreen = lazy(() =>
+  import('./components/screens/LotADetailScreen').then((m) => ({
+    default: m.LotADetailScreen,
+  })),
+);
+const SettingsScreen = lazy(() =>
+  import('./components/screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })),
+);
+const LogFormSheet = lazy(() =>
+  import('./components/screens/LogFormSheet').then((m) => ({ default: m.LogFormSheet })),
+);
+const QuickPhotoSheet = lazy(() =>
+  import('./components/screens/QuickPhotoSheet').then((m) => ({ default: m.QuickPhotoSheet })),
 );
 
 function hasDesignFlag(): boolean {
@@ -60,26 +87,48 @@ function getShortcutAction(): 'log' | 'photo' | 'agenda' | null {
   return null;
 }
 
+function useIsWideRail(): boolean {
+  const [isWide, setIsWide] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 840 : false,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 840px)');
+    const handle = () => setIsWide(mq.matches);
+    mq.addEventListener('change', handle);
+    return () => mq.removeEventListener('change', handle);
+  }, []);
+
+  return isWide;
+}
+
 export function App() {
-  const [activeView, setActiveView] = useState<ViewId>(() =>
-    getShortcutAction() === 'photo' ? 'trees' : 'overview',
-  );
-  const [lastTab, setLastTab] = useState<TabId>(() =>
-    getShortcutAction() === 'photo' ? 'trees' : 'overview',
-  );
+  const isWideRail = useIsWideRail();
+
+  const [activeView, setActiveView] = useState<ViewId>('overview');
+  const [lastTab, setLastTab] = useState<TabId>('overview');
+  const [treesInitialFilter, setTreesInitialFilter] = useState<TreeFilter>('all');
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [mobileDetailTargetId, setMobileDetailTargetId] = useState<string | null>(null);
+
   const [designShowcaseOpen, setDesignShowcaseOpen] = useState<boolean>(() =>
     isDesignShowcaseUrl(),
   );
-  const [dbState, setDbState] = useState<DatabaseInitResult | null>(null);
-  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
-  const [logSheetOpen, setLogSheetOpen] = useState<boolean>(
-    () => !isDesignShowcaseUrl() && getShortcutAction() === 'log',
+  const [quickPhotoOpen, setQuickPhotoOpen] = useState<boolean>(
+    () => !isDesignShowcaseUrl() && getShortcutAction() === 'photo',
   );
+  const [logSheetTarget, setLogSheetTarget] = useState<{
+    open: boolean;
+    fixedTargetId?: string;
+    fixedTargetLabel?: string;
+  }>(() => ({
+    open: !isDesignShowcaseUrl() && getShortcutAction() === 'log',
+  }));
   const [fabHidden, setFabHidden] = useState(false);
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   const scrollPositionsRef = useRef<Map<string, number>>(new Map());
   const lastScrollYRef = useRef(0);
@@ -87,43 +136,34 @@ export function App() {
   const { items: snackbars, showSnackbar, dismissSnackbar } = useSnackbar();
   const { isOnline, isStandalone, triggerInstallPrompt } = usePwa();
 
-  useThemeColor('#faf8f5');
+  const handleStartupNotice = useCallback(
+    (notice: { message: string; tone: 'ok' | 'danger' }) => {
+      showSnackbar(notice.message, {
+        tone: notice.tone,
+        durationMs: notice.tone === 'danger' ? 6000 : 5000,
+      });
+    },
+    [showSnackbar],
+  );
+
+  const orchard = useOrchardData(APP_VERSION, handleStartupNotice);
+
+  const hapticsEnabled = orchard.settings?.hapticsEnabled ?? true;
+  const today = todayVN();
+  const effectiveSeason: Season = resolveSeason(today, orchard.settings?.seasonOverride);
+  const deviceId = orchard.settings?.deviceId ?? orchard.dbState?.settings.deviceId ?? 'local-device';
+
+  const dupes = useMemo(() => duplicateCodes(orchard.allTrees), [orchard.allTrees]);
+
+  // Default light theme-color (TreeProfileScreen overrides to dark when full-bleed hero is open on mobile)
+  useThemeColor('bg');
 
   const closeAllOverlays = useCallback(() => {
-    setLogSheetOpen(false);
+    setLogSheetTarget({ open: false });
+    setQuickPhotoOpen(false);
     setSyncDialogOpen(false);
-    setDemoDialogOpen(false);
     setInstallGuideOpen(false);
   }, []);
-
-  // Initialize Dexie database and detect version upgrades
-  useEffect(() => {
-    let mounted = true;
-    initDatabase(APP_VERSION)
-      .then((result) => {
-        if (!mounted) return;
-        setDbState(result);
-        setHapticsEnabled(result.settings.hapticsEnabled ?? true);
-        if (result.versionError) {
-          showSnackbar('Cần cập nhật ứng dụng để đọc dữ liệu mới hơn.', {
-            tone: 'danger',
-            durationMs: 6000,
-          });
-        } else if (result.wasUpgradedFromVersion) {
-          showSnackbar(`Đã cập nhật lên v${APP_VERSION}`, { tone: 'ok', durationMs: 5000 });
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        showSnackbar('Không thể khởi tạo dữ liệu ngoại tuyến trên thiết bị này.', {
-          tone: 'danger',
-          durationMs: 6000,
-        });
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [showSnackbar]);
 
   // Listen to hash changes for #/design?design=1 and PWA manifest shortcuts (#/log, #/photo, #/agenda)
   useEffect(() => {
@@ -137,13 +177,15 @@ export function App() {
       setDesignShowcaseOpen(false);
       const shortcut = getShortcutAction();
       if (shortcut === 'log') {
+        setMobileDetailTargetId(null);
         setActiveView('overview');
         setLastTab('overview');
-        setLogSheetOpen(true);
+        setLogSheetTarget({ open: true });
       } else if (shortcut === 'photo') {
-        setActiveView('trees');
-        setLastTab('trees');
+        setMobileDetailTargetId(null);
+        setQuickPhotoOpen(true);
       } else if (shortcut === 'agenda') {
+        setMobileDetailTargetId(null);
         setActiveView('overview');
         setLastTab('overview');
       }
@@ -172,7 +214,12 @@ export function App() {
   }, []);
 
   // Restore scroll position when returning to a previously visited view (DESIGN §6)
-  const currentViewKey = designShowcaseOpen ? 'design' : activeView;
+  const currentViewKey = designShowcaseOpen
+    ? 'design'
+    : mobileDetailTargetId && !isWideRail
+      ? `detail:${mobileDetailTargetId}`
+      : activeView;
+
   useEffect(() => {
     const saved = scrollPositionsRef.current.get(currentViewKey) ?? 0;
     window.scrollTo({ top: saved, behavior: 'instant' as ScrollBehavior });
@@ -181,8 +228,10 @@ export function App() {
 
   const navigateToView = useCallback(
     (next: ViewId) => {
+      setHasNavigated(true);
       closeAllOverlays();
       scrollPositionsRef.current.set(currentViewKey, window.scrollY);
+      setMobileDetailTargetId(null);
       if (designShowcaseOpen) {
         setDesignShowcaseOpen(false);
         if (window.location.hash.startsWith('#/design')) {
@@ -198,15 +247,34 @@ export function App() {
     [closeAllOverlays, currentViewKey, designShowcaseOpen],
   );
 
+  const openTargetDetail = useCallback(
+    (targetId: string) => {
+      setHasNavigated(true);
+      scrollPositionsRef.current.set(currentViewKey, window.scrollY);
+      setSelectedTargetId(targetId);
+      if (isWideRail) {
+        setActiveView('trees');
+        setLastTab('trees');
+        setMobileDetailTargetId(null);
+      } else {
+        setMobileDetailTargetId(targetId);
+      }
+    },
+    [currentViewKey, isWideRail],
+  );
+
   const openDesignShowcase = useCallback(() => {
+    setHasNavigated(true);
     closeAllOverlays();
     scrollPositionsRef.current.set(currentViewKey, window.scrollY);
+    setMobileDetailTargetId(null);
     window.location.hash = '#/design?design=1';
     setFabHidden(false);
     setDesignShowcaseOpen(true);
   }, [closeAllOverlays, currentViewKey]);
 
   const closeDesignShowcase = useCallback(() => {
+    setHasNavigated(true);
     closeAllOverlays();
     scrollPositionsRef.current.set('design', window.scrollY);
     setDesignShowcaseOpen(false);
@@ -215,14 +283,18 @@ export function App() {
     setActiveView(lastTab);
   }, [closeAllOverlays, lastTab]);
 
+  const notify = useCallback(
+    (message: string, tone: 'ok' | 'info' | 'warn' | 'danger' = 'ok') => {
+      showSnackbar(message, { tone });
+    },
+    [showSnackbar],
+  );
+
   const handleToggleHaptics = useCallback(
     async (next: boolean) => {
-      setHapticsEnabled(next);
-      if (next) {
-        triggerHaptic(true);
-      }
+      if (next) triggerHaptic(true);
       try {
-        await db.settings.update('app', { hapticsEnabled: next });
+        await orchard.updateSettings({ hapticsEnabled: next });
         showSnackbar(next ? 'Đã bật rung nhẹ khi thao tác.' : 'Đã tắt rung nhẹ.', {
           tone: 'info',
           durationMs: 2500,
@@ -231,7 +303,7 @@ export function App() {
         showSnackbar('Không thể lưu tùy chọn rung nhẹ.', { tone: 'danger' });
       }
     },
-    [showSnackbar],
+    [orchard, showSnackbar],
   );
 
   const handleInstallClick = useCallback(async () => {
@@ -245,25 +317,77 @@ export function App() {
     }
   }, [closeAllOverlays, hapticsEnabled, showSnackbar, triggerInstallPrompt]);
 
+  const handleDeleteSingleLog = useCallback(
+    async (log: Log) => {
+      const tombstone = await orchard.deleteSingleLog(log);
+      showSnackbar('Đã xóa 1 mục nhật ký', {
+        tone: 'info',
+        actionLabel: 'Hoàn tác',
+        durationMs: 5000,
+        onAction: () => {
+          void orchard.undoDeleteLog(tombstone).then(() => {
+            triggerHaptic(hapticsEnabled);
+            showSnackbar('Đã khôi phục mục nhật ký.', { tone: 'ok', durationMs: 3000 });
+          });
+        },
+      });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
+  const handleDeleteBatch = useCallback(
+    async (batchId: string) => {
+      const count = await orchard.deleteBatchById(batchId);
+      triggerHaptic(hapticsEnabled);
+      showSnackbar(`Đã xóa cả đợt (${count} mục nhật ký).`, { tone: 'info', durationMs: 4000 });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
+  const handleCaptureWeeklyPhoto = useCallback(
+    async (tree: Tree, file: File) => {
+      await orchard.saveCapturedPhoto(tree.id, file, 'weekly');
+      triggerHaptic(hapticsEnabled);
+      showSnackbar(`Đã lưu ảnh tuần cho ${tree.code} — chuyển sang Đã chụp.`, { tone: 'ok' });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
+  const handleCaptureLotAPhoto = useCallback(
+    async (file: File) => {
+      await orchard.saveCapturedPhoto(LOT_A_ID, file, 'weekly');
+      triggerHaptic(hapticsEnabled);
+      showSnackbar('Đã lưu ảnh cho Lô A.', { tone: 'ok' });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
   const handleDemoUndoSnackbar = useCallback(
-    (message = 'Đã xóa 1 mục xem trước') => {
+    (message = 'Đã xóa 1 mục mẫu') => {
       showSnackbar(message, {
         tone: 'ok',
         actionLabel: 'Hoàn tác',
         durationMs: 5000,
         onAction: () => {
           triggerHaptic(hapticsEnabled);
-          showSnackbar('Đã khôi phục lại mục vừa xóa.', { tone: 'info', durationMs: 3000 });
+          showSnackbar('Đã khôi phục mục mẫu.', { tone: 'info', durationMs: 3000 });
         },
       });
     },
     [hapticsEnabled, showSnackbar],
   );
 
-  const today = todayVN();
-  const treeCount = dbState?.treeCount ?? 0;
-  const lotACount = dbState?.lotACount ?? 0;
+  const treeCount = orchard.trees.length;
+  const lotACount = orchard.lotA?.treeCount ?? 0;
   const showDesignEntry = import.meta.env.DEV || hasDesignFlag();
+
+  // Mobile full-screen detail view (<840px)
+  const activeMobileTree =
+    !isWideRail && mobileDetailTargetId && mobileDetailTargetId !== LOT_A_ID
+      ? (orchard.trees.find((t) => t.id === mobileDetailTargetId) ?? null)
+      : null;
+  const isMobileLotADetail = !isWideRail && mobileDetailTargetId === LOT_A_ID && Boolean(orchard.lotA);
+  const isMobileFullDetail = Boolean(activeMobileTree || isMobileLotADetail);
 
   let barTitle = 'Vườn Ri6';
   let barSubtitle = `${formatHeaderDateVN(today)} · Lộc Tấn`;
@@ -288,7 +412,10 @@ export function App() {
     barSubtitle = 'Phác đồ 5 bước & máy tính Ri6';
   }
 
-  const showFab = !designShowcaseOpen && (activeView === 'overview' || activeView === 'trees');
+  const showFab =
+    !designShowcaseOpen &&
+    !isMobileFullDetail &&
+    (activeView === 'overview' || activeView === 'trees');
 
   return (
     <div
@@ -307,108 +434,324 @@ export function App() {
         />
       )}
 
-      <TopAppBar
-        title={barTitle}
-        subtitle={barSubtitle}
-        onBack={barOnBack}
-        isOffline={!isOnline}
-        syncStatusDot={!isOnline ? 'warn' : 'neutral'}
-        syncLabel={
-          isOnline
-            ? 'Trạng thái đồng bộ sao lưu (chưa thiết lập)'
-            : 'Đang ngoại tuyến — bấm để xem chi tiết lưu trữ'
-        }
-        onSyncClick={() => {
-          closeAllOverlays();
-          setSyncDialogOpen(true);
-        }}
-        onSettingsClick={
-          designShowcaseOpen || activeView === 'settings'
-            ? undefined
-            : () => navigateToView('settings')
-        }
-        settingsActive={activeView === 'settings' && !designShowcaseOpen}
-      />
-
-      <main
-        className={[
-          'flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-4',
-          designShowcaseOpen ? 'pb-10' : 'main-safe-bottom',
-        ].join(' ')}
-      >
-        <div key={currentViewKey} className="animate-screen-enter">
-          {designShowcaseOpen ? (
-            <Suspense
-              fallback={
-                <Card padding="md" className="space-y-3" role="status" aria-label="Đang tải trang thiết kế">
-                  <Skeleton variant="heading" />
-                  <Skeleton variant="card" />
-                  <Skeleton variant="card" />
-                </Card>
-              }
-            >
-              <DesignShowcaseScreen onShowUndoSnackbar={handleDemoUndoSnackbar} />
-            </Suspense>
-          ) : activeView === 'settings' ? (
-            <SettingsScreen
-              appVersion={APP_VERSION}
-              dbState={dbState}
-              isStandalone={isStandalone}
-              hapticsEnabled={hapticsEnabled}
-              showDesignEntry={showDesignEntry}
-              onToggleHaptics={(next) => {
-                void handleToggleHaptics(next);
-              }}
-              onInstallClick={() => {
-                void handleInstallClick();
-              }}
-              onOpenDesignShowcase={openDesignShowcase}
-            />
-          ) : (
-            <PlaceholderTab
-              tab={activeView}
-              dbState={dbState}
-              onOpenSampleSheet={() => {
-                closeAllOverlays();
-                setLogSheetOpen(true);
-              }}
-              onOpenDemoDialog={() => {
-                closeAllOverlays();
-                setDemoDialogOpen(true);
-              }}
-              onDemoUndoSnackbar={() => handleDemoUndoSnackbar()}
-              onNavigateTab={navigateToView}
-            />
-          )}
-        </div>
-      </main>
-
-      {showFab && (
-        <div className="fixed right-4 bottom-24 rail:bottom-6 rail:right-6 z-30">
-          <ExtendedFab
-            icon={<Plus className="w-6 h-6" />}
-            label="Ghi nhật ký"
-            hidden={fabHidden}
-            onClick={() => {
-              closeAllOverlays();
-              setLogSheetOpen(true);
+      {/* Mobile full-screen Tree Profile or Lot A Detail */}
+      {activeMobileTree ? (
+        <Suspense
+          fallback={
+            <div className="p-4 space-y-4">
+              <Skeleton variant="card" />
+              <Skeleton variant="card" />
+            </div>
+          }
+        >
+          <TreeProfileScreen
+            tree={activeMobileTree}
+            duplicateCodeSet={dupes}
+            logs={orchard.logs}
+            photos={orchard.photos}
+            thumbUrls={orchard.thumbUrls}
+            season={effectiveSeason}
+            hapticsEnabled={hapticsEnabled}
+            onBack={() => setMobileDetailTargetId(null)}
+            onUpdateTree={orchard.updateTree}
+            onDeleteTree={async (t) => {
+              await orchard.softDeleteTree(t);
+              setMobileDetailTargetId(null);
+              setSelectedTargetId(null);
+              notify(`Đã xóa cây ${t.code}.`, 'info');
             }}
+            onOpenAddLog={() =>
+              setLogSheetTarget({
+                open: true,
+                fixedTargetId: activeMobileTree.id,
+                fixedTargetLabel: activeMobileTree.code,
+              })
+            }
+            onDeleteLog={(log) => {
+              void handleDeleteSingleLog(log);
+            }}
+            onDeleteBatch={(batchId) => {
+              void handleDeleteBatch(batchId);
+            }}
+            onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
+            getPhotoFullUrl={orchard.getPhotoFullUrl}
+            onNotify={notify}
           />
-        </div>
+        </Suspense>
+      ) : isMobileLotADetail && orchard.lotA ? (
+        <Suspense
+          fallback={
+            <div className="p-4 space-y-4">
+              <Skeleton variant="card" />
+              <Skeleton variant="card" />
+            </div>
+          }
+        >
+          <LotADetailScreen
+            lotA={orchard.lotA}
+            logs={orchard.logs}
+            photos={orchard.photos}
+            thumbUrls={orchard.thumbUrls}
+            hapticsEnabled={hapticsEnabled}
+            onBack={() => setMobileDetailTargetId(null)}
+            onUpdateLotA={orchard.updateLotA}
+            onSplitTrees={orchard.splitFromLotA}
+            onOpenAddLog={() =>
+              setLogSheetTarget({
+                open: true,
+                fixedTargetId: LOT_A_ID,
+                fixedTargetLabel: 'Lô A',
+              })
+            }
+            onDeleteLog={(log) => {
+              void handleDeleteSingleLog(log);
+            }}
+            onDeleteBatch={(batchId) => {
+              void handleDeleteBatch(batchId);
+            }}
+            onCaptureLotPhoto={handleCaptureLotAPhoto}
+            getPhotoFullUrl={orchard.getPhotoFullUrl}
+            onNotify={notify}
+          />
+        </Suspense>
+      ) : (
+        <>
+          <TopAppBar
+            title={barTitle}
+            subtitle={barSubtitle}
+            onBack={barOnBack}
+            isOffline={!isOnline}
+            syncStatusDot={!isOnline ? 'warn' : 'neutral'}
+            syncLabel={
+              isOnline
+                ? 'Trạng thái đồng bộ sao lưu (chưa thiết lập)'
+                : 'Đang ngoại tuyến — bấm để xem chi tiết lưu trữ'
+            }
+            onSyncClick={() => {
+              closeAllOverlays();
+              setSyncDialogOpen(true);
+            }}
+            onSettingsClick={
+              designShowcaseOpen || activeView === 'settings'
+                ? undefined
+                : () => navigateToView('settings')
+            }
+            settingsActive={activeView === 'settings' && !designShowcaseOpen}
+          />
+
+          <main
+            className={[
+              'flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4',
+              designShowcaseOpen ? 'pb-10' : 'main-safe-bottom',
+            ].join(' ')}
+          >
+            <div key={currentViewKey} className={hasNavigated ? 'animate-screen-enter' : undefined}>
+              {designShowcaseOpen ? (
+                <Suspense
+                  fallback={
+                    <Card
+                      padding="md"
+                      className="space-y-3"
+                      role="status"
+                      aria-label="Đang tải trang thiết kế"
+                    >
+                      <Skeleton variant="heading" />
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </Card>
+                  }
+                >
+                  <DesignShowcaseScreen onShowUndoSnackbar={handleDemoUndoSnackbar} />
+                </Suspense>
+              ) : activeView === 'settings' ? (
+                <Suspense
+                  fallback={
+                    <div className="space-y-3">
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </div>
+                  }
+                >
+                  <SettingsScreen
+                    appVersion={APP_VERSION}
+                    dbState={orchard.dbState}
+                    deviceId={deviceId}
+                    isStandalone={isStandalone}
+                    hapticsEnabled={hapticsEnabled}
+                    showDesignEntry={showDesignEntry}
+                    onToggleHaptics={(next) => {
+                      void handleToggleHaptics(next);
+                    }}
+                    onInstallClick={() => {
+                      void handleInstallClick();
+                    }}
+                    onOpenDesignShowcase={openDesignShowcase}
+                    onExportJson={orchard.exportBackupJson}
+                    onGetLocalSnapshot={orchard.getOrchardStateSnapshot}
+                    onApplyImport={orchard.applyImportedBackup}
+                    onNotify={notify}
+                  />
+                </Suspense>
+              ) : activeView === 'overview' ? (
+                <OverviewScreen
+                  loading={orchard.loading}
+                  season={effectiveSeason}
+                  trees={orchard.trees}
+                  lotA={orchard.lotA}
+                  logs={orchard.logs}
+                  photos={orchard.photos}
+                  thumbUrls={orchard.thumbUrls}
+                  onToggleSeason={(next) => {
+                    void orchard.setSeasonOverride(next).then(() => {
+                      triggerHaptic(hapticsEnabled);
+                      notify(
+                        next === 'kho'
+                          ? 'Đã chuyển sang chế độ Mùa khô.'
+                          : 'Đã chuyển sang chế độ Mùa mưa.',
+                        'info',
+                      );
+                    });
+                  }}
+                  onSelectTree={openTargetDetail}
+                  onOpenQuickPhoto={() => {
+                    closeAllOverlays();
+                    setQuickPhotoOpen(true);
+                  }}
+                  onOpenTreesFiltered={(filter) => {
+                    setTreesInitialFilter(filter);
+                    navigateToView('trees');
+                  }}
+                />
+              ) : activeView === 'trees' ? (
+                <Suspense
+                  fallback={
+                    <div className="space-y-3">
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </div>
+                  }
+                >
+                  <TreesScreen
+                    key={treesInitialFilter}
+                    trees={orchard.trees}
+                    allTrees={orchard.allTrees}
+                    lotA={orchard.lotA}
+                    logs={orchard.logs}
+                    photos={orchard.photos}
+                    thumbUrls={orchard.thumbUrls}
+                    season={effectiveSeason}
+                    hapticsEnabled={hapticsEnabled}
+                    initialFilter={treesInitialFilter}
+                    selectedTargetId={selectedTargetId}
+                    onSelectTarget={(id) => {
+                      if (id === null) {
+                        setSelectedTargetId(null);
+                        setMobileDetailTargetId(null);
+                      } else {
+                        openTargetDetail(id);
+                      }
+                    }}
+                    onAddTree={orchard.addTree}
+                    onUpdateTree={orchard.updateTree}
+                    onDeleteTree={async (t) => {
+                      await orchard.softDeleteTree(t);
+                      notify(`Đã xóa cây ${t.code}.`, 'info');
+                    }}
+                    onUpdateLotA={orchard.updateLotA}
+                    onSplitFromLotA={orchard.splitFromLotA}
+                    onOpenBatchLog={() => {
+                      closeAllOverlays();
+                      setLogSheetTarget({ open: true });
+                    }}
+                    onOpenSingleLog={(targetId, targetLabel) => {
+                      closeAllOverlays();
+                      setLogSheetTarget({
+                        open: true,
+                        fixedTargetId: targetId,
+                        fixedTargetLabel: targetLabel,
+                      });
+                    }}
+                    onDeleteLog={(log) => {
+                      void handleDeleteSingleLog(log);
+                    }}
+                    onDeleteBatch={(batchId) => {
+                      void handleDeleteBatch(batchId);
+                    }}
+                    onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
+                    onCaptureLotAPhoto={handleCaptureLotAPhoto}
+                    getPhotoFullUrl={orchard.getPhotoFullUrl}
+                    onNotify={notify}
+                  />
+                </Suspense>
+              ) : (
+                <PlaceholderTab
+                  tab={activeView}
+                  onBackOverview={() => navigateToView('overview')}
+                />
+              )}
+            </div>
+          </main>
+
+          {showFab && (
+            <div className="fixed right-4 bottom-24 rail:bottom-6 rail:right-6 z-30">
+              <ExtendedFab
+                icon={<Plus className="w-6 h-6" />}
+                label="Ghi nhật ký"
+                hidden={fabHidden}
+                onClick={() => {
+                  closeAllOverlays();
+                  setLogSheetTarget({ open: true });
+                }}
+              />
+            </div>
+          )}
+
+          {!designShowcaseOpen && <NavBar activeView={activeView} onSelectTab={navigateToView} />}
+        </>
       )}
 
-      {!designShowcaseOpen && <NavBar activeView={activeView} onSelectTab={navigateToView} />}
+      {/* Persistent Single & Batch Log Form BottomSheet (T02 AC5) */}
+      {logSheetTarget.open && (
+        <Suspense fallback={null}>
+          <LogFormSheet
+            open={logSheetTarget.open}
+            fixedTargetId={logSheetTarget.fixedTargetId}
+            fixedTargetLabel={logSheetTarget.fixedTargetLabel}
+            trees={orchard.trees}
+            lotACount={lotACount}
+            existingLogs={orchard.logs}
+            deviceId={deviceId}
+            hapticsEnabled={hapticsEnabled}
+            onClose={() => setLogSheetTarget({ open: false })}
+            onLogsCreated={async (newLogs, summary) => {
+              await orchard.saveLogs(newLogs);
+              notify(summary, 'ok');
+            }}
+          />
+        </Suspense>
+      )}
 
-      <SampleLogSheet
-        open={logSheetOpen}
-        onClose={() => setLogSheetOpen(false)}
-        hapticsEnabled={hapticsEnabled}
-        treeCount={treeCount}
-        lotACount={lotACount}
-        onSaved={(summary) => handleDemoUndoSnackbar(summary)}
-      />
+      {/* Quick Weekly Photo Capture Sheet triggered by #/photo shortcut (T02 AC0) */}
+      {quickPhotoOpen && (
+        <Suspense fallback={null}>
+          <QuickPhotoSheet
+            open={quickPhotoOpen}
+            onClose={() => setQuickPhotoOpen(false)}
+            trees={orchard.trees}
+            photos={orchard.photos}
+            onCapturePhoto={async (tree, file) => {
+              await handleCaptureWeeklyPhoto(tree, file);
+              openTargetDetail(tree.id);
+            }}
+          />
+        </Suspense>
+      )}
 
-      <InstallGuideModal open={installGuideOpen} onClose={() => setInstallGuideOpen(false)} />
+      {installGuideOpen && (
+        <Suspense fallback={null}>
+          <InstallGuideModal open={installGuideOpen} onClose={() => setInstallGuideOpen(false)} />
+        </Suspense>
+      )}
 
       <Dialog
         open={syncDialogOpen}
@@ -443,7 +786,7 @@ export function App() {
           </Banner>
           <ListItem
             title="Dữ liệu vườn trên máy"
-            subtitle={`Lô B: ${treeCount} cây · Lô A: ${lotACount} cây`}
+            subtitle={`Lô B: ${treeCount} cây cá thể · Lô A: ${lotACount} cây`}
             trailing={
               <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
                 Sẵn sàng
@@ -451,35 +794,6 @@ export function App() {
             }
           />
         </div>
-      </Dialog>
-
-      <Dialog
-        open={demoDialogOpen}
-        title="Xác nhận thao tác?"
-        subtitle="Hộp thoại xác nhận dùng cho các thao tác quan trọng"
-        onClose={() => setDemoDialogOpen(false)}
-        footer={
-          <>
-            <Button variant="text" onClick={() => setDemoDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button
-              variant="filled"
-              onClick={() => {
-                setDemoDialogOpen(false);
-                triggerHaptic(hapticsEnabled);
-                showSnackbar('Đã xác nhận thao tác.', { tone: 'info' });
-              }}
-            >
-              Xác nhận
-            </Button>
-          </>
-        }
-      >
-        <p>
-          Các thao tác quan trọng như xóa cây hoặc xóa cả đợt chăm sóc sẽ luôn hiện hộp xác nhận rõ
-          ràng như thế này trước khi thực hiện.
-        </p>
       </Dialog>
 
       <Snackbar items={snackbars} onDismiss={dismissSnackbar} />
