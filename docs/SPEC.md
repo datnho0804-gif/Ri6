@@ -13,10 +13,10 @@ Các mục đánh dấu **[BS]** là phần Claude bổ sung hoặc sửa so v�
 
 App ghi chép và quản lý vườn sầu riêng Ri6. Vườn trên đất đỏ bazan, tưới bằng béc tưới gốc, khí hậu Đông Nam Bộ. App phải:
 1. Dùng tốt trên **điện thoại Android ngoài vườn**, kể cả khi sóng yếu hoặc mất mạng (offline-first).
-2. Chạy được ở **3 dạng** từ cùng một mã nguồn:
-   - Web/PWA trên GitHub Pages: `https://datnho0804-gif.github.io/Ri6/`.
-   - **APK Android** cài được trên nhiều máy.
-   - Trình duyệt máy tính.
+2. Là **web app (PWA)** trên GitHub Pages: `https://datnho0804-gif.github.io/Ri6/`.
+   - **Cài lên Android trực tiếp từ Google Chrome.** Chrome tạo một app thật (WebAPK): có icon ở màn hình chính và trong danh sách ứng dụng, mở toàn màn hình, chạy offline, tự cập nhật. Xem §7.0.
+   - Dùng được trên trình duyệt máy tính.
+   - *Bản APK riêng (§7 phần APK, §7.1, T05–T06) đang **TẠM HOÃN** theo quyết định của chủ vườn ngày 24/11/2026. Chỉ làm khi được mở lại.*
 3. **[BS] Tự động sao lưu và đồng bộ** dữ liệu giữa nhiều máy qua **repo riêng tư** `datnho0804-gif/Ri6-data`.
 
 Ngoài phạm vi: backend riêng, đăng nhập nhiều người dùng, iOS app store.
@@ -241,7 +241,8 @@ interface Log extends SyncMeta { targetId: string; date: ISODate; type: LogType;
 type PhotoKind = 'weekly'|'prune-overview'|'prune-under'|'prune-closeup'|'disease';
 interface Photo extends SyncMeta { targetId: string; takenAt: ISODate; kind: PhotoKind;
   width: number; height: number; bytes: number; remotePath?: string }   // blob ở bảng riêng photoBlobs
-// Settings: chỉ lưu cục bộ, KHÔNG xuất JSON, KHÔNG đồng bộ:
+// Settings: lưu trong IndexedDB (bảng Dexie `settings`, KHÔNG dùng localStorage vì Service Worker không đọc được),
+// chỉ lưu cục bộ, KHÔNG xuất JSON, KHÔNG đồng bộ:
 interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; autoSync;
   geminiApiKey?; geminiModel?; seasonOverride?: 'kho'|'mua'|null }
 ```
@@ -286,6 +287,18 @@ photos/<targetId>/<YYYY-MM-DD>_<photoId>.jpg   # bất biến, không bao giờ 
 
 Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng chờ.
 
+**[BS] Đồng bộ nền.** Ngoài vườn sóng chập chờn, người dùng thường ghi xong rồi tắt app.
+- Nếu trình duyệt hỗ trợ Background Sync (Chrome Android có hỗ trợ): mỗi khi có thay đổi đang chờ thì đăng ký tag `ri6-sync`.
+- Service Worker bắt sự kiện `sync` và chạy cùng mã `sync()`. Có mạng lại là dữ liệu tự đẩy lên, kể cả khi app đã đóng.
+- Vì vậy mã đồng bộ trong `src/lib/sync/` **không được dùng** `window`, `document`, `localStorage`.
+- Trình duyệt không hỗ trợ thì quay về các thời điểm đồng bộ nêu trên.
+
+**[BS] Lưu ý bảo mật tên miền.**
+- Mọi trang GitHub Pages của tài khoản `datnho0804-gif` đều chung một origin `datnho0804-gif.github.io`, nên **đọc được IndexedDB của nhau**, trong đó có token.
+- Vì vậy không bật Pages cho repo nào khác của tài khoản này nếu repo đó chứa mã không tin cậy.
+- Token chỉ có quyền trên `Ri6-data`, nên nếu lộ thì cũng chỉ ảnh hưởng dữ liệu vườn.
+- App phải ghi một dòng cảnh báo ngắn về việc này ở màn Cài đặt, ngay cạnh ô token.
+
 **Trạng thái trên header** (luôn nhìn thấy):
 - "Đã đồng bộ HH:mm"
 - "Chờ mạng (n thay đổi)"
@@ -293,6 +306,33 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
 - "Lỗi: token / quyền / mạng", bấm vào xem chi tiết.
 
 ## 7. Nền tảng và phát hành
+
+### 7.0 Cài lên Android từ Chrome [BS — ưu tiên chính]
+
+**Điều kiện cài được:**
+- Manifest đủ trường: `name`, `short_name`, `start_url` và `scope` = `/Ri6/`, `display: standalone`, icon 192/512 + maskable.
+- Có HTTPS (Pages có sẵn) và Service Worker.
+
+**Nút "Cài app lên điện thoại"** (ở header hoặc trong Cài đặt):
+- Bắt sự kiện `beforeinstallprompt`, khi bấm thì gọi `prompt()` của sự kiện đó. Đây là API của Chrome, không phải `window.prompt`.
+- Ẩn nút khi đã chạy ở chế độ cài (`display-mode: standalone`).
+- Không có sự kiện thì nút mở Modal hướng dẫn: Chrome → menu ⋮ → **"Thêm vào màn hình chính"** hoặc **"Cài đặt ứng dụng"**.
+- **Mẹo cho Xiaomi/HyperOS:** nếu không thấy icon thì vào Cài đặt → Ứng dụng → Chrome → Quyền → bật **"Lối tắt màn hình chính"**.
+
+**Bộ nhớ bền vững:**
+- Gọi `navigator.storage.persist()`.
+- Màn Cài đặt hiện trạng thái *Bộ nhớ bền vững: đã cấp / chưa* và dung lượng đã dùng (`navigator.storage.estimate()`).
+- Chưa được cấp thì nhắc người dùng cài app ra màn hình chính và bật đồng bộ.
+
+**Cảnh báo bắt buộc ở Cài đặt:** *"Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ GitHub để luôn có bản sao."*
+
+**Tự cập nhật:** dùng `registerType: 'autoUpdate'`, kèm Toast "Đã cập nhật lên vX.Y.Z". Người dùng không cần bấm gì.
+
+**Cài trên nhiều máy:**
+- Mỗi máy mở link Pages bằng Chrome, cài app, rồi nhập token ở Cài đặt.
+- Đồng bộ lần đầu sẽ kéo toàn bộ dữ liệu về.
+
+> Từ đây đến hết §7.1: phần APK đang **TẠM HOÃN**. Chỉ `ci.yml` và `deploy.yml` là bắt buộc.
 
 | Dạng | Cấu hình |
 |---|---|
