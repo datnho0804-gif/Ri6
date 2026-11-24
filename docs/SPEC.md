@@ -2,12 +2,22 @@
 
 | Mục | Giá trị |
 |---|---|
-| Phiên bản đặc tả | 1.0 — 24/11/2026 |
+| Phiên bản đặc tả | **1.1** — 24/11/2026 |
 | Nguồn | `docs/muctieu-goc.md` (yêu cầu gốc của chủ vườn); file này chuẩn hóa và bổ sung |
 | Người soạn / duyệt | Claude (reviewer) / anh Đạt (chủ vườn) |
 | Bên thực hiện | Antigravity — xem `AGENTS.md`, `docs/TASKS.md` |
 
 Các mục đánh dấu **[BS]** là phần Claude bổ sung hoặc sửa so với yêu cầu gốc. Mỗi mục có ghi lý do.
+
+**Lịch sử thay đổi:**
+- **1.1 (24/11/2026)**, theo yêu cầu của chủ vườn, đánh dấu **[1.1]**:
+  1. PWA dùng `injectManifest` + `src/sw.ts` (§7.0).
+  2. Ghi nhật ký hàng loạt (M2).
+  3. Danh sách cây cá thể mở rộng được; tách cây từ Lô A (§2, §5, M2).
+  4. Số trái đang mang và đo pH đất (§5, M2, M6).
+  5. Thêm 2 phác đồ sâu hại, nâng tổng số từ 6 lên 8 (§3.5).
+  6. Lọc model Gemini và fallback khi model không hỗ trợ schema (M7).
+- 1.0 (24/11/2026): bản đầu.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -26,7 +36,18 @@ Ngoài phạm vi: backend riêng, đăng nhập nhiều người dùng, iOS app 
 | Lô | Số cây | Tuổi | Cách quản lý |
 |---|---|---|---|
 | **A** | 50 | 1 năm (kiến thiết cơ bản) | Theo **lô** (`LOT_A`): một hồ sơ chung, nhật ký chung, ảnh lô tùy chọn |
-| **B** | 15 | 3–5 năm | Theo **từng cây** `SR01`–`SR15`, khởi tạo trống |
+| **B** | 15 (lúc khởi tạo) | 3–5 năm | Theo **từng cây** `SR01`–`SR15`, khởi tạo trống |
+
+**[1.1] Danh sách cây cá thể không khóa cứng 15 cây.**
+- Con số 15 và 50 chỉ dùng **lúc khởi tạo** (hằng `INITIAL_INDIVIDUAL_TREES = 15`, `INITIAL_LOT_A_COUNT = 50`). Code và giao diện không được giả định số cố định.
+- Người dùng **thêm được cây cá thể mới**.
+- Khi cây Lô A bước sang năm thứ 3, người dùng có thể **tách dần từng cây khỏi Lô A** sang theo dõi cá thể. Cây tách ra vẫn mang `lot: 'A'`; `LOT_A.treeCount` giảm tương ứng.
+- **Tổng số cây** = số cây cá thể chưa xóa + `LOT_A.treeCount`. Mọi KPI, lưới ảnh và máy tính đều tính động từ dữ liệu.
+- **Chống trùng khi đồng bộ:**
+  - Hai máy cùng offline thêm cây sẽ cùng nghĩ ra mã "SR16". Nếu dùng mã làm khóa, đồng bộ sẽ **gộp nhầm hai cây khác nhau làm một**.
+  - Vì vậy cây thêm mới có `id` là **UUID**, còn mã hiển thị nằm ở trường `code` (sửa được).
+  - Cây khởi tạo giữ `id = code = 'SR01'…'SR15'`.
+  - Có hai `code` trùng nhau thì hiện huy hiệu "Trùng mã — đổi mã" trên cả hai cây; dữ liệu không bị gộp.
 
 Hai lô có phác đồ phân và nước **riêng**, không gộp chung.
 
@@ -99,6 +120,16 @@ Năm bước gồm: (1) Nhận định → (2) Kiểm tra tại vườn → (3) 
 | 4 | Rầy xanh (*Allocaridara malayensis*) | Thiamethoxam / Imidacloprid (IRAC 4A, **không phun khi hoa nở**, độc với ong), Buprofezin (16), dầu khoáng |
 | 5 | Nhện đỏ | Abamectin (6), Hexythiazox (10A), Fenpyroximate (21A), Propargite (12C), dầu khoáng |
 | 6 | Rụng trái non & cháy múi Ri6 | **[BS]** Đây là rối loạn sinh lý, nên bước 4 là "Dinh dưỡng & nước" (Ca-Bo, Kali, ổn định ẩm, chặn đọt, tỉa bớt trái), không phải thuốc |
+| 7 | **[1.1]** Sâu đục trái (*Conogethes punctiferalis*) & Rệp sáp (*Planococcus* spp.), giai đoạn nuôi trái Ri6 | **Sâu đục trái:** Emamectin benzoate (IRAC 6), Chlorantraniliprole (28), Spinetoram (5), Indoxacarb (22A), *Bacillus thuringiensis* (11A). **Rệp sáp:** Spirotetramat (23), Buprofezin (16), dầu khoáng; Thiamethoxam/Dinotefuran (4A) chỉ dùng ngoài thời gian hoa nở |
+| 8 | **[1.1]** Mọt đục cành (*Xyleborus* spp.) / Xén tóc đục thân (*Batocera* spp.), hay gặp trên cây 3–5 năm | **Xén tóc:** móc sâu non ra khỏi lỗ, bơm thuốc vào lỗ đục rồi bịt lại: Emamectin benzoate (6), Chlorantraniliprole (28); khi thành trùng vũ hóa thì phun thân: Alpha-cypermethrin (3A). **Mọt:** cắt và tiêu hủy cành bị hại, quét thuốc gốc đồng (FRAC M01) lên vết cắt |
+
+**[1.1] Ghi chú cho phác đồ 7–8:**
+- **Phác đồ 7** gộp hai đối tượng theo yêu cầu, nhưng mỗi bước phải tách thành 2 mục con, vì cách diệt khác nhau: sâu đục là sâu non bộ cánh vảy, rệp sáp là côn trùng chích hút.
+  - Canh tác cho sâu đục trái: tỉa bớt trái chạm nhau, vì sâu hay đục ở chỗ hai trái chạm nhau; bao trái; thu gom và tiêu hủy trái rụng.
+  - Canh tác cho rệp sáp: chặn kiến (rệp sáp sống cộng sinh với kiến), ví dụ quấn băng keo hoặc khoanh gốc.
+  - Giai đoạn này gần thu hoạch nên **ưu tiên hoạt chất có PHI ngắn** và đối chiếu cảnh báo PHI của app.
+- **Phác đồ 8:** mọt thường tấn công cây suy yếu và mang theo nấm *Fusarium*, nên bước 3 nhấn mạnh giữ cây khỏe và hạn chế vết thương.
+- Cả 2 phác đồ đều có đủ 5 bước và dòng cảnh báo Danh mục thuốc / nhãn như các phác đồ khác.
 
 - **[BS]** Yêu cầu gốc gộp "Cháy lá *Rhizoctonia*/Nấm hồng" làm một. Đặc tả này tách thành 2 phác đồ, vì đây là hai tác nhân khác nhau và cách xử lý khác nhau.
 - **[BS]** Luân phiên thuốc phải theo **nhóm cơ chế FRAC/IRAC**. Chỉ đổi tên thương mại mà vẫn cùng nhóm thì không có tác dụng.
@@ -140,7 +171,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 ### M1. Tổng quan và nhắc lịch tuần
 
 **KPI:**
-- Tổng số cây: 65.
+- Tổng số cây: tính động theo §2 (lúc khởi tạo là 65).
 - Số cây Lô B **quá hạn chụp** (xem quy tắc bên dưới).
 - Số cây đang **cần cắt tỉa hoặc theo dõi bệnh** (đếm hợp, mỗi cây tính 1 lần).
 - Ngưỡng pH 5,5–6,5.
@@ -148,7 +179,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 
 **Các phần khác:**
 - Nút đổi **Mùa khô / Mùa mưa** kèm khuyến cáo theo mùa (mục 3.4).
-- Lưới 15 ô SR01–SR15: điện thoại 3 cột, máy tính 5 cột. Mỗi ô hiện mã, tên, số ngày kể từ ảnh gần nhất và trạng thái màu kèm chữ. Bấm vào ô thì mở hồ sơ cây.
+- Lưới ô ảnh cho **tất cả cây cá thể** (lúc khởi tạo là 15 ô SR01–SR15) **[1.1]**: điện thoại 3 cột, máy tính 5 cột. Mỗi ô hiện mã, tên, số ngày kể từ ảnh gần nhất và trạng thái màu kèm chữ. Bấm vào ô thì mở hồ sơ cây.
 - **[BS]** Khối **Hôm nay cần làm**: 5 việc ưu tiên nhất từ M6, kèm link "Xem tất cả".
 
 **Quy tắc trạng thái chụp ảnh tuần.** `d` = số ngày từ ảnh tuần (`kind = weekly`) gần nhất đến hôm nay.
@@ -159,10 +190,14 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 | "Sắp đến hạn" | d = 6 hoặc 7 | vàng |
 | "Quá hạn" | d ≥ 8, hoặc chưa có ảnh gốc | đỏ |
 
-### M2. Hồ sơ cây SR01–SR15 và nhật ký Lô A
+### M2. Hồ sơ cây cá thể và nhật ký Lô A
 
 **Danh sách cây:**
 - Tìm theo mã, tên, vị trí.
+- **[1.1]** Nút **"+ Thêm cây"**:
+  - Tự gợi ý mã tiếp theo, bằng số SR lớn nhất cộng 1, ví dụ `SR16`. Mã sửa được.
+  - Tạo `id` UUID, chọn lô (A/B) và tuổi.
+  - Xóa cây là xóa mềm, phải xác nhận bằng Modal. Mã đã xóa không được tự cấp lại.
 - Bộ lọc:
   - `Tất cả`.
   - `Cần chụp tuần này`: vàng + đỏ.
@@ -170,7 +205,11 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - `Theo dõi sâu bệnh`: `diseaseWatch` hoặc `health = benh`.
 
 **Hồ sơ một cây** (trang hoặc modal):
-- **Sửa được:** tên hiển thị (ví dụ `SR01 - Góc cổng`), vị trí, tuổi (3/4/5), giai đoạn, sức khỏe, cờ cần cắt tỉa / theo dõi bệnh, **[BS]** ngày mắt cua và ngày xổ nhụy (tùy chọn).
+- **Sửa được:** mã hiển thị (`code`), tên hiển thị (ví dụ `SR01 - Góc cổng`), vị trí, tuổi (số năm), giai đoạn, sức khỏe, cờ cần cắt tỉa / theo dõi bệnh, **[BS]** ngày mắt cua và ngày xổ nhụy (tùy chọn).
+- **[1.1] Tải trái:**
+  - `fruitCount`: số trái đang mang, kèm ngày cập nhật.
+  - `fruitLimit`: số trái tối đa do chủ vườn tự đặt cho cây đó. **Không có giá trị mặc định**, vì mức tải trái hợp lý tùy tán, tuổi và sức cây.
+  - Vượt mức thì hiện cảnh báo (M6).
 - **Ảnh tuần:**
   - Chụp hoặc chọn ảnh bằng `<input type="file" accept="image/*" capture="environment">`.
   - **Nén trên máy** về cạnh dài ≤ 1280 px, JPEG chất lượng khoảng 0,75, mục tiêu ≤ 300 KB.
@@ -178,7 +217,8 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - Xem dòng thời gian ảnh.
 - **Nhật ký:** thêm hoặc xóa mục.
   - Các trường: ngày, loại, ghi chú.
-  - Loại: Bón phân / Phun thuốc / Cắt tỉa / Sâu bệnh / Làm bông / Tưới / Ghi chú AI / Khác.
+  - Loại: Bón phân / Phun thuốc / Cắt tỉa / Sâu bệnh / Làm bông / Tưới / **Đo pH đất [1.1]** / Ghi chú AI / Khác.
+  - **[1.1]** Loại *Đo pH đất* bắt buộc nhập `soilPh` từ 3,0 đến 9,0, bước 0,1. Có thể ghi cho từng cây hoặc cho cả lô.
   - **[BS]** Loại *Phun thuốc* bắt buộc nhập **hoạt chất** và **PHI (ngày)**.
   - **[BS]** Loại *Bón phân* bắt buộc chọn **loại phân**: Vôi/Dolomite · Hữu cơ/Trichoderma · Urê/đạm amoni · Lân · NPK · Khác. Trường này dùng cho nhắc khoảng cách bón vôi ở M6.
   - Xóa phải hỏi lại bằng Modal; xóa mềm (tombstone).
@@ -189,6 +229,19 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - Phần yêu cầu cho AI: chẩn đoán, mức tin cậy, cần chụp thêm gì, việc làm trong 7 ngày, hoạt chất theo nhóm FRAC/IRAC, PHI.
 
 **Lô A:** trang riêng gồm thông tin lô, nhật ký và ảnh lô; dùng chung component nhật ký với Lô B.
+- **[1.1]** Nút **"Tách cây khỏi Lô A"**:
+  - Nhập số cây cần tách. App tạo từng cây cá thể với `lot: 'A'` và gợi ý mã tiếp theo.
+  - Giảm `LOT_A.treeCount`, rồi ghi một nhật ký "Khác" cho LOT_A để lưu vết.
+  - Không cho tách quá `treeCount`.
+
+**[1.1] Ghi nhật ký hàng loạt** (nút trên màn Danh sách cây):
+- **Chọn cây:** chọn nhiều cây; nút **"Chọn tất cả Lô B"**; tùy chọn **"Kèm Lô A"** (ghi một log cho `LOT_A`).
+- **Loại nhật ký:** Bón phân, Phun thuốc, Tưới, Đo pH (cùng một giá trị cho cả nhóm).
+- **Ràng buộc giữ nguyên như ghi đơn lẻ:** Phun thuốc bắt buộc hoạt chất + PHI; Bón phân bắt buộc loại phân; Đo pH bắt buộc `soilPh`.
+- **Cách lưu:** tạo **một log cho mỗi cây**, các log cùng một đợt có chung `batchId` (UUID). Nhờ vậy PHI, dự báo và việc cần làm vẫn tính đúng cho từng cây.
+- **Kiểm tra khoảng cách bón vôi** (M6) chạy cho từng cây được chọn. Cây nào vi phạm thì gom vào **một Modal duy nhất** (liệt kê các cây vi phạm); người dùng chọn "Vẫn lưu" hoặc "Bỏ các cây vi phạm".
+- **Xem và xóa đợt:** nhật ký từng cây hiện nhãn "Đợt: n cây". Có nút **"Xóa cả đợt"** (xác nhận bằng Modal, xóa mềm tất cả log cùng `batchId`).
+- Logic gom và kiểm tra nằm trong hàm thuần `createBatchLogs(input, state)` ở `src/lib/`.
 
 ### M3. Phân tích cắt tỉa
 - Chọn cây, tick checklist 6 dấu hiệu, app tự tính mức (mục 3.6).
@@ -200,13 +253,13 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
 - Khung nhắc khi cắt (mục 3.6).
 
 ### M4. Tra cứu và máy tính
-- **Phác đồ:** 6 thẻ phác đồ (mục 3.5), có ô tìm kiếm.
+- **Phác đồ:** 8 thẻ phác đồ (mục 3.5) **[1.1]**, có ô tìm kiếm.
 - **Máy tính Ri6:**
   - Chọn *mắt cua* hoặc *xổ nhụy* rồi nhập ngày.
   - Kết quả là bảng các mốc ở mục 3.2, mỗi mốc ghi khoảng ngày (từ – đến).
 - **Máy tính béc tưới:**
   - Nhập L/cây cho Lô A (mặc định 30) và Lô B (mặc định 180).
-  - Số cây mặc định 50 và 15, sửa được.
+  - Số cây mặc định **lấy từ dữ liệu** **[1.1]**: Lô A = `LOT_A.treeCount`, Lô B = số cây cá thể. Sửa được.
   - **[BS]** Số lần tưới/tuần (tùy chọn).
   - Kết quả: m³/lần cho từng lô và tổng; m³/tuần nếu có nhập số lần.
   - Ngoài khoảng ở mục 3.3 thì cảnh báo, không chặn.
@@ -239,7 +292,12 @@ Hàm thuần `buildAgenda(state, today)` trả về danh sách việc. Mỗi vi�
 | Kiểm tra lại | Sau log *Phun thuốc* hoặc *Sâu bệnh*: kiểm tra lại ở ngày +7 và +14 (bước 5 phác đồ) | `recheck7:<logId>`, `recheck14:<logId>` |
 | Khoảng cách vôi | Sau log *Bón phân* loại Vôi/Dolomite: không bón Hữu cơ/Trichoderma trước **+15 ngày**, không bón Urê/Lân trước **+10 ngày** (lấy cận trên của §3.3 cho an toàn) | `lime-gap:<logId>` |
 | Mùa vụ | Tháng 5: "Bón vôi đầu mùa mưa". Tháng 10: "Bón vôi cuối mùa mưa". Tháng 11: "Kiểm tra béc, soi nhện đỏ đầu mùa khô" | `season:<ma>:<nam>` |
+| **[1.1]** pH thấp | Lần đo pH gần nhất của cây hoặc lô có `soilPh < 5.5`, và **chưa có** log Bón phân Vôi/Dolomite cho cùng cây/lô **từ ngày đo trở đi** (tính cả ngày đo) → ưu tiên **cao**: "Cải tạo pH: bón vôi/Dolomite (nhớ khoảng cách với phân khác)" | `ph-low:<targetId>` |
+| **[1.1]** pH cao | Lần đo gần nhất có `soilPh > 6.5` → ưu tiên **vừa**: "pH vượt 6,5: tạm ngưng vôi/Dolomite" | `ph-high:<targetId>` |
+| **[1.1]** Tải trái | `fruitCount > fruitLimit` (chỉ khi đã đặt `fruitLimit`) → ưu tiên **vừa**: "Tỉa bớt trái" | `fruit-over:<treeId>` |
 | Tự thêm hoặc do AI gợi ý | Lấy từ bảng `tasks` | `task:<id>` |
+
+**[1.1] Gom theo đợt.** Việc "Kiểm tra lại" và "Khoảng cách vôi" sinh từ các log cùng `batchId` được gom thành **1 việc** cho cả đợt, ví dụ "Kiểm tra lại sau phun (15 cây)". Key khi đó là `recheck7:batch:<batchId>`, `lime-gap:batch:<batchId>`.
 
 **Thao tác với từng việc:**
 - **Xong**: lưu vào bảng `tasks` với `id = key`, `done = true`. Bảng này được đồng bộ, nên máy khác không nhắc lại.
@@ -273,7 +331,11 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
 
 **Cài đặt:**
 - Ô API key dạng mật khẩu.
-- Chọn model từ danh sách `GET /v1beta/models`: lọc các model hỗ trợ `generateContent`; mặc định chọn model "flash" mới nhất có trong danh sách. **Không hard-code tên model.**
+- Chọn model từ danh sách `GET /v1beta/models`. **Không hard-code tên model.**
+- **[1.1] Lọc danh sách** bằng hàm thuần `filterChatModels(models)`:
+  - **Giữ** model thỏa cả hai: `supportedGenerationMethods` có `generateContent`, và tên bắt đầu bằng `models/gemini`.
+  - **Loại** tên khớp `/(audio|tts|embed|image|imagen|live|aqa|robotics|computer-use)/i`. Biến thể `image` ở đây là model **sinh ảnh**; model đọc ảnh (vision) vẫn được giữ.
+  - **Mặc định chọn:** model có `flash` trong tên, ưu tiên bản ổn định (không có `preview`/`exp`), số phiên bản cao nhất.
 - Nút Kiểm tra.
 - Dòng ghi chú: *"Gói miễn phí: Google có thể dùng nội dung gửi lên để cải thiện dịch vụ."*
 
@@ -322,6 +384,12 @@ Tính năng tùy chọn, cần Gemini API key (lấy miễn phí tại Google AI
 
 **Xử lý lỗi.** Lỗi mạng, hết hạn mức (429) hay key sai đều hiện Toast rõ ràng và giữ nguyên câu hỏi để gửi lại.
 
+**[1.1] Fallback khi model không hỗ trợ schema:**
+- Nếu gọi có `responseMimeType: application/json` + `responseSchema` mà bị **HTTP 400**, app **tự gọi lại 1 lần** không kèm hai trường đó.
+- Lần gọi lại hiện câu trả lời Markdown thuần, coi `actions = []` và `confidence` là không rõ. Người dùng không thấy lỗi.
+- Ghi tên model vào `settings.geminiSchemaUnsupported` (cục bộ). Các lần sau với model đó gọi thẳng chế độ Markdown.
+- Chỉ fallback khi gặp 400. Lỗi 401, 403, 429 và lỗi mạng vẫn xử lý như mục trên.
+
 **Kỹ thuật.** Gọi REST bằng `fetch`, không cần SDK. Ảnh gửi dạng inline base64, đã nén về cạnh dài ≤ 1280 px.
 
 ## 5. Mô hình dữ liệu (Dexie, `schemaVersion = 1`)
@@ -331,13 +399,17 @@ type ISODate = string;  // 'YYYY-MM-DD' (giờ VN)
 type ISOTime = string;  // ISO 8601 UTC
 interface SyncMeta { id: string; updatedAt: ISOTime; updatedBy: string /*deviceId*/; deletedAt?: ISOTime }
 type Stage = 'kien-thiet'|'coi-dot'|'xiet-nuoc-lam-bong'|'mat-cua'|'xo-nhuy'|'nuoi-trai'|'thu-hoach'|'phuc-hoi';
-interface Tree extends SyncMeta { /* id: 'SR01'..'SR15' */ lot: 'B'; label: string; location: string;
-  ageYears: 3|4|5|null; stage: Stage|null; health: 'tot'|'theo-doi'|'benh'; needsPruning: boolean;
-  diseaseWatch: boolean; budDate?: ISODate; flowerDate?: ISODate; note?: string }
+interface Tree extends SyncMeta { /* id: 'SR01'..'SR15' khi khởi tạo; cây thêm sau: UUID [1.1] */
+  code: string /* mã hiển thị, vd 'SR16'; sửa được; cảnh báo khi trùng [1.1] */; lot: 'A'|'B' /* [1.1] */;
+  label: string; location: string;
+  ageYears: number|null /* [1.1] không giới hạn 3–5 */; stage: Stage|null; health: 'tot'|'theo-doi'|'benh';
+  needsPruning: boolean; diseaseWatch: boolean; budDate?: ISODate; flowerDate?: ISODate;
+  fruitCount?: number; fruitCountDate?: ISODate; fruitLimit?: number /* [1.1] */; note?: string }
 interface Lot extends SyncMeta { /* id: 'LOT_A' */ treeCount: number; stage: Stage|null; note?: string }
-type LogType = 'bon-phan'|'phun-thuoc'|'cat-tia'|'sau-benh'|'lam-bong'|'tuoi'|'ai'|'khac';
+type LogType = 'bon-phan'|'phun-thuoc'|'cat-tia'|'sau-benh'|'lam-bong'|'tuoi'|'do-ph' /* [1.1] */|'ai'|'khac';
 interface Log extends SyncMeta { targetId: string; date: ISODate; type: LogType; note: string;
-  activeIngredient?: string; phiDays?: number; fertilizerKind?: FertKind /* bắt buộc khi type = 'bon-phan' */ }
+  activeIngredient?: string; phiDays?: number; fertilizerKind?: FertKind /* bắt buộc khi type = 'bon-phan' */;
+  soilPh?: number /* bắt buộc khi type = 'do-ph', 3.0–9.0 [1.1] */; batchId?: string /* nhật ký hàng loạt [1.1] */ }
 type FertKind = 'voi-dolomite'|'huu-co-trichoderma'|'dam-ure'|'lan'|'npk'|'khac';
 interface Task extends SyncMeta { /* id = key quy tắc (khi Xong/Hoãn) hoặc UUID (việc tự thêm/AI) */
   title?: string; targetId?: string; dueDate?: ISODate; done: boolean; snoozeUntil?: ISODate;
@@ -349,7 +421,8 @@ interface Photo extends SyncMeta { targetId: string; takenAt: ISODate; kind: Pho
 // chỉ lưu cục bộ, KHÔNG xuất JSON, KHÔNG đồng bộ:
 interface Settings { deviceId; deviceName; githubToken?; dataRepo; dataBranch; autoSync;
   geminiApiKey?; geminiModel?; seasonOverride?: 'kho'|'mua'|null;
-  notify?: { enabled: boolean; lastNotifiedAt?: ISOTime; lastKeys: string[] } }
+  notify?: { enabled: boolean; lastNotifiedAt?: ISOTime; lastKeys: string[] };
+  geminiSchemaUnsupported?: string[] /* [1.1] */ }
 // Bảng chỉ cục bộ, KHÔNG đồng bộ: aiChats (hội thoại AI, tối đa 50).
 ```
 - Gọi `navigator.storage.persist()` khi khởi động.
@@ -434,6 +507,21 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
 
 **Tự cập nhật:** dùng `registerType: 'autoUpdate'`, kèm Toast "Đã cập nhật lên vX.Y.Z". Người dùng không cần bấm gì.
 
+**[1.1] Service Worker tự viết: chốt từ T01.**
+- **Cấu hình plugin:** `vite-plugin-pwa` với `strategies: 'injectManifest'`, `srcDir: 'src'`, `filename: 'sw.ts'`, `registerType: 'autoUpdate'`. **Không** dùng `generateSW`.
+- **`src/sw.ts` của T01** gồm:
+  - `precacheAndRoute(self.__WB_MANIFEST)` và `cleanupOutdatedCaches()`;
+  - `NavigationRoute` trỏ về `index.html`, để mở offline được mọi đường dẫn;
+  - `self.skipWaiting()` và `clientsClaim()` (bắt buộc với `autoUpdate` khi dùng `injectManifest`).
+- **Các phần gắn thêm sau, mỗi phần nằm trong module riêng** và được `sw.ts` import:
+  - T04: `src/sw/sync.ts`, xử lý sự kiện `sync` với tag `ri6-sync`.
+  - T05: `src/sw/agenda.ts`, xử lý `periodicsync` với tag `ri6-agenda`, cùng `src/sw/notification.ts` xử lý `notificationclick`.
+  - Không phần nào được viết lại cấu hình PWA của T01.
+- **TypeScript:**
+  - Code Service Worker dùng tsconfig riêng `tsconfig.sw.json` với `lib: ["ES2022", "WebWorker"]` để không lẫn kiểu DOM.
+  - `npm run typecheck` phải kiểm cả file này.
+- **Thư viện:** `workbox-precaching`, `workbox-routing`, `workbox-core` được phép thêm, ở dạng devDependency.
+
 **Cài trên nhiều máy:**
 - Mỗi máy mở link Pages bằng Chrome, cài app, rồi nhập token ở Cài đặt.
 - Đồng bộ lần đầu sẽ kéo toàn bộ dữ liệu về.
@@ -512,7 +600,7 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
    - Công tắc **Chỉ tải qua Wi-Fi** (mặc định tắt).
    - Nút **Kiểm tra cập nhật**.
 
-**Bản web/PWA:** `vite-plugin-pwa` dùng `registerType: 'autoUpdate'`. Khi Service Worker mới kích hoạt thì hiện Toast "Đã cập nhật lên vX.Y.Z".
+**Bản web/PWA:** `vite-plugin-pwa` (`injectManifest`, §7.0) dùng `registerType: 'autoUpdate'`. Khi Service Worker mới kích hoạt thì hiện Toast "Đã cập nhật lên vX.Y.Z".
 
 **Giới hạn cần biết:**
 - App cài ngoài CH Play **không thể** tự cài APK mà chắc chắn không hỏi người dùng. HyperOS/MIUI có thể hiện thêm bước quét của hãng.

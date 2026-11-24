@@ -2,6 +2,7 @@
 
 - Làm theo thứ tự, mỗi task là một nhánh và một PR. Quy trình xem `AGENTS.md`; đặc tả xem `docs/SPEC.md`.
 - Trạng thái do Claude cập nhật sau mỗi lần review.
+- Theo **SPEC 1.1**. Các AC đánh dấu **[1.1]** là phần mới thêm.
 
 | Task | Tên | Trạng thái |
 |---|---|---|
@@ -41,8 +42,17 @@
 - Component dùng lại được. Modal có focus trap, đóng được bằng Esc.
 
 **AC6. Cơ sở dữ liệu.**
-- Dexie schema v1 theo SPEC §5.
-- Lần chạy đầu tạo SR01–SR15 và `LOT_A` **trống**, sinh `deviceId` (UUID).
+- Dexie schema v1 theo SPEC §5, **bản 1.1**.
+- **[1.1]** Schema đủ các trường mới:
+  - `Tree.code`, `Tree.lot: 'A'|'B'`, `ageYears: number|null`, `fruitCount`, `fruitCountDate`, `fruitLimit`;
+  - loại log `'do-ph'` với `soilPh`; trường `Log.batchId`;
+  - `Settings.geminiSchemaUnsupported`.
+- **[1.1]** Index tối thiểu:
+  - `trees`: `id, code, lot`;
+  - `logs`: `id, targetId, date, type, batchId`;
+  - `tasks`: `id, targetId, dueDate, done`.
+- Lần chạy đầu tạo SR01–SR15 (`id = code`) và `LOT_A` **trống**, sinh `deviceId` (UUID).
+- **[1.1]** Số 15 và 50 chỉ nằm trong hằng số seed `INITIAL_INDIVIDUAL_TREES` và `INITIAL_LOT_A_COUNT`. Có test chứng minh seed **không chạy lại** khi DB đã có dữ liệu, kể cả khi đã thêm hoặc xóa cây.
 - Gọi `navigator.storage.persist()`.
 
 **AC7. PWA.**
@@ -50,6 +60,10 @@
 - Tắt mạng rồi tải lại trang thì app vẫn mở được.
 - Chrome Android cho phép "Thêm vào màn hình chính".
 - Service Worker dùng `registerType: 'autoUpdate'`. Khi có bản mới thì hiện Toast "Đã cập nhật lên vX.Y.Z" (phiên bản lấy từ `package.json` lúc build).
+- **[1.1] Service Worker tự viết.**
+  - Dùng `strategies: 'injectManifest'` với `src/sw.ts` đúng SPEC §7.0: precache, `cleanupOutdatedCaches`, `NavigationRoute`, `skipWaiting`, `clientsClaim`. **Không** dùng `generateSW`.
+  - Có `tsconfig.sw.json` (lib `WebWorker`) và `npm run typecheck` kiểm cả file này.
+  - Báo cáo ghi kết quả thử offline và thử cập nhật: build bản A, mở app, build bản B (tăng `version` tạm thời, không commit), tải lại → Toast hiện "B".
 - Có nút **"Cài app lên điện thoại"** theo SPEC §7.0, gồm cả nhánh `beforeinstallprompt` lẫn Modal hướng dẫn và mẹo cho Xiaomi.
 - Báo cáo có ảnh app chạy toàn màn hình sau khi cài từ Chrome Android. Dùng máy thật hoặc emulator; nếu không có thì ghi rõ lý do.
 
@@ -77,7 +91,7 @@
 **Nhánh:** `ag/T02-tong-quan-ho-so`
 
 **AC1. Màn Tổng quan (M1).**
-- KPI, nút đổi mùa kèm khuyến cáo, lưới 15 ô có trạng thái chữ + màu. Bấm ô thì mở đúng hồ sơ cây.
+- KPI (tổng số cây **tính động [1.1]**), nút đổi mùa kèm khuyến cáo, lưới ô **cho mọi cây cá thể [1.1]** có trạng thái chữ + màu. Bấm ô thì mở đúng hồ sơ cây.
 
 **AC2. Hàm `photoStatus(lastWeekly?: ISODate, today: ISODate)` trong `src/lib/`.**
 
@@ -94,9 +108,21 @@ Test với `today = '2026-11-24'`:
 
 **AC3. Danh sách cây.**
 - Tìm kiếm và 4 bộ lọc theo SPEC M2. Bộ lọc là hàm thuần, có test.
+- **[1.1]** Nút "+ Thêm cây" theo SPEC M2. Test hàm `nextTreeCode(trees)`:
+
+| Danh sách mã hiện có | Kết quả |
+|---|---|
+| SR01–SR15 | `SR16` |
+| SR01–SR15 + SR16 đã xóa (tombstone) | `SR17` (không cấp lại mã đã xóa) |
+| SR01, SR09, `Góc cổng` | `SR10` (bỏ qua mã không theo mẫu) |
+
+- **[1.1]** Hai cây cùng `code` thì hiện huy hiệu "Trùng mã". Test hàm `duplicateCodes(trees)`.
+- **[1.1]** Trang Lô A có nút "Tách cây khỏi Lô A" (SPEC M2).
+  - Test: tách 3 cây từ `treeCount 50` → còn 47; tạo 3 cây `lot 'A'`; có 1 log lưu vết.
+  - Tách 51 cây → bị từ chối.
 
 **AC4. Hồ sơ cây.**
-- Sửa được mọi trường theo SPEC M2.
+- Sửa được mọi trường theo SPEC M2, gồm **`code`, `fruitCount`, `fruitLimit` [1.1]**.
 - Ảnh tuần được nén (cạnh dài ≤ 1280 px). Test hàm tính kích thước: ảnh 4000×3000 → 1280×960.
 - Có dòng thời gian ảnh.
 - Lưu ảnh xong thì ô tương ứng ở Tổng quan chuyển sang "Đã chụp".
@@ -105,7 +131,18 @@ Test với `today = '2026-11-24'`:
 - Thêm và xóa mục nhật ký. Xóa phải hỏi lại bằng Modal, lưu tombstone.
 - Loại *Phun thuốc* bắt buộc nhập hoạt chất và PHI.
 - Loại *Bón phân* bắt buộc chọn **loại phân** (`fertilizerKind`, SPEC §5).
+- **[1.1]** Loại *Đo pH đất* bắt buộc nhập `soilPh` từ 3,0 đến 9,0. Nhập 2,5 hoặc 9,5 thì báo lỗi ngay trên form.
 - Trang Lô A dùng chung component nhật ký.
+- **[1.1] Ghi nhật ký hàng loạt** (SPEC M2).
+  - Có các nút "Chọn tất cả Lô B" và "Kèm Lô A".
+  - Giữ nguyên mọi ràng buộc bắt buộc như ghi đơn lẻ.
+  - Cây vi phạm khoảng cách vôi gom vào 1 Modal, có lựa chọn "Vẫn lưu" và "Bỏ các cây vi phạm".
+  - Có nút "Xóa cả đợt".
+  - Test hàm `createBatchLogs`:
+    - (a) 15 cây Lô B + Phun thuốc → 15 log cùng `batchId`, cùng hoạt chất và PHI.
+    - (b) Thiếu PHI → trả lỗi, không tạo log nào.
+    - (c) SR02 có log vôi ngày `2026-11-20`, bón Hữu cơ hàng loạt ngày `2026-11-28` cho SR01–SR03 → danh sách vi phạm chỉ có SR02.
+    - (d) "Kèm Lô A" → có thêm 1 log `targetId 'LOT_A'`.
 
 **AC6. Copy Prompt.**
 - Nội dung đúng SPEC M2.
@@ -161,9 +198,13 @@ Test với **mắt cua `2026-12-01`**:
   - Lô A = **1,5 m³**, Lô B = **2,7 m³**, tổng = **4,2 m³/lần**, **12,6 m³/tuần**.
 - Cảnh báo khi `aLiters = 45` (ngoài 20–40) và khi `bLiters = 120` (ngoài 150–200).
 - Vẫn tính ra kết quả, không chặn.
+- **[1.1]** Màn máy tính lấy số cây mặc định từ dữ liệu: `LOT_A.treeCount` và số cây cá thể, không hard-code 50/15.
 
 **AC5. Màn Tra cứu (M4).**
-- 6 thẻ phác đồ × 5 bước theo SPEC §3.5, có tìm kiếm và dòng cảnh báo Danh mục thuốc / nhãn.
+- **8 thẻ phác đồ [1.1]** × 5 bước theo SPEC §3.5, có tìm kiếm và dòng cảnh báo Danh mục thuốc / nhãn.
+- **[1.1]** Phác đồ 7 (Sâu đục trái & Rệp sáp) chia 2 mục con ở mỗi bước. Phác đồ 8 (Mọt đục cành / Xén tóc) có cách xử lý cơ giới: móc sâu non, bơm thuốc vào lỗ rồi bịt, cắt và tiêu hủy cành.
+- Các hoạt chất đều kèm nhóm IRAC/FRAC, không có liều lượng hay tên thương mại.
+- **Test:** dữ liệu phác đồ có đúng 8 mục, mỗi mục có đủ 5 bước không rỗng.
 - Có máy tính Ri6 và máy tính béc tưới.
 
 **AC6. Hàm `phiWarning(flowerDate, sprayLogs)`.**
@@ -213,6 +254,8 @@ Test với **mắt cua `2026-12-01`**:
 - (b) Cả hai cùng sửa SR03 → bản sửa sau thắng.
 - (c) Máy 1 xóa một nhật ký trong khi máy 2 offline → máy 2 đồng bộ xong nhật ký đó vẫn bị xóa.
 - (d) Ảnh chụp ở máy 1 hiện được ở máy 2.
+- (e) **[1.1]** Cả hai máy offline, mỗi máy thêm 1 cây mới, cùng được gợi ý mã `SR16`. Sau đồng bộ có **2 cây riêng biệt** (hai UUID khác nhau), cả hai hiện huy hiệu "Trùng mã", không mất dữ liệu.
+- (f) **[1.1]** Một đợt ghi nhật ký hàng loạt ở máy 1 hiện đủ trên máy 2. "Xóa cả đợt" ở máy 2 thì đồng bộ ngược lại máy 1.
 
 **AC6. Không lộ khóa.**
 - Không có token hoặc khóa nào trong code, trong log console, hoặc trong commit gửi lên `Ri6-data`.
@@ -224,7 +267,7 @@ Test với **mắt cua `2026-12-01`**:
 
 **AC8. Đồng bộ nền và lưu Cài đặt.**
 - Cài đặt lưu trong bảng Dexie `settings`, không dùng localStorage.
-- Có Background Sync tag `ri6-sync` theo SPEC §6. Service Worker gọi được `sync()`; mã trong `src/lib/sync/` không dùng `window`, `document`, `localStorage`. CI có lệnh kiểm tra việc này, ví dụ grep hoặc rule ESLint.
+- Có Background Sync tag `ri6-sync` theo SPEC §6, đặt trong module `src/sw/sync.ts` và được `src/sw.ts` import. **[1.1]** Không sửa cấu hình PWA của T01. Service Worker gọi được `sync()`; mã trong `src/lib/sync/` không dùng `window`, `document`, `localStorage`. CI có lệnh kiểm tra việc này, ví dụ grep hoặc rule ESLint.
 - **Thử thủ công:** bật chế độ máy bay → thêm nhật ký → đóng app → tắt chế độ máy bay → sau ít phút commit mới xuất hiện trong `Ri6-data` mà không cần mở app.
 
 **AC9. Bộ nhớ và cảnh báo trong Cài đặt** (SPEC §7.0 và §6).
@@ -257,6 +300,14 @@ Test với **mắt cua `2026-12-01`**:
 | Log *Bón phân* Vôi/Dolomite LOT_A ngày `2026-11-20` | có `lime-gap:<id>` với nội dung "Không bón Hữu cơ/Trichoderma trước 05/12/2026; không bón Urê/Lân trước 30/11/2026" |
 | Đổi `today` thành `2026-05-03` / `2026-10-10` | có `season:voi-dau-mua-mua:2026` / `season:voi-cuoi-mua-mua:2026` |
 | Có bản ghi `tasks` `done = true`, hoặc `snoozeUntil` > today | việc đó **không** xuất hiện |
+| **[1.1]** SR04 đo pH `5.1` ngày `2026-11-10`, chưa bón vôi | có `ph-low:SR04`, ưu tiên `cao` |
+| **[1.1]** Như trên, thêm log Vôi/Dolomite SR04 ngày `2026-11-15` | **không** có `ph-low:SR04` |
+| **[1.1]** Như trên nhưng log vôi ngày `2026-11-10` (cùng ngày đo) | **không** có `ph-low:SR04` |
+| **[1.1]** Như trên nhưng log vôi ngày `2026-11-05` (trước ngày đo) | **có** `ph-low:SR04` |
+| **[1.1]** SR05 đo `5.0` ngày `2026-10-01`, sau đó đo `5.9` ngày `2026-11-01` | **không** có `ph-low:SR05` (chỉ xét lần đo gần nhất) |
+| **[1.1]** LOT_A đo pH `6.9` | có `ph-high:LOT_A`, ưu tiên `vua` |
+| **[1.1]** SR06 `fruitCount 48`, `fruitLimit 40` / chưa đặt `fruitLimit` | có `fruit-over:SR06` / không có |
+| **[1.1]** 1 đợt phun hàng loạt 15 cây ngày `2026-11-20` | đúng **1** việc `recheck7:batch:<batchId>` "(15 cây)", không phải 15 việc |
 
 **AC2. Màn Việc cần làm.**
 - Chia 3 nhóm: Quá hạn / Hôm nay / 7 ngày tới.
@@ -277,6 +328,7 @@ Test với **mắt cua `2026-12-01`**:
 - Nút "Bật nhắc nhở" mới xin quyền.
 - Đăng ký periodicsync `ri6-agenda` nếu trình duyệt hỗ trợ.
 - Service Worker dùng `buildAgenda`; mã không dùng `window`, `document`, `localStorage`.
+- **[1.1]** Xử lý `periodicsync` nằm trong `src/sw/agenda.ts`, `notificationclick` nằm trong `src/sw/notification.ts`, cả hai được `src/sw.ts` import. Không sửa cấu hình PWA của T01.
 - Test `shouldNotify`:
 
 | Tình huống (giờ VN) | Kết quả |
@@ -300,6 +352,10 @@ Test với **mắt cua `2026-12-01`**:
 
 **AC1. Cài đặt Gemini** theo SPEC M7.
 - Key có nút ẩn/hiện; model chọn từ API; có nút Kiểm tra; có ghi chú về gói miễn phí.
+- **[1.1]** Test hàm `filterChatModels` với danh sách giả lập:
+  - **Giữ** `gemini-x-flash`, `gemini-x-pro`, `gemini-x-flash-lite`.
+  - **Loại** `gemini-x-flash-preview-tts`, `gemini-x-flash-native-audio`, `gemini-embedding-001`, `gemini-x-flash-image`, `gemini-x-flash-live`, `imagen-4`, cùng các model không có `generateContent`.
+  - **Mặc định chọn** `gemini-x-flash`: ổn định, ưu tiên hơn bản `-preview` cùng phiên bản.
 - **Test:** key không xuất hiện trong file xuất JSON, trong dữ liệu đồng bộ và trong console.
 
 **AC2. Hàm `buildSystemPrompt`.** Test:
@@ -334,6 +390,10 @@ Test với **mắt cua `2026-12-01`**:
 **AC7. Xử lý lỗi.**
 - Offline hoặc chưa có key: các nút AI thành Copy Prompt.
 - Lỗi 401, 429 hoặc lỗi mạng: hiện Toast, không mất câu hỏi.
+- **[1.1] Fallback schema** (SPEC M7). Test bằng `fetch` giả lập:
+  - (a) Lần 1 trả 400 → lần 2 gửi request **không có** `responseSchema` và `responseMimeType` → hiện câu trả lời, `actions = []`, tên model được ghi vào `geminiSchemaUnsupported`.
+  - (b) Lần gọi sau với model đó: chỉ **1** request, không kèm schema.
+  - (c) Trả 429 hoặc 401 → **không** fallback, hiện Toast.
 
 **AC8. Thử thật** bằng key của người làm (không commit key). Dán câu trả lời rút gọn vào báo cáo cho 3 trường hợp:
 - 1 câu hỏi chữ;
