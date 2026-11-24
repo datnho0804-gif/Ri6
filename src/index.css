@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  /* Offline-first system typography — zero CDN dependencies */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* SPEC §8: Durian leaf green (primary: #14532d) */
+  --color-durian-50: #f0fdf4;
+  --color-durian-100: #dcfce7;
+  --color-durian-200: #bbf7d0;
+  --color-durian-300: #86efac;
+  --color-durian-600: #16a34a;
+  --color-durian-700: #15803d;
+  --color-durian-800: #166534;
+  --color-durian-900: #14532d;
+  --color-durian-950: #0c351d;
+
+  /* SPEC §8: Red basalt soil (accent: #9a3412) */
+  --color-basalt-50: #fff7ed;
+  --color-basalt-100: #ffedd5;
+  --color-basalt-200: #fed7aa;
+  --color-basalt-300: #fdba74;
+  --color-basalt-600: #c2410c;
+  --color-basalt-700: #9a3412;
+  --color-basalt-800: #7c2d12;
+
+  /* SPEC §8: Canvas (#faf8f5) & primary ink (#1c1917) */
+  --color-sand: #faf8f5;
+  --color-sand-100: #f3efe8;
+  --color-sand-200: #e7e0d4;
+  --color-sand-300: #d6cbb9;
+  --color-ink: #1c1917;
+  --color-ink-muted: #57534e;
+
+  /* SPEC §8: Semantic status palette (red status explicitly distinct from basalt #9a3412) */
+  --color-status-ok: #15803d;
+  --color-status-ok-bg: #dcfce7;
+  --color-status-warn: #a16207;
+  --color-status-warn-bg: #fef9c3;
+  --color-status-danger: #dc2626;
+  --color-status-danger-bg: #fee2e2;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    background-color: var(--color-sand);
+    color: var(--color-ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-sand);
+    color: var(--color-ink);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-durian-900);
+    outline-offset: 2px;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
