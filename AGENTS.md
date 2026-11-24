@@ -16,7 +16,7 @@
 ## 2. Quy trình mỗi task
 
 1. `git checkout main && git pull`.
-2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T04**, mỗi lần một task. **T05–T06 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
+2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T06**, mỗi lần một task. **A01–A02 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
 3. Tạo nhánh từ `main`: `ag/T0x-<ten-ngan>` (ví dụ `ag/T01-khung-du-an`).
 4. Viết code. Trước **mỗi lần push**, các lệnh sau phải chạy xanh:
    ```bash
@@ -31,7 +31,7 @@
 
 ## 3. Quy tắc kỹ thuật
 
-- **Stack cố định:** Vite, React, TypeScript (`strict: true`), Tailwind CSS, `lucide-react`, Dexie (IndexedDB), `vite-plugin-pwa`, Vitest, ESLint. **Không** thêm Capacitor hay bất kỳ thứ gì liên quan đến APK.
+- **Stack cố định:** Vite, React, TypeScript (`strict: true`), Tailwind CSS, `lucide-react`, Dexie (IndexedDB), `vite-plugin-pwa`, Vitest, ESLint; `workbox-precaching`, `workbox-routing`, `workbox-core` cho `src/sw.ts` (SPEC §7.0). **Không** thêm Capacitor hay bất kỳ thứ gì liên quan đến APK.
   Muốn thêm thư viện khác thì phải nêu lý do trong báo cáo.
 - Dùng Node 20 LTS trở lên. Commit `package-lock.json`.
 - **Phiên bản.** Mỗi PR có thay đổi app phải tăng `version` trong `package.json`:
@@ -42,7 +42,8 @@
 - **Offline-first:** không tải gì từ CDN khi chạy (font, icon, CSS đều đóng gói vào bản build).
 - Giao diện tiếng Việt. Tên biến, hàm, file tiếng Anh.
 - **Cấm `alert()`, `confirm()`, `prompt()`** (ESLint `no-alert: "error"`). Dùng Toast và Modal của app.
-- **Logic thuần** đặt trong `src/lib/`, không import React, phải có unit test Vitest. Gồm: tính mốc Ri6, tính nước béc tưới, mức cắt tỉa, trạng thái chụp ảnh, cảnh báo PHI, merge đồng bộ, mã hóa base64 UTF-8.
+- **Logic thuần** đặt trong `src/lib/`, không import React, phải có unit test Vitest. Gồm: tính mốc Ri6, tính nước béc tưới, mức cắt tỉa, trạng thái chụp ảnh, cảnh báo PHI, merge đồng bộ, mã hóa base64 UTF-8, việc cần làm (`buildAgenda`), quyết định thông báo (`shouldNotify`), link Google Calendar, prompt AI (`buildSystemPrompt`, `parseAiActions`).
+- Các hằng số nông học (SPEC §3) đặt ở **một nơi duy nhất** (`src/lib/agronomy.ts`). Máy tính, thẻ phác đồ, việc cần làm và prompt AI đều đọc từ đó.
 - **Ngày giờ:**
   - Ngày lưu dạng `YYYY-MM-DD` theo giờ `Asia/Ho_Chi_Minh`; mốc thời gian lưu ISO 8601 UTC.
   - Hiển thị `dd/mm/yyyy`.
