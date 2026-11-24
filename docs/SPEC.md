@@ -302,11 +302,14 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
 **CI/CD (GitHub Actions):**
 - `ci.yml`: chạy khi `pull_request` và khi push nhánh `ag/**`. Các bước: `npm ci`, lint, typecheck, test, build.
 - `deploy.yml`: push `main` → build → `actions/deploy-pages`.
-- `android.yml`:
-  - Khi push tag `v*.*.*`: build **APK release đã ký**, đính kèm vào GitHub Release với tên `SoTayRi6-vX.Y.Z.apk`.
-  - Khi chạy tay (`workflow_dispatch`): build APK debug, lưu dạng artifact.
+- `release.yml` **[BS] — phát hành tự động, không cần gắn tag tay:**
+  - Chạy khi push vào `main` **và** `version` trong `package.json` lớn hơn tag `v*` mới nhất. Chạy tay (`workflow_dispatch`) thì build APK debug, lưu dạng artifact.
+  - Workflow tự tạo tag `vX.Y.Z` và một GitHub Release (không phải prerelease). Release gồm 3 tệp:
+    - `SoTayRi6-vX.Y.Z.apk`: APK release đã ký.
+    - `ri6-web-X.Y.Z.zip`: gói web cho cập nhật OTA, là thư mục `dist` build với `base './'`.
+    - `update.json`: theo mẫu ở §7.1.
   - `versionCode = MAJOR*10000 + MINOR*100 + PATCH`.
-  - Thiếu secrets ký thì job tag **báo lỗi rõ ràng**, không lặng lẽ xuất bản debug.
+  - Thiếu secrets ký thì job **báo lỗi rõ ràng**, không lặng lẽ xuất bản debug.
 
 **Ký APK:**
 - Dùng **một keystore duy nhất**, do chủ repo tạo trên máy mình và cất bản sao ngoài repo.
@@ -318,6 +321,56 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
 - Chừa vùng an toàn (tai thỏ), status bar màu `#14532d`.
 - Chụp ảnh, copy clipboard và đồng bộ đều phải chạy được trong APK.
 - `minSdk` theo mặc định của Capacitor.
+
+### 7.1 Tự động cập nhật [BS]
+
+**Hai mức phiên bản** (khai báo trong `package.json`):
+- `version` (semver): đổi với **mọi** bản phát hành.
+- `ri6.nativeVersion` (số nguyên): **chỉ tăng** khi có thay đổi phần native, gồm:
+  - bất kỳ file nào trong `android/`;
+  - `capacitor.config.*`;
+  - thêm, bớt hoặc nâng cấp `@capacitor/*` hay plugin native;
+  - quyền Android.
+
+  CI phải **báo lỗi** nếu diff chạm vào các đường dẫn native mà `nativeVersion` không tăng.
+
+**Mẫu `update.json`:**
+```json
+{ "version": "1.3.0", "versionCode": 10300, "nativeVersion": 2, "notes": "…",
+  "bundle": { "url": "https://github.com/datnho0804-gif/Ri6/releases/download/v1.3.0/ri6-web-1.3.0.zip", "sha256": "…" },
+  "apk":    { "url": "https://github.com/datnho0804-gif/Ri6/releases/download/v1.3.0/SoTayRi6-v1.3.0.apk", "sha256": "…" } }
+```
+Địa chỉ cố định để kiểm tra (không tốn quota API):
+`https://github.com/datnho0804-gif/Ri6/releases/latest/download/update.json`
+
+**Hành vi trong APK.** Kiểm tra khi mở app và khi app quay lại foreground, tối đa 1 lần mỗi 6 giờ, chỉ khi có mạng.
+
+1. **`update.nativeVersion > nativeVersion của APK đang cài` → cập nhật APK (bấm 1 lần):**
+   - Hiện Modal "Có bản mới vX.Y.Z" kèm ghi chú phát hành.
+   - App tự tải APK vào cache và **kiểm SHA-256**.
+   - Cài bằng `PackageInstaller` session. Từ Android 12 trở lên đặt `setRequireUserAction(USER_ACTION_NOT_REQUIRED)` để cài im lặng khi hệ điều hành cho phép. Nếu không được thì hiện hộp thoại hệ thống và người dùng bấm "Cập nhật" 1 lần.
+   - Chưa có quyền "Cài ứng dụng không rõ nguồn gốc" thì Modal giải thích, rồi mở đúng trang cài đặt quyền đó cho app.
+   - Phần native là plugin Capacitor nội bộ, viết bằng Kotlin (`ApkUpdater`). Có thêm hàm `getNativeInfo() → { versionCode, nativeVersion }`, đọc từ `BuildConfig`.
+2. **Ngược lại, nếu `update.version > phiên bản gói web đang chạy` → cập nhật OTA im lặng:**
+   - Dùng `@capgo/capacitor-updater` ở **chế độ thủ công** (`autoUpdate: false`, tự host trên GitHub Releases, không dùng cloud Capgo).
+   - Tải zip ngầm, kiểm SHA-256, rồi gọi `next()`: gói mới được áp dụng khi app vào nền hoặc khởi động lại.
+   - Lần mở sau hiện Toast "Đã cập nhật lên vX.Y.Z".
+   - Bật `resetWhenUpdate: true`, để khi cài APK mới thì quay về gói web gắn sẵn trong APK.
+3. **An toàn:**
+   - **Trước khi áp dụng bất kỳ cập nhật nào, chạy `sync()`** (nếu đã cấu hình), để dữ liệu nằm an toàn trên `Ri6-data`.
+   - Gói web phải gọi `notifyAppReady()` sau khi mở DB thành công. Quá 10 giây chưa gọi thì tự quay về gói trước (rollback).
+   - Schema Dexie chỉ được tăng. Bản cũ gặp DB mới (`VersionError`) thì hiện "Cần cập nhật ứng dụng", **không crash và không xóa DB**.
+4. **Cài đặt:**
+   - Hiện phiên bản: `version` của gói web, `versionCode` và `nativeVersion` của APK.
+   - Công tắc **Tự động cập nhật** (mặc định bật).
+   - Công tắc **Chỉ tải qua Wi-Fi** (mặc định tắt).
+   - Nút **Kiểm tra cập nhật**.
+
+**Bản web/PWA:** `vite-plugin-pwa` dùng `registerType: 'autoUpdate'`. Khi Service Worker mới kích hoạt thì hiện Toast "Đã cập nhật lên vX.Y.Z".
+
+**Giới hạn cần biết:**
+- App cài ngoài CH Play **không thể** tự cài APK mà chắc chắn không hỏi người dùng. HyperOS/MIUI có thể hiện thêm bước quét của hãng.
+- Vì vậy thay đổi native phải dồn lại, càng hiếm càng tốt. Phần lớn bản phát hành chỉ nên là OTA.
 
 ## 8. Giao diện
 - **Màu:**

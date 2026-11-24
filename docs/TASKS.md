@@ -9,7 +9,8 @@
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
 | T04 | Cài đặt, đồng bộ GitHub, Gemini | ⏳ |
-| T05 | APK Android (Capacitor) và phát hành | ⏳ |
+| T05 | APK Android (Capacitor) và phát hành tự động | ⏳ |
+| T06 | Tự động cập nhật trong app (OTA + APK) | ⏳ |
 
 ---
 
@@ -44,6 +45,7 @@
 - Manifest và icon theo SPEC §7.
 - Tắt mạng rồi tải lại trang thì app vẫn mở được.
 - Chrome Android cho phép "Thêm vào màn hình chính".
+- Service Worker dùng `registerType: 'autoUpdate'`. Khi có bản mới thì hiện Toast "Đã cập nhật".
 
 **AC8. Đường dẫn gốc.**
 - Build cho Pages dùng `base '/Ri6/'`. Có sẵn cơ chế (biến môi trường hoặc mode) để build `base './'` cho T05.
@@ -211,7 +213,7 @@ Test với **mắt cua `2026-12-01`**:
 
 ---
 
-## T05 — APK Android (Capacitor) và phát hành
+## T05 — APK Android (Capacitor) và phát hành tự động
 **Nhánh:** `ag/T05-apk-android`
 
 **AC1. Cấu hình Capacitor.**
@@ -223,16 +225,19 @@ Test với **mắt cua `2026-12-01`**:
 - Nút Back phần cứng, vùng an toàn và màu status bar theo SPEC §7.
 - Chụp ảnh, clipboard, đồng bộ GitHub và Gemini đều chạy được trong APK.
 
-**AC3. Workflow `android.yml`.**
-- Đúng SPEC §7: tag → APK release đã ký lên Release; chạy tay → APK debug dạng artifact.
-- Có `versionCode` theo công thức.
-- Thiếu secrets thì báo lỗi rõ ràng.
+**AC3. Workflow `release.yml`.**
+- Đúng SPEC §7: merge vào `main` mà `version` tăng thì tự tạo tag và Release gồm APK đã ký, `ri6-web-X.Y.Z.zip` và `update.json` (đúng mẫu §7.1, có SHA-256 thật).
+- Merge mà `version` không tăng thì **không** phát hành.
+- Chạy tay → APK debug dạng artifact.
+- Có `versionCode` theo công thức. Thiếu secrets thì báo lỗi rõ ràng.
+- `package.json` có `ri6.nativeVersion = 1`.
+- `ci.yml` báo lỗi khi diff chạm vào đường dẫn native mà `nativeVersion` không tăng. Kèm test hoặc script chứng minh.
 
 **AC4. Hướng dẫn `docs/ANDROID.md`** (tiếng Việt, cho chủ repo dùng Windows):
 - Tạo keystore bằng `keytool`.
 - Mã hóa base64 bằng PowerShell `[Convert]::ToBase64String([IO.File]::ReadAllBytes("ri6-release.jks"))`.
 - Thêm 4 secrets vào repo.
-- Phát hành: `git tag v1.0.0 && git push origin v1.0.0`.
+- Phát hành: tăng `version` rồi merge vào `main` là workflow tự làm, không gắn tag tay.
 - Cài APK lên nhiều máy Android (bật "Cài ứng dụng không rõ nguồn gốc").
 - Cách cập nhật phiên bản.
 - **Cảnh báo cất 2 bản sao keystore ngoài repo.**
@@ -246,3 +251,47 @@ Test với **mắt cua `2026-12-01`**:
 
 **AC7. Báo cáo.**
 - `docs/reports/T05.md` kèm ảnh app chạy trong APK.
+
+---
+
+## T06 — Tự động cập nhật trong app (OTA + APK)
+**Nhánh:** `ag/T06-tu-dong-cap-nhat` (là thay đổi native, nên tăng `nativeVersion` lên 2)
+
+**AC1. Hàm thuần `decideUpdate(installed, current, manifest)`.**
+- Trả về `'apk' | 'ota' | 'none'` theo SPEC §7.1, so sánh semver đúng (`1.10.0 > 1.9.9`).
+- Test các trường hợp sau, với `installed.nativeVersion = 2` và `current = 1.2.0`:
+
+| `manifest.nativeVersion` | `manifest.version` | Kết quả |
+|---|---|---|
+| 3 | 1.3.0 | `apk` |
+| 2 | 1.3.0 | `ota` |
+| 2 | 1.2.0 | `none` |
+| 1 | 1.3.0 | `ota` |
+
+**AC2. Cập nhật OTA.**
+- `@capgo/capacitor-updater` chế độ thủ công: tải ngầm, kiểm SHA-256, gọi `next()`, có Toast sau khi áp dụng.
+- Có `notifyAppReady()` và rollback sau 10 giây.
+- **Test rollback:** phát hành một gói cố ý không gọi `notifyAppReady()` → app tự quay về gói trước và dữ liệu còn nguyên.
+
+**AC3. Cập nhật APK.**
+- Plugin Kotlin `ApkUpdater`: tải, kiểm SHA-256 (sai thì xóa file và báo lỗi), cài bằng `PackageInstaller`.
+- Từ Android 12 trở lên có thử `USER_ACTION_NOT_REQUIRED`.
+- Có luồng xin quyền "Cài ứng dụng không rõ nguồn gốc".
+- Có `getNativeInfo()`.
+
+**AC4. An toàn dữ liệu.**
+- Chạy `sync()` trước khi áp dụng cập nhật.
+- Gặp `VersionError` thì hiện thông báo, không crash và không xóa DB.
+
+**AC5. Cài đặt.**
+- Hiện các phiên bản, 2 công tắc và nút Kiểm tra cập nhật (SPEC §7.1 mục 4).
+- Tần suất kiểm tra tối đa 1 lần mỗi 6 giờ (có test).
+
+**AC6. Kiểm thử thật trên máy hoặc emulator.** Ghi kết quả vào báo cáo:
+- (a) Cài v1.x đang chạy → merge một PR chỉ sửa giao diện → app **tự cập nhật OTA** mà không bấm gì.
+- (b) Merge một PR tăng `nativeVersion` → app hiện Modal → bấm 1 lần → cài đè → **dữ liệu còn nguyên**.
+- (c) Đang offline thì không báo lỗi; có mạng lại thì kiểm tra cập nhật.
+
+**AC7. Báo cáo.**
+- `docs/reports/T06.md` kèm ảnh Modal cập nhật, Toast sau OTA và màn Cài đặt phiên bản.
+- Cập nhật `docs/ANDROID.md` với mục "Cập nhật tự động hoạt động thế nào".
