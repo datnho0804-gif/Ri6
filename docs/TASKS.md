@@ -8,11 +8,13 @@
 | T01 | Khung dự án, PWA, CI/CD | ⏳ Chờ làm |
 | T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
 | T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
-| T04 | Cài đặt, đồng bộ GitHub, Gemini | ⏳ |
-| T05 | APK Android (Capacitor) và phát hành tự động | ⏸ Tạm hoãn — không làm |
-| T06 | Tự động cập nhật trong app (OTA + APK) | ⏸ Tạm hoãn — không làm |
+| T04 | Cài đặt, đồng bộ GitHub | ⏳ |
+| T05 | Việc cần làm và nhắc nhở | ⏳ |
+| T06 | Trợ lý AI (Gemini) | ⏳ |
+| A01 | APK Android (Capacitor) và phát hành tự động | ⏸ Tạm hoãn — không làm |
+| A02 | Tự động cập nhật trong app (OTA + APK) | ⏸ Tạm hoãn — không làm |
 
-> Bản chính là web app cài từ Chrome (SPEC §7.0). T05–T06 giữ lại để tham khảo, chỉ làm khi Claude đổi trạng thái.
+> Bản chính là web app cài từ Chrome (SPEC §7.0). A01–A02 giữ lại để tham khảo, chỉ làm khi Claude đổi trạng thái.
 
 ---
 
@@ -52,7 +54,7 @@
 - Báo cáo có ảnh app chạy toàn màn hình sau khi cài từ Chrome Android. Dùng máy thật hoặc emulator; nếu không có thì ghi rõ lý do.
 
 **AC8. Đường dẫn gốc.**
-- Build cho Pages dùng `base '/Ri6/'`. Có sẵn cơ chế (biến môi trường hoặc mode) để build `base './'` cho T05.
+- Build cho Pages dùng `base '/Ri6/'`. Có sẵn cơ chế (biến môi trường hoặc mode) để build `base './'` cho APK sau này.
 
 **AC9. Workflow.**
 - Có `ci.yml` và `deploy.yml` theo SPEC §7. CI xanh trên nhánh `ag/T01-…`.
@@ -96,6 +98,7 @@ Test với `today = '2026-11-24'`:
 **AC5. Nhật ký.**
 - Thêm và xóa mục nhật ký. Xóa phải hỏi lại bằng Modal, lưu tombstone.
 - Loại *Phun thuốc* bắt buộc nhập hoạt chất và PHI.
+- Loại *Bón phân* bắt buộc chọn **loại phân** (`fertilizerKind`, SPEC §5).
 - Trang Lô A dùng chung component nhật ký.
 
 **AC6. Copy Prompt.**
@@ -167,7 +170,7 @@ Test với **mắt cua `2026-12-01`**:
 
 ---
 
-## T04 — Cài đặt, đồng bộ GitHub, Gemini
+## T04 — Cài đặt, đồng bộ GitHub
 **Nhánh:** `ag/T04-dong-bo-github`
 
 > Chủ repo chuẩn bị trước:
@@ -177,7 +180,7 @@ Test với **mắt cua `2026-12-01`**:
 > Token **chỉ nhập trong app**, không đưa cho Antigravity, không ghi vào code.
 
 **AC1. Màn Cài đặt (M5).**
-- Có đủ các trường theo SPEC.
+- Có các trường thiết bị và đồng bộ theo SPEC M5. Phần Gemini làm ở T06.
 - Ô token dạng mật khẩu, có nút ẩn/hiện.
 - Nút *Kiểm tra kết nối*:
   - Báo lỗi khi thiếu quyền push.
@@ -208,9 +211,10 @@ Test với **mắt cua `2026-12-01`**:
 **AC6. Không lộ khóa.**
 - Không có token hoặc khóa nào trong code, trong log console, hoặc trong commit gửi lên `Ri6-data`.
 
-**AC7. Gemini.**
-- Nút phân tích gửi prompt kèm tối đa 3 ảnh, hiện kết quả, lưu được thành nhật ký "Ghi chú AI".
-- Có lỗi thì hiện bằng Toast.
+**AC7. Gemini:** chuyển sang T06, không làm ở T04.
+
+**AC7b. Đồng bộ bảng `tasks`.**
+- `state.json` có mảng `tasks[]`, dùng chung hàm `merge()`.
 
 **AC8. Đồng bộ nền và lưu Cài đặt.**
 - Cài đặt lưu trong bảng Dexie `settings`, không dùng localStorage.
@@ -234,8 +238,109 @@ Test với **mắt cua `2026-12-01`**:
 
 ---
 
-## T05 — APK Android (Capacitor) và phát hành tự động
-**Nhánh:** `ag/T05-apk-android`
+## T05 — Việc cần làm và nhắc nhở
+**Nhánh:** `ag/T05-viec-can-lam` (SPEC M6)
+
+**AC1. Hàm `buildAgenda(state, today)`.** Test với `today = '2026-11-24'`, tầm nhìn 7 ngày:
+
+| Dữ liệu | Kết quả mong đợi |
+|---|---|
+| SR01 `flowerDate 2026-09-26` (đang ở ngày 59) | có `ri6-kali:SR01` (đang diễn ra, đến 30/11), `ri6-len-com:SR01` (bắt đầu `2026-11-25`), `ri6-giam-dam:SR01` (`2026-11-27`) |
+| SR02 ảnh tuần gần nhất `2026-11-16` | có `photo:SR02`, ưu tiên `cao` |
+| Log *Phun thuốc* SR03 ngày `2026-11-20` | có `recheck7:<id>` hạn `2026-11-27`; **không** có `recheck14` (hạn `2026-12-04` nằm ngoài 7 ngày) |
+| Log *Bón phân* Vôi/Dolomite LOT_A ngày `2026-11-20` | có `lime-gap:<id>` với nội dung "Không bón Hữu cơ/Trichoderma trước 05/12/2026; không bón Urê/Lân trước 30/11/2026" |
+| Đổi `today` thành `2026-05-03` / `2026-10-10` | có `season:voi-dau-mua-mua:2026` / `season:voi-cuoi-mua-mua:2026` |
+| Có bản ghi `tasks` `done = true`, hoặc `snoozeUntil` > today | việc đó **không** xuất hiện |
+
+**AC2. Màn Việc cần làm.**
+- Chia 3 nhóm: Quá hạn / Hôm nay / 7 ngày tới.
+- Mỗi việc có nút Xong / Hoãn 1 ngày / Thêm vào Google Calendar.
+- Thêm được việc tự tạo.
+- Tổng quan có khối "Hôm nay cần làm" (5 việc) và số việc hiện trên tab.
+- Bảng `tasks` được đồng bộ (T04 AC7b).
+
+**AC3. Cảnh báo khoảng cách vôi.**
+- Có log vôi LOT_A ngày `2026-11-20`, sau đó thêm log Hữu cơ/Trichoderma cho LOT_A ngày `2026-11-28` → hiện Modal cảnh báo, vẫn cho lưu.
+
+**AC4. Hàm `calendarUrl(item)`.**
+- "Thu hoạch SR01", sự kiện cả ngày từ `2027-04-25` đến `2027-05-10` → URL chứa `dates=20270425/20270511`.
+- Tiêu đề và mô tả tiếng Việt được mã hóa URL đúng.
+- Nút "Tạo nhắc chụp ảnh hằng tuần" dùng `recur=RRULE:FREQ=WEEKLY`. Ghi kết quả thử thực tế vào báo cáo.
+
+**AC5. Thông báo.**
+- Nút "Bật nhắc nhở" mới xin quyền.
+- Đăng ký periodicsync `ri6-agenda` nếu trình duyệt hỗ trợ.
+- Service Worker dùng `buildAgenda`; mã không dùng `window`, `document`, `localStorage`.
+- Test `shouldNotify`:
+
+| Tình huống (giờ VN) | Kết quả |
+|---|---|
+| 22:00 hoặc 05:59 | `false` (giờ yên lặng) |
+| 07:00, lần báo trước là 07:00 hôm qua, có key mới | `true` |
+| Đã báo một lần trong cùng ngày | `false` |
+| Không có key mới | `false` |
+
+**AC6. Màn Cài đặt.**
+- Hiện quyền thông báo, periodicsync có được hỗ trợ không, lần báo gần nhất.
+- Có nút "Gửi thông báo thử".
+
+**AC7. Báo cáo.**
+- `docs/reports/T05.md` kèm ảnh: màn Việc cần làm, khối Hôm nay, thông báo thật trên Android (nếu làm được), sự kiện đã tạo trong Google Calendar.
+
+---
+
+## T06 — Trợ lý AI (Gemini)
+**Nhánh:** `ag/T06-tro-ly-ai` (SPEC M7)
+
+**AC1. Cài đặt Gemini** theo SPEC M7.
+- Key có nút ẩn/hiện; model chọn từ API; có nút Kiểm tra; có ghi chú về gói miễn phí.
+- **Test:** key không xuất hiện trong file xuất JSON, trong dữ liệu đồng bộ và trong console.
+
+**AC2. Hàm `buildSystemPrompt`.** Test:
+- Chuỗi trả về chứa "Lộc Tấn", "đất đỏ bazan", tên mùa, "5,5–6,5", "90–105".
+- Khi chọn SR01: có label của SR01 và **tối đa 10** log mới nhất, sắp xếp mới → cũ.
+- **Không** chứa chuỗi token/key giả đã đặt sẵn trong settings của test.
+- Quy tắc nông học được import từ `src/lib/agronomy.ts`, không chép tay.
+
+**AC3. Hàm `parseAiActions`.** Test:
+
+| Đầu vào | Kết quả |
+|---|---|
+| Action thiếu `title` | bị loại |
+| `dueInDays: 99` | thành 60 |
+| `dueInDays: -3` | thành 0 |
+| `targetId: 'SR99'` | bỏ `targetId`, giữ action |
+| JSON hỏng | trả `[]`, vẫn hiện `answer` dạng chữ nếu có |
+
+**AC4. Màn Hỏi AI.**
+- Hỏi đáp nhiều lượt, đính kèm tối đa 3 ảnh (đã nén), chọn cây.
+- Lịch sử lưu cục bộ, tối đa 50 hội thoại, xóa được.
+
+**AC5. Nút "Phân tích bằng AI".**
+- Có ở hồ sơ cây và màn cắt tỉa.
+- Mỗi action có nút "Thêm vào Việc cần làm": tạo bản ghi `tasks` với `source 'ai'`, hiện ở màn Việc cần làm của T05.
+- Có nút "Lưu vào nhật ký".
+
+**AC6. Cảnh báo.**
+- Dòng cảnh báo tham khảo/thuốc BVTV hiện dưới mỗi câu trả lời.
+- Cảnh báo PHI của app vẫn hiện độc lập với AI.
+
+**AC7. Xử lý lỗi.**
+- Offline hoặc chưa có key: các nút AI thành Copy Prompt.
+- Lỗi 401, 429 hoặc lỗi mạng: hiện Toast, không mất câu hỏi.
+
+**AC8. Thử thật** bằng key của người làm (không commit key). Dán câu trả lời rút gọn vào báo cáo cho 3 trường hợp:
+- 1 câu hỏi chữ;
+- 1 câu hỏi kèm ảnh lá;
+- 1 lần phân tích cắt tỉa.
+
+**AC9. Báo cáo.**
+- `docs/reports/T06.md` kèm ảnh: màn Hỏi AI, kết quả phân tích, action đã được thêm vào Việc cần làm.
+
+---
+
+## A01 — APK Android (Capacitor) và phát hành tự động ⏸ TẠM HOÃN
+**Nhánh:** `ag/A01-apk-android`
 
 **AC1. Cấu hình Capacitor.**
 - appId `vn.loctan.sotayri6`, appName "Sổ Tay Ri6".
@@ -271,12 +376,12 @@ Test với **mắt cua `2026-12-01`**:
 - Cập nhật `README.md`: giới thiệu, link Pages, link tải APK mới nhất, sơ đồ đồng bộ, lệnh dev.
 
 **AC7. Báo cáo.**
-- `docs/reports/T05.md` kèm ảnh app chạy trong APK.
+- `docs/reports/A01.md` kèm ảnh app chạy trong APK.
 
 ---
 
-## T06 — Tự động cập nhật trong app (OTA + APK)
-**Nhánh:** `ag/T06-tu-dong-cap-nhat` (là thay đổi native, nên tăng `nativeVersion` lên 2)
+## A02 — Tự động cập nhật trong app (OTA + APK) ⏸ TẠM HOÃN
+**Nhánh:** `ag/A02-tu-dong-cap-nhat` (là thay đổi native, nên tăng `nativeVersion` lên 2)
 
 **AC1. Hàm thuần `decideUpdate(installed, current, manifest)`.**
 - Trả về `'apk' | 'ota' | 'none'` theo SPEC §7.1, so sánh semver đúng (`1.10.0 > 1.9.9`).
@@ -314,5 +419,5 @@ Test với **mắt cua `2026-12-01`**:
 - (c) Đang offline thì không báo lỗi; có mạng lại thì kiểm tra cập nhật.
 
 **AC7. Báo cáo.**
-- `docs/reports/T06.md` kèm ảnh Modal cập nhật, Toast sau OTA và màn Cài đặt phiên bản.
+- `docs/reports/A02.md` kèm ảnh Modal cập nhật, Toast sau OTA và màn Cài đặt phiên bản.
 - Cập nhật `docs/ANDROID.md` với mục "Cập nhật tự động hoạt động thế nào".
