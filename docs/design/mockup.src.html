@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup giao diện Sổ Tay Vườn Ri6</title>
+{{FONTS}}
+<style>
+:root{
+  --primary:#14532d; --on-primary:#fff; --pc:#dcfce7; --on-pc:#052e16;
+  --sec:#9a3412; --sc:#ffedd5; --ter:#f59e0b; --tc:#fef3c7; --on-tc:#78350f;
+  --bg:#faf8f5; --surface:#fff; --s2:#f3efe8; --outline:#e7e0d4; --outline-2:#cfc6b8;
+  --text:#1c1917; --text-2:#44403c; --text-3:#57534e;
+  --ok:#14532d; --ok-c:#dcfce7; --warn:#713f12; --warn-c:#fef9c3; --danger:#991b1b; --danger-c:#fee2e2;
+  --info:#1e3a8a; --info-c:#dbeafe; --ph:#5b21b6; --ph-c:#ede9fe; --water:#075985; --water-c:#e0f2fe;
+  --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px;
+  --e1:0 1px 2px rgb(28 25 23/.06),0 2px 8px rgb(28 25 23/.05); --e2:0 6px 20px rgb(28 25 23/.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:#e9e4db;color:var(--text);padding:40px 32px 48px;-webkit-font-smoothing:antialiased}
+.wrap{display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.cap{text-align:center;font-weight:600;font-size:15px;color:var(--text-2);margin-top:14px}
+.phone{width:390px;height:844px;border-radius:46px;background:var(--bg);box-shadow:0 0 0 10px #1c1917,0 30px 60px rgb(0 0 0/.25);position:relative;overflow:hidden}
+.ic{width:22px;height:22px;flex:none;display:inline-block;vertical-align:middle}
+.ic svg{width:100%;height:100%;display:block}
+.status{height:36px;display:flex;justify-content:space-between;align-items:center;padding:8px 26px 0;font-size:14px;font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+/* app bar */
+.appbar{display:flex;align-items:center;gap:12px;padding:8px 12px 8px 16px;height:64px}
+.appbar .logo{width:40px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--e1);display:grid;place-items:center}
+.appbar .logo img{width:30px;height:30px}
+.appbar h1{font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.01em}
+.appbar p{font-size:14px;color:var(--text-3)}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:grid;place-items:center;color:var(--text-2);position:relative}
+.dot{position:absolute;right:11px;top:11px;width:10px;height:10px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 2px var(--bg)}
+.content{padding:4px 16px 0}
+/* cards */
+.card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1)}
+.season{border-radius:var(--r-lg);padding:16px;background:linear-gradient(135deg,#fff7ed 0%,#fef3c7 100%);display:flex;gap:14px;border:1px solid #fde68a}
+.tile{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none}
+.season h2{font-size:16px;font-weight:700;color:var(--on-tc)}
+.season p{font-size:14px;line-height:20px;color:#78350f;margin-top:2px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.kpi{padding:12px 12px 14px}
+.kpi b{display:block;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.02em}
+.kpi span{font-size:14px;line-height:18px;color:var(--text-2);font-weight:500}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 8px}
+.sec-h h3{font-size:18px;font-weight:700}
+.sec-h a{font-size:14px;font-weight:600;color:var(--primary);text-decoration:none}
+.li{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:68px}
+.li+.li{border-top:1px solid var(--s2)}
+.li .t{font-size:16px;font-weight:600;line-height:22px}
+.li .s{font-size:14px;color:var(--text-3);line-height:20px}
+.li .grow{flex:1;min-width:0}
+.check{width:28px;height:28px;border-radius:50%;border:2px solid var(--outline-2);flex:none}
+/* photo grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ph{aspect-ratio:1;border-radius:var(--r-md);position:relative;overflow:hidden;
+  background:radial-gradient(circle at var(--x1,30%) 34%,#4d7c0f 0 17%,transparent 18%),radial-gradient(circle at var(--x2,64%) 28%,#3f6212 0 19%,transparent 20%),radial-gradient(circle at 48% 52%,#365314 0 27%,transparent 28%),radial-gradient(circle at 72% 58%,#4d7c0f 0 16%,transparent 17%),linear-gradient(#d9ecd0,#b5d6a7 62%,#8a6a4a 62%,#6f5236)}
+.ph .code{position:absolute;left:6px;top:6px;background:rgb(255 255 255/.92);font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;padding:3px 8px 3px 6px;border-radius:999px;white-space:nowrap}
+.pill .ic{width:15px;height:15px}
+.ph .pill{position:absolute;left:6px;bottom:6px}
+.ok{background:var(--ok-c);color:var(--ok)} .warn{background:var(--warn-c);color:var(--warn)} .danger{background:var(--danger-c);color:var(--danger)}
+.empty{background:var(--surface);border:2px dashed var(--outline-2);display:grid;place-items:center;text-align:center;color:var(--text-2);font-size:13px;font-weight:600}
+/* fab + nav */
+.fab{position:absolute;right:16px;bottom:104px;height:56px;padding:0 20px 0 16px;border-radius:18px;background:var(--primary);color:#fff;display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px;box-shadow:var(--e2)}
+.nav{position:absolute;left:0;right:0;bottom:0;height:92px;background:#fff;border-top:1px solid var(--outline);display:grid;grid-template-columns:repeat(4,1fr);padding:10px 4px 22px}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--text-2)}
+.nav .pillnav{width:64px;height:32px;border-radius:999px;display:grid;place-items:center;position:relative}
+.nav .on .pillnav{background:var(--pc);color:var(--on-pc)} .nav .on{color:var(--text)}
+.badge{position:absolute;right:8px;top:-2px;min-width:20px;height:20px;border-radius:10px;background:var(--danger);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+/* profile */
+.hero{height:300px;width:100%;aspect-ratio:auto;position:relative;--x1:26%;--x2:70%;border-radius:0}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(rgb(0 0 0/.35),transparent 30%,transparent 50%,rgb(0 0 0/.65))}
+.hero .bar{position:absolute;top:36px;left:8px;right:8px;display:flex;justify-content:space-between;z-index:2}
+.hero .bar .iconbtn{background:rgb(0 0 0/.28);color:#fff;backdrop-filter:blur(6px)}
+.hero .ttl{position:absolute;left:20px;bottom:40px;z-index:2;color:#fff}
+.hero .ttl small{font-size:14px;font-weight:600;background:rgb(255 255 255/.2);backdrop-filter:blur(6px);padding:4px 10px;border-radius:999px}
+.hero .ttl h1{font-size:28px;line-height:34px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+.hero .ttl p{font-size:14px;opacity:.92}
+.sheetbody{position:absolute;top:276px;left:0;right:0;bottom:0;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:18px 16px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:12px;font-size:14px;font-weight:600;border:1px solid var(--outline-2);background:var(--surface);color:var(--text-2)}
+.chip.sel{background:var(--pc);border-color:transparent;color:var(--on-pc)}
+.chip .ic{width:18px;height:18px}
+.ri6{padding:14px 16px;margin-top:14px}
+.ri6 .top{display:flex;justify-content:space-between;align-items:baseline}
+.ri6 .top b{font-size:22px;font-weight:700} .ri6 .top span{font-size:14px;color:var(--text-3)}
+.track{height:12px;border-radius:6px;background:var(--s2);margin:14px 0 8px;position:relative}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:56.2%;border-radius:6px;background:linear-gradient(90deg,#86efac,#16a34a)}
+.track .band{position:absolute;top:-3px;bottom:-3px;border-radius:4px}
+.track .now{position:absolute;left:56.2%;top:-6px;width:4px;height:24px;border-radius:2px;background:var(--primary);transform:translateX(-2px)}
+.legend{display:flex;justify-content:space-between;font-size:13px;color:var(--text-3);font-weight:500}
+.banner{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;font-size:14px;font-weight:500;margin-top:12px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--s2);border-radius:14px;padding:4px;margin-top:14px}
+.seg div{height:40px;display:grid;place-items:center;font-size:14px;font-weight:600;color:var(--text-2);border-radius:10px}
+.seg .on{background:#fff;color:var(--text);box-shadow:var(--e1)}
+.tl{margin-top:10px}
+.bottombar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 28px;background:linear-gradient(transparent,var(--bg) 30%);display:flex;gap:10px}
+.btn{height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:600}
+.btn.filled{background:var(--primary);color:#fff;flex:1;box-shadow:var(--e2)}
+.btn.tonal{background:var(--pc);color:var(--on-pc);padding:0 18px}
+.btn.text{color:var(--primary);padding:0 18px}
+/* bottom sheet */
+.scrim{position:absolute;inset:0;background:rgb(28 25 23/.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:690px;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;box-shadow:0 -8px 30px rgb(0 0 0/.18);padding:10px 16px 0}
+.handle{width:40px;height:5px;border-radius:3px;background:var(--outline-2);margin:0 auto 10px}
+.sheet h2{font-size:22px;font-weight:700}
+.lbl{font-size:14px;font-weight:600;color:var(--text-2);margin:16px 2px 8px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{height:64px;border-radius:16px;background:var(--surface);border:1px solid var(--outline);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:600;color:var(--text-2)}
+.type.sel{border:2px solid var(--primary);background:var(--pc);color:var(--on-pc)}
+.field{border:1.5px solid var(--outline-2);border-radius:12px;background:var(--surface);padding:8px 14px 10px;position:relative}
+.field.focus{border:2px solid var(--primary)}
+.field label{font-size:13px;font-weight:600;color:var(--primary)}
+.field div{font-size:16px;font-weight:500;margin-top:2px}
+.help{font-size:13px;color:var(--text-3);margin:6px 4px 0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stepper{display:flex;align-items:center;justify-content:space-between;border:1.5px solid var(--outline-2);border-radius:12px;background:var(--surface);height:56px;padding:0 4px}
+.stepper b{font-size:20px} .stepper small{font-size:13px;color:var(--text-3);font-weight:500}
+.stepper .iconbtn{width:44px;height:44px;background:var(--s2);border-radius:12px}
+.actionbar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 28px;background:var(--bg);border-top:1px solid var(--outline);display:flex;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ======== 1. TỔNG QUAN ======== -->
+<div>
+<div class="phone">
+  <div class="status num"><span>9:41</span><span style="display:flex;gap:6px">{{i:signal:18}}{{i:wifi:18}}{{i:battery-full:20}}</span></div>
+  <div class="appbar">
+    <div class="logo"><img src="{{LOGO}}" alt=""></div>
+    <div style="flex:1"><h1>Vườn Ri6</h1><p>Thứ Ba, 24/11 · Lộc Tấn</p></div>
+    <div class="iconbtn">{{i:cloud:24}}<span class="dot"></span></div>
+    <div class="iconbtn">{{i:settings:24}}</div>
+  </div>
+  <div class="content">
+    <div class="season">
+      <div class="tile" style="background:#fde68a;color:#78350f">{{i:sun:26}}</div>
+      <div><h2>Mùa khô · tháng 11</h2><p>Giữ ẩm gốc bằng béc, soi nhện đỏ &amp; rầy xanh. Lô B chuẩn bị xiết nước làm bông.</p></div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><b class="num">65</b><span>cây trong vườn</span></div>
+      <div class="card kpi"><b class="num" style="color:var(--danger)">4</b><span>quá hạn chụp ảnh</span></div>
+      <div class="card kpi"><b class="num" style="color:var(--warn)">2</b><span>cần cắt tỉa</span></div>
+    </div>
+    <div class="sec-h"><h3>Hôm nay cần làm</h3><a href="#">Xem tất cả (7)</a></div>
+    <div class="card">
+      <div class="li"><div class="tile" style="background:var(--tc);color:var(--on-tc)">{{i:flask-conical:22}}</div><div class="grow"><div class="t">SR03 · Chuyển NPK giàu Kali</div><div class="s num">Ngày 59 sau xổ nhụy · đến 30/11</div></div><div class="check"></div></div>
+      <div class="li"><div class="tile" style="background:var(--danger-c);color:var(--danger)">{{i:camera:22}}</div><div class="grow"><div class="t">Chụp ảnh tuần · 4 cây</div><div class="s">SR02, SR07, SR11, SR14 · quá hạn</div></div><div class="check"></div></div>
+      <div class="li"><div class="tile" style="background:var(--info-c);color:var(--info)">{{i:spray-can:22}}</div><div class="grow"><div class="t">Kiểm tra lại sau phun</div><div class="s num">Đợt 20/11 · 15 cây · hạn 27/11</div></div><div class="check"></div></div>
+    </div>
+    <div class="sec-h"><h3>Ảnh tuần · Lô B</h3><a href="#">15 cây</a></div>
+    <div class="grid">
+      <div class="ph"><span class="code">SR01</span><span class="pill ok">{{i:circle-check:15}}3 ngày</span></div>
+      <div class="ph" style="--x1:40%;--x2:58%"><span class="code">SR02</span><span class="pill danger">{{i:triangle-alert:15}}Quá hạn</span></div>
+      <div class="ph" style="--x1:22%;--x2:72%"><span class="code">SR03</span><span class="pill ok">{{i:circle-check:15}}Hôm qua</span></div>
+    </div>
+  </div>
+  <div class="fab">{{i:plus:24}}Ghi nhật ký</div>
+  <div class="nav">
+    <div class="on"><span class="pillnav">{{i:layout-grid:22}}<span class="badge num">7</span></span>Tổng quan</div>
+    <div><span class="pillnav">{{i:sprout:22}}</span>Cây</div>
+    <div><span class="pillnav">{{i:scissors:22}}</span>Cắt tỉa</div>
+    <div><span class="pillnav">{{i:book-open:22}}</span>Tra cứu</div>
+  </div>
+</div>
+<div class="cap">① Tổng quan — mùa vụ, KPI, việc hôm nay, ảnh tuần</div>
+</div>
+
+<!-- ======== 2. HỒ SƠ CÂY ======== -->
+<div>
+<div class="phone">
+  <div class="ph hero">
+    <div class="bar"><div class="iconbtn">{{i:arrow-left:24}}</div><div class="iconbtn">{{i:ellipsis-vertical:24}}</div></div>
+    <div class="ttl"><small>Lô B · 4 năm tuổi</small><h1>SR03 · Góc giếng</h1><p>Ảnh tuần chụp hôm qua · 23/11</p></div>
+  </div>
+  <div class="sheetbody">
+    <div class="chips">
+      <span class="pill ok" style="font-size:14px;padding:6px 12px 6px 10px">{{i:apple:16}}Đang nuôi trái</span>
+      <span class="pill warn" style="font-size:14px;padding:6px 12px 6px 10px">{{i:eye:16}}Theo dõi bệnh</span>
+      <span class="pill" style="font-size:14px;padding:6px 12px 6px 10px;background:var(--tc);color:var(--on-tc)">42 / 40 trái</span>
+    </div>
+    <div class="card ri6">
+      <div class="top"><b class="num">Ngày 59</b><span>sau xổ nhụy 26/09</span></div>
+      <div class="track">
+        <div class="band" style="left:52.4%;width:9.5%;background:rgb(245 158 11/.35)"></div>
+        <div class="band" style="left:85.7%;width:14.3%;background:rgb(250 204 21/.55)"></div>
+        <div class="fill"></div><div class="now"></div>
+      </div>
+      <div class="legend num"><span>Kali 55–65</span><span>Lên cơm 60–65</span><span>Thu 90–105</span></div>
+      <div class="banner" style="background:var(--tc);color:var(--on-tc)">{{i:calendar:20}}<span class="num"><b>Thu hoạch dự kiến 25/12 – 09/01</b></span></div>
+      <div class="banner" style="background:var(--ok-c);color:var(--ok)">{{i:shield-check:20}}<span class="num">Hết PHI ngày 11/12 — trước mốc thu sớm nhất</span></div>
+    </div>
+    <div class="seg"><div>Tổng quan</div><div>Ảnh</div><div class="on">Nhật ký</div><div>Dự báo</div></div>
+    <div class="card tl">
+      <div class="li"><div class="tile" style="background:var(--info-c);color:var(--info)">{{i:spray-can:22}}</div><div class="grow"><div class="t">Phun thuốc · Emamectin</div><div class="s num">20/11 · IRAC 6 · PHI 21 ngày · đợt 15 cây</div></div></div>
+      <div class="li"><div class="tile" style="background:var(--ok-c);color:var(--ok)">{{i:sprout:22}}</div><div class="grow"><div class="t">Bón vôi / Dolomite</div><div class="s num">15/11 · cải tạo pH</div></div></div>
+    </div>
+  </div>
+  <div class="bottombar">
+    <div class="btn tonal">{{i:sparkles:22}}Hỏi AI</div>
+    <div class="btn filled">{{i:camera:22}}Chụp ảnh tuần</div>
+  </div>
+</div>
+<div class="cap">② Hồ sơ cây — ảnh lớn, tiến độ Ri6, PHI, nhật ký</div>
+</div>
+
+<!-- ======== 3. BOTTOM SHEET GHI NHẬT KÝ ======== -->
+<div>
+<div class="phone">
+  <div class="status num"><span>9:41</span><span style="display:flex;gap:6px">{{i:signal:18}}{{i:wifi:18}}{{i:battery-full:20}}</span></div>
+  <div class="appbar"><div class="logo"><img src="{{LOGO}}" alt=""></div><div style="flex:1"><h1>Cây</h1><p>16 cây cá thể · Lô A 47 cây</p></div></div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Ghi nhật ký</h2><div class="iconbtn">{{i:x:24}}</div></div>
+    <div class="lbl">Loại công việc</div>
+    <div class="types">
+      <div class="type">{{i:sprout:22}}Bón phân</div>
+      <div class="type sel">{{i:spray-can:22}}Phun thuốc</div>
+      <div class="type">{{i:droplets:22}}Tưới</div>
+      <div class="type">{{i:flask-conical:22}}Đo pH</div>
+      <div class="type">{{i:scissors:22}}Cắt tỉa</div>
+      <div class="type">{{i:ellipsis:22}}Khác</div>
+    </div>
+    <div class="lbl">Áp dụng cho</div>
+    <div class="chips"><span class="chip sel">{{i:check:18}}Tất cả Lô B · 15 cây</span><span class="chip">{{i:plus:18}}Kèm Lô A</span></div>
+    <div class="lbl">Hoạt chất &amp; thời gian cách ly</div>
+    <div class="field focus"><label>Hoạt chất</label><div>Emamectin benzoate</div></div>
+    <div class="help">Nhóm IRAC 6 · liều lượng theo nhãn</div>
+    <div class="row2" style="margin-top:12px">
+      <div class="field"><label style="color:var(--text-3)">Ngày phun</label><div class="num">Hôm nay, 24/11</div></div>
+      <div class="stepper"><div class="iconbtn">{{i:minus:20}}</div><div style="text-align:center"><b class="num">21</b><br><small>ngày PHI</small></div><div class="iconbtn">{{i:plus:20}}</div></div>
+    </div>
+    <div class="banner" style="background:var(--warn-c);color:var(--warn)">{{i:triangle-alert:20}}<span class="num">Hết PHI <b>15/12</b>. Không thu hoạch trước ngày này.</span></div>
+    <div class="actionbar"><div class="btn text">Hủy</div><div class="btn filled">{{i:check:22}}Lưu cho 15 cây</div></div>
+  </div>
+</div>
+<div class="cap">③ Ghi nhật ký hàng loạt — bottom sheet một tay</div>
+</div>
+
+</div>
+</body>
+</html>

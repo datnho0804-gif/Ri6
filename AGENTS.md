@@ -17,7 +17,7 @@
 ## 2. Quy trình mỗi task
 
 1. `git checkout main && git pull`.
-2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → T06**, mỗi lần một task. **A01–A02 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
+2. Đọc `docs/SPEC.md` và đúng một task trong `docs/TASKS.md`. Làm lần lượt **T01 → D01 → T02 → … → T06**, mỗi lần một task. Mọi màn hình phải theo **`docs/DESIGN.md`** và chỉ dùng component trong `src/components/ui/`. **A01–A02 (APK) đang tạm hoãn: không làm** khi Claude chưa mở lại.
 3. Tạo nhánh từ `main`: `ag/T0x-<ten-ngan>` (ví dụ `ag/T01-khung-du-an`).
 4. Viết code. Trước **mỗi lần push**, các lệnh sau phải chạy xanh:
    ```bash
@@ -69,7 +69,7 @@
 ## Lệnh đã chạy
 npm ci / lint / typecheck / test (x passed) / build — kết quả
 ## Ảnh chụp màn hình
-docs/reports/img/T0x-*.png (điện thoại 390×844 và máy tính 1280×800; PNG, mỗi ảnh < 300 KB)
+docs/reports/img/T0x-*.png (điện thoại 390×844 và máy tính 1280×800, chụp ở deviceScaleFactor 3 cho điện thoại; PNG/WebP, mỗi ảnh < 400 KB)
 ## Thay đổi ngoài phạm vi / thư viện thêm
 ## Câu hỏi cho reviewer
 ```

@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup giao diện Sổ Tay Vườn Ri6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#14532d; --on-primary:#fff; --pc:#dcfce7; --on-pc:#052e16;
+  --sec:#9a3412; --sc:#ffedd5; --ter:#f59e0b; --tc:#fef3c7; --on-tc:#78350f;
+  --bg:#faf8f5; --surface:#fff; --s2:#f3efe8; --outline:#e7e0d4; --outline-2:#cfc6b8;
+  --text:#1c1917; --text-2:#44403c; --text-3:#57534e;
+  --ok:#14532d; --ok-c:#dcfce7; --warn:#713f12; --warn-c:#fef9c3; --danger:#991b1b; --danger-c:#fee2e2;
+  --info:#1e3a8a; --info-c:#dbeafe; --ph:#5b21b6; --ph-c:#ede9fe; --water:#075985; --water-c:#e0f2fe;
+  --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px;
+  --e1:0 1px 2px rgb(28 25 23/.06),0 2px 8px rgb(28 25 23/.05); --e2:0 6px 20px rgb(28 25 23/.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:#e9e4db;color:var(--text);padding:40px 32px 48px;-webkit-font-smoothing:antialiased}
+.wrap{display:flex;gap:36px;justify-content:center;align-items:flex-start}
+.cap{text-align:center;font-weight:600;font-size:15px;color:var(--text-2);margin-top:14px}
+.phone{width:390px;height:844px;border-radius:46px;background:var(--bg);box-shadow:0 0 0 10px #1c1917,0 30px 60px rgb(0 0 0/.25);position:relative;overflow:hidden}
+.ic{width:22px;height:22px;flex:none;display:inline-block;vertical-align:middle}
+.ic svg{width:100%;height:100%;display:block}
+.status{height:36px;display:flex;justify-content:space-between;align-items:center;padding:8px 26px 0;font-size:14px;font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+/* app bar */
+.appbar{display:flex;align-items:center;gap:12px;padding:8px 12px 8px 16px;height:64px}
+.appbar .logo{width:40px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--e1);display:grid;place-items:center}
+.appbar .logo img{width:30px;height:30px}
+.appbar h1{font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.01em}
+.appbar p{font-size:14px;color:var(--text-3)}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:grid;place-items:center;color:var(--text-2);position:relative}
+.dot{position:absolute;right:11px;top:11px;width:10px;height:10px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 2px var(--bg)}
+.content{padding:4px 16px 0}
+/* cards */
+.card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1)}
+.season{border-radius:var(--r-lg);padding:16px;background:linear-gradient(135deg,#fff7ed 0%,#fef3c7 100%);display:flex;gap:14px;border:1px solid #fde68a}
+.tile{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none}
+.season h2{font-size:16px;font-weight:700;color:var(--on-tc)}
+.season p{font-size:14px;line-height:20px;color:#78350f;margin-top:2px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.kpi{padding:12px 12px 14px}
+.kpi b{display:block;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.02em}
+.kpi span{font-size:14px;line-height:18px;color:var(--text-2);font-weight:500}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 8px}
+.sec-h h3{font-size:18px;font-weight:700}
+.sec-h a{font-size:14px;font-weight:600;color:var(--primary);text-decoration:none}
+.li{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:68px}
+.li+.li{border-top:1px solid var(--s2)}
+.li .t{font-size:16px;font-weight:600;line-height:22px}
+.li .s{font-size:14px;color:var(--text-3);line-height:20px}
+.li .grow{flex:1;min-width:0}
+.check{width:28px;height:28px;border-radius:50%;border:2px solid var(--outline-2);flex:none}
+/* photo grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ph{aspect-ratio:1;border-radius:var(--r-md);position:relative;overflow:hidden;
+  background:radial-gradient(circle at var(--x1,30%) 34%,#4d7c0f 0 17%,transparent 18%),radial-gradient(circle at var(--x2,64%) 28%,#3f6212 0 19%,transparent 20%),radial-gradient(circle at 48% 52%,#365314 0 27%,transparent 28%),radial-gradient(circle at 72% 58%,#4d7c0f 0 16%,transparent 17%),linear-gradient(#d9ecd0,#b5d6a7 62%,#8a6a4a 62%,#6f5236)}
+.ph .code{position:absolute;left:6px;top:6px;background:rgb(255 255 255/.92);font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;padding:3px 8px 3px 6px;border-radius:999px;white-space:nowrap}
+.pill .ic{width:15px;height:15px}
+.ph .pill{position:absolute;left:6px;bottom:6px}
+.ok{background:var(--ok-c);color:var(--ok)} .warn{background:var(--warn-c);color:var(--warn)} .danger{background:var(--danger-c);color:var(--danger)}
+.empty{background:var(--surface);border:2px dashed var(--outline-2);display:grid;place-items:center;text-align:center;color:var(--text-2);font-size:13px;font-weight:600}
+/* fab + nav */
+.fab{position:absolute;right:16px;bottom:104px;height:56px;padding:0 20px 0 16px;border-radius:18px;background:var(--primary);color:#fff;display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px;box-shadow:var(--e2)}
+.nav{position:absolute;left:0;right:0;bottom:0;height:92px;background:#fff;border-top:1px solid var(--outline);display:grid;grid-template-columns:repeat(4,1fr);padding:10px 4px 22px}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--text-2)}
+.nav .pillnav{width:64px;height:32px;border-radius:999px;display:grid;place-items:center;position:relative}
+.nav .on .pillnav{background:var(--pc);color:var(--on-pc)} .nav .on{color:var(--text)}
+.badge{position:absolute;right:8px;top:-2px;min-width:20px;height:20px;border-radius:10px;background:var(--danger);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+/* profile */
+.hero{height:300px;width:100%;aspect-ratio:auto;position:relative;--x1:26%;--x2:70%;border-radius:0}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(rgb(0 0 0/.35),transparent 30%,transparent 50%,rgb(0 0 0/.65))}
+.hero .bar{position:absolute;top:36px;left:8px;right:8px;display:flex;justify-content:space-between;z-index:2}
+.hero .bar .iconbtn{background:rgb(0 0 0/.28);color:#fff;backdrop-filter:blur(6px)}
+.hero .ttl{position:absolute;left:20px;bottom:40px;z-index:2;color:#fff}
+.hero .ttl small{font-size:14px;font-weight:600;background:rgb(255 255 255/.2);backdrop-filter:blur(6px);padding:4px 10px;border-radius:999px}
+.hero .ttl h1{font-size:28px;line-height:34px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+.hero .ttl p{font-size:14px;opacity:.92}
+.sheetbody{position:absolute;top:276px;left:0;right:0;bottom:0;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:18px 16px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:12px;font-size:14px;font-weight:600;border:1px solid var(--outline-2);background:var(--surface);color:var(--text-2)}
+.chip.sel{background:var(--pc);border-color:transparent;color:var(--on-pc)}
+.chip .ic{width:18px;height:18px}
+.ri6{padding:14px 16px;margin-top:14px}
+.ri6 .top{display:flex;justify-content:space-between;align-items:baseline}
+.ri6 .top b{font-size:22px;font-weight:700} .ri6 .top span{font-size:14px;color:var(--text-3)}
+.track{height:12px;border-radius:6px;background:var(--s2);margin:14px 0 8px;position:relative}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:56.2%;border-radius:6px;background:linear-gradient(90deg,#86efac,#16a34a)}
+.track .band{position:absolute;top:-3px;bottom:-3px;border-radius:4px}
+.track .now{position:absolute;left:56.2%;top:-6px;width:4px;height:24px;border-radius:2px;background:var(--primary);transform:translateX(-2px)}
+.legend{display:flex;justify-content:space-between;font-size:13px;color:var(--text-3);font-weight:500}
+.banner{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;font-size:14px;font-weight:500;margin-top:12px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--s2);border-radius:14px;padding:4px;margin-top:14px}
+.seg div{height:40px;display:grid;place-items:center;font-size:14px;font-weight:600;color:var(--text-2);border-radius:10px}
+.seg .on{background:#fff;color:var(--text);box-shadow:var(--e1)}
+.tl{margin-top:10px}
+.bottombar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 28px;background:linear-gradient(transparent,var(--bg) 30%);display:flex;gap:10px}
+.btn{height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:600}
+.btn.filled{background:var(--primary);color:#fff;flex:1;box-shadow:var(--e2)}
+.btn.tonal{background:var(--pc);color:var(--on-pc);padding:0 18px}
+.btn.text{color:var(--primary);padding:0 18px}
+/* bottom sheet */
+.scrim{position:absolute;inset:0;background:rgb(28 25 23/.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:690px;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;box-shadow:0 -8px 30px rgb(0 0 0/.18);padding:10px 16px 0}
+.handle{width:40px;height:5px;border-radius:3px;background:var(--outline-2);margin:0 auto 10px}
+.sheet h2{font-size:22px;font-weight:700}
+.lbl{font-size:14px;font-weight:600;color:var(--text-2);margin:16px 2px 8px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{height:64px;border-radius:16px;background:var(--surface);border:1px solid var(--outline);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:600;color:var(--text-2)}
+.type.sel{border:2px solid var(--primary);background:var(--pc);color:var(--on-pc)}
+.field{border:1.5px solid var(--outline-2);border-radius:12px;background:var(--surface);padding:8px 14px 10px;position:relative}
+.field.focus{border:2px solid var(--primary)}
+.field label{font-size:13px;font-weight:600;color:var(--primary)}
+.field div{font-size:16px;font-weight:500;margin-top:2px}
+.help{font-size:13px;color:var(--text-3);margin:6px 4px 0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stepper{display:flex;align-items:center;justify-content:space-between;border:1.5px solid var(--outline-2);border-radius:12px;background:var(--surface);height:56px;padding:0 4px}
+.stepper b{font-size:20px} .stepper small{font-size:13px;color:var(--text-3);font-weight:500}
+.stepper .iconbtn{width:44px;height:44px;background:var(--s2);border-radius:12px}
+.actionbar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 28px;background:var(--bg);border-top:1px solid var(--outline);display:flex;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ======== 1. TỔNG QUAN ======== -->
+<div>
+<div class="phone">
+  <div class="status num"><span>9:41</span><span style="display:flex;gap:6px"><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2 20h.01" />
+  <path d="M7 20v-4" />
+  <path d="M12 20v-8" />
+  <path d="M17 20V8" />
+  <path d="M22 4v16" />
+</svg></span><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 20h.01" />
+  <path d="M2 8.82a15 15 0 0 1 20 0" />
+  <path d="M5 12.859a10 10 0 0 1 14 0" />
+  <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+</svg></span><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="16" height="10" x="2" y="7" rx="2" ry="2" />
+  <line x1="22" x2="22" y1="11" y2="13" />
+  <line x1="6" x2="6" y1="11" y2="13" />
+  <line x1="10" x2="10" y1="11" y2="13" />
+  <line x1="14" x2="14" y1="11" y2="13" />
+</svg></span></span></div>
+  <div class="appbar">
+    <div class="logo"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJMb2dvIHRyw6FpIHPhuqd1IHJpw6puZyBSaTYiPgogIDwhLS0gQmFja2dyb3VuZCAoI2ZhZjhmNSkgLS0+CiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiNmYWY4ZjUiIC8+CgogIDwhLS0gU2hvcnQgc3R1cmR5IGJhc2FsdC1yZWQgc3RlbSAoIzlhMzQxMikgdGFwZXJpbmcgY2xlYW5seSBpbnRvIGNyb3duIC0tPgogIDxwYXRoCiAgICBkPSJNMjM4IDEzNiBMMjQ1IDg2IEMyNDcgNzMgMjU3IDY2IDI3MCA2OCBDMjgyIDcwIDI4OCA4MCAyODQgOTMgTDI3NCAxMzYgWiIKICAgIGZpbGw9IiM5YTM0MTIiCiAgICBzdHJva2U9IiMxNDUzMmQiCiAgICBzdHJva2Utd2lkdGg9IjE1IgogICAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAvPgoKICA8IS0tIFVwcmlnaHQgdGFwZXJlZCBvdmFsIGR1cmlhbiBzaGVsbCAoIzRkN2MwZikgd2l0aCA2IGJvbGQgdHJpYW5ndWxhciBvdXRlciBzcGlrZXMgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yNTYgMTIyCiAgICAgICBMMjkyIDE0MCBMMzI4IDE1OCBMMzM0IDE5MAogICAgICAgTDM3OCAyMjQgTDM2NCAyNjQKICAgICAgIEwzOTYgMzA4IEwzNTggMzQ0CiAgICAgICBMMzQ2IDM5MiBMMjk4IDQwOAogICAgICAgTDI1NiA0NDAKICAgICAgIEwyMTQgNDA4IEwxNjYgMzkyCiAgICAgICBMMTU0IDM0NCBMMTE2IDMwOAogICAgICAgTDE0OCAyNjQgTDEzNCAyMjQKICAgICAgIEwxNzggMTkwIEwxODQgMTU4IEwyMjAgMTQwIFoiCiAgICBmaWxsPSIjNGQ3YzBmIgogICAgc3Ryb2tlPSIjMTQ1MzJkIgogICAgc3Ryb2tlLXdpZHRoPSIxNiIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KCiAgPCEtLSBDYXJwZWwgc2VhbSBjdXJ2ZSAoIzNmNjIxMikgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yNTYgMTMyIEMyMjYgMjE4IDIyNCAzMTggMjU2IDQyNiIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiMzZjYyMTIiCiAgICBzdHJva2Utd2lkdGg9IjExIgogICAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogIC8+CgogIDwhLS0gOCBzaW1wbGUgZmxhdCB0cmlhbmd1bGFyIHRob3JucyBpbnNpZGUgc2hlbGwgKCMzZjYyMTIpIC0tPgogIDxnIGZpbGw9IiMzZjYyMTIiPgogICAgPHBvbHlnb24gcG9pbnRzPSIyMTYsMTc0IDE5OCwyMDIgMjM0LDE5OCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMjgyLDE2OCAyNjYsMTk0IDMwMCwxOTIiIC8+CiAgICA8cG9seWdvbiBwb2ludHM9IjE4MiwyMjggMTYwLDI1NiAyMDAsMjU0IiAvPgogICAgPHBvbHlnb24gcG9pbnRzPSIyMjgsMjQyIDIwOCwyNzIgMjQ0LDI3MCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMTcyLDI5NCAxNTIsMzIyIDE5MiwzMjAiIC8+CiAgICA8cG9seWdvbiBwb2ludHM9IjIxOCwzMTIgMTk4LDM0MiAyMzYsMzQwIiAvPgogICAgPHBvbHlnb24gcG9pbnRzPSIxOTgsMzYwIDE4MiwzODYgMjE4LDM4NCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMjU2LDM3NiAyNDAsNDA0IDI3NCw0MDQiIC8+CiAgPC9nPgoKICA8IS0tIE9wZW5lZCBkdXJpYW4gbG9jdWxlIChtw7ppIGLhu5UgaMOpKSB3aXRoIGNyZWFtIHBpdGggcmltICgjZmFmOGY1KSAtLT4KICA8cGF0aAogICAgZD0iTTI4OCAyMDIKICAgICAgIEMzNDQgMjA0IDM3OCAyNDQgMzc0IDMwMgogICAgICAgQzM3MCAzNTggMzI2IDM5NiAyNzYgMzkyCiAgICAgICBDMjU0IDM5MCAyNDggMzY0IDI1MiAzMDYKICAgICAgIEMyNTYgMjQ2IDI2MiAyMDIgMjg4IDIwMiBaIgogICAgZmlsbD0iI2ZhZjhmNSIKICAgIHN0cm9rZT0iIzE0NTMyZCIKICAgIHN0cm9rZS13aWR0aD0iMTQiCiAgICBzdHJva2UtbGluZWpvaW49InJvdW5kIgogIC8+CgogIDwhLS0gUGx1bXAgZ29sZGVuIFJpNiBkdXJpYW4gYXJpbCAoY8ahbSB2w6BuZyAjZmJiZjI0KSB3aXRoIHN1YnRsZSAyLXNlZWQgcG9kIGNvbnRvdXIgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yOTQgMjI0CiAgICAgICBDMzM0IDIyNiAzNTIgMjUwIDM0OCAyNzgKICAgICAgIEMzNDYgMjg4IDMzOCAyOTUgMzM4IDMwMgogICAgICAgQzMzOCAzMDkgMzQ4IDMxOCAzNDYgMzM0CiAgICAgICBDMzQyIDM1NiAzMTYgMzcyIDI4NiAzNzAKICAgICAgIEMyNjggMzY4IDI2NiAzNDYgMjcwIDMwMgogICAgICAgQzI3NCAyNTQgMjc2IDIyNCAyOTQgMjI0IFoiCiAgICBmaWxsPSIjZmJiZjI0IgogICAgc3Ryb2tlPSIjMTQ1MzJkIgogICAgc3Ryb2tlLXdpZHRoPSIxMCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KCiAgPCEtLSBTdWJ0bGUgZmxhdCBjcmVhc2UgYWNjZW50dWF0aW5nIGdvbGRlbiBSaTYgZmxlc2ggbG9iZSAtLT4KICA8cGF0aAogICAgZD0iTTI4NiAzMDAgUTMxMCAzMDQgMzM0IDMwMCIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiM5YTM0MTIiCiAgICBzdHJva2Utd2lkdGg9IjgiCiAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgLz4KPC9zdmc+Cg==" alt=""></div>
+    <div style="flex:1"><h1>Vườn Ri6</h1><p>Thứ Ba, 24/11 · Lộc Tấn</p></div>
+    <div class="iconbtn"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+</svg></span><span class="dot"></span></div>
+    <div class="iconbtn"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+  <circle cx="12" cy="12" r="3" />
+</svg></span></div>
+  </div>
+  <div class="content">
+    <div class="season">
+      <div class="tile" style="background:#fde68a;color:#78350f"><span class="ic" style="width:26px;height:26px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="4" />
+  <path d="M12 2v2" />
+  <path d="M12 20v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="m17.66 17.66 1.41 1.41" />
+  <path d="M2 12h2" />
+  <path d="M20 12h2" />
+  <path d="m6.34 17.66-1.41 1.41" />
+  <path d="m19.07 4.93-1.41 1.41" />
+</svg></span></div>
+      <div><h2>Mùa khô · tháng 11</h2><p>Giữ ẩm gốc bằng béc, soi nhện đỏ &amp; rầy xanh. Lô B chuẩn bị xiết nước làm bông.</p></div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><b class="num">65</b><span>cây trong vườn</span></div>
+      <div class="card kpi"><b class="num" style="color:var(--danger)">4</b><span>quá hạn chụp ảnh</span></div>
+      <div class="card kpi"><b class="num" style="color:var(--warn)">2</b><span>cần cắt tỉa</span></div>
+    </div>
+    <div class="sec-h"><h3>Hôm nay cần làm</h3><a href="#">Xem tất cả (7)</a></div>
+    <div class="card">
+      <div class="li"><div class="tile" style="background:var(--tc);color:var(--on-tc)"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
+  <path d="M8.5 2h7" />
+  <path d="M7 16h10" />
+</svg></span></div><div class="grow"><div class="t">SR03 · Chuyển NPK giàu Kali</div><div class="s num">Ngày 59 sau xổ nhụy · đến 30/11</div></div><div class="check"></div></div>
+      <div class="li"><div class="tile" style="background:var(--danger-c);color:var(--danger)"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+  <circle cx="12" cy="13" r="3" />
+</svg></span></div><div class="grow"><div class="t">Chụp ảnh tuần · 4 cây</div><div class="s">SR02, SR07, SR11, SR14 · quá hạn</div></div><div class="check"></div></div>
+      <div class="li"><div class="tile" style="background:var(--info-c);color:var(--info)"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 3h.01" />
+  <path d="M7 5h.01" />
+  <path d="M11 7h.01" />
+  <path d="M3 7h.01" />
+  <path d="M7 9h.01" />
+  <path d="M3 11h.01" />
+  <rect width="4" height="4" x="15" y="5" />
+  <path d="m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2" />
+  <path d="m13 14 8-2" />
+  <path d="m13 19 8-2" />
+</svg></span></div><div class="grow"><div class="t">Kiểm tra lại sau phun</div><div class="s num">Đợt 20/11 · 15 cây · hạn 27/11</div></div><div class="check"></div></div>
+    </div>
+    <div class="sec-h"><h3>Ảnh tuần · Lô B</h3><a href="#">15 cây</a></div>
+    <div class="grid">
+      <div class="ph"><span class="code">SR01</span><span class="pill ok"><span class="ic" style="width:15px;height:15px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" />
+</svg></span>3 ngày</span></div>
+      <div class="ph" style="--x1:40%;--x2:58%"><span class="code">SR02</span><span class="pill danger"><span class="ic" style="width:15px;height:15px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" />
+</svg></span>Quá hạn</span></div>
+      <div class="ph" style="--x1:22%;--x2:72%"><span class="code">SR03</span><span class="pill ok"><span class="ic" style="width:15px;height:15px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" />
+</svg></span>Hôm qua</span></div>
+    </div>
+  </div>
+  <div class="fab"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="M12 5v14" />
+</svg></span>Ghi nhật ký</div>
+  <div class="nav">
+    <div class="on"><span class="pillnav"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="7" height="7" x="3" y="3" rx="1" />
+  <rect width="7" height="7" x="14" y="3" rx="1" />
+  <rect width="7" height="7" x="14" y="14" rx="1" />
+  <rect width="7" height="7" x="3" y="14" rx="1" />
+</svg></span><span class="badge num">7</span></span>Tổng quan</div>
+    <div><span class="pillnav"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7 20h10" />
+  <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+  <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+  <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+</svg></span></span>Cây</div>
+    <div><span class="pillnav"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="6" cy="6" r="3" />
+  <path d="M8.12 8.12 12 12" />
+  <path d="M20 4 8.12 15.88" />
+  <circle cx="6" cy="18" r="3" />
+  <path d="M14.8 14.8 20 20" />
+</svg></span></span>Cắt tỉa</div>
+    <div><span class="pillnav"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 7v14" />
+  <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+</svg></span></span>Tra cứu</div>
+  </div>
+</div>
+<div class="cap">① Tổng quan — mùa vụ, KPI, việc hôm nay, ảnh tuần</div>
+</div>
+
+<!-- ======== 2. HỒ SƠ CÂY ======== -->
+<div>
+<div class="phone">
+  <div class="ph hero">
+    <div class="bar"><div class="iconbtn"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m12 19-7-7 7-7" />
+  <path d="M19 12H5" />
+</svg></span></div><div class="iconbtn"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="1" />
+  <circle cx="12" cy="5" r="1" />
+  <circle cx="12" cy="19" r="1" />
+</svg></span></div></div>
+    <div class="ttl"><small>Lô B · 4 năm tuổi</small><h1>SR03 · Góc giếng</h1><p>Ảnh tuần chụp hôm qua · 23/11</p></div>
+  </div>
+  <div class="sheetbody">
+    <div class="chips">
+      <span class="pill ok" style="font-size:14px;padding:6px 12px 6px 10px"><span class="ic" style="width:16px;height:16px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z" />
+  <path d="M10 2c1 .5 2 2 2 5" />
+</svg></span>Đang nuôi trái</span>
+      <span class="pill warn" style="font-size:14px;padding:6px 12px 6px 10px"><span class="ic" style="width:16px;height:16px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+  <circle cx="12" cy="12" r="3" />
+</svg></span>Theo dõi bệnh</span>
+      <span class="pill" style="font-size:14px;padding:6px 12px 6px 10px;background:var(--tc);color:var(--on-tc)">42 / 40 trái</span>
+    </div>
+    <div class="card ri6">
+      <div class="top"><b class="num">Ngày 59</b><span>sau xổ nhụy 26/09</span></div>
+      <div class="track">
+        <div class="band" style="left:52.4%;width:9.5%;background:rgb(245 158 11/.35)"></div>
+        <div class="band" style="left:85.7%;width:14.3%;background:rgb(250 204 21/.55)"></div>
+        <div class="fill"></div><div class="now"></div>
+      </div>
+      <div class="legend num"><span>Kali 55–65</span><span>Lên cơm 60–65</span><span>Thu 90–105</span></div>
+      <div class="banner" style="background:var(--tc);color:var(--on-tc)"><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M8 2v4" />
+  <path d="M16 2v4" />
+  <rect width="18" height="18" x="3" y="4" rx="2" />
+  <path d="M3 10h18" />
+</svg></span><span class="num"><b>Thu hoạch dự kiến 25/12 – 09/01</b></span></div>
+      <div class="banner" style="background:var(--ok-c);color:var(--ok)"><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+  <path d="m9 12 2 2 4-4" />
+</svg></span><span class="num">Hết PHI ngày 11/12 — trước mốc thu sớm nhất</span></div>
+    </div>
+    <div class="seg"><div>Tổng quan</div><div>Ảnh</div><div class="on">Nhật ký</div><div>Dự báo</div></div>
+    <div class="card tl">
+      <div class="li"><div class="tile" style="background:var(--info-c);color:var(--info)"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 3h.01" />
+  <path d="M7 5h.01" />
+  <path d="M11 7h.01" />
+  <path d="M3 7h.01" />
+  <path d="M7 9h.01" />
+  <path d="M3 11h.01" />
+  <rect width="4" height="4" x="15" y="5" />
+  <path d="m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2" />
+  <path d="m13 14 8-2" />
+  <path d="m13 19 8-2" />
+</svg></span></div><div class="grow"><div class="t">Phun thuốc · Emamectin</div><div class="s num">20/11 · IRAC 6 · PHI 21 ngày · đợt 15 cây</div></div></div>
+      <div class="li"><div class="tile" style="background:var(--ok-c);color:var(--ok)"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7 20h10" />
+  <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+  <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+  <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+</svg></span></div><div class="grow"><div class="t">Bón vôi / Dolomite</div><div class="s num">15/11 · cải tạo pH</div></div></div>
+    </div>
+  </div>
+  <div class="bottombar">
+    <div class="btn tonal"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  <path d="M20 3v4" />
+  <path d="M22 5h-4" />
+  <path d="M4 17v2" />
+  <path d="M5 18H3" />
+</svg></span>Hỏi AI</div>
+    <div class="btn filled"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+  <circle cx="12" cy="13" r="3" />
+</svg></span>Chụp ảnh tuần</div>
+  </div>
+</div>
+<div class="cap">② Hồ sơ cây — ảnh lớn, tiến độ Ri6, PHI, nhật ký</div>
+</div>
+
+<!-- ======== 3. BOTTOM SHEET GHI NHẬT KÝ ======== -->
+<div>
+<div class="phone">
+  <div class="status num"><span>9:41</span><span style="display:flex;gap:6px"><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2 20h.01" />
+  <path d="M7 20v-4" />
+  <path d="M12 20v-8" />
+  <path d="M17 20V8" />
+  <path d="M22 4v16" />
+</svg></span><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 20h.01" />
+  <path d="M2 8.82a15 15 0 0 1 20 0" />
+  <path d="M5 12.859a10 10 0 0 1 14 0" />
+  <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+</svg></span><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="16" height="10" x="2" y="7" rx="2" ry="2" />
+  <line x1="22" x2="22" y1="11" y2="13" />
+  <line x1="6" x2="6" y1="11" y2="13" />
+  <line x1="10" x2="10" y1="11" y2="13" />
+  <line x1="14" x2="14" y1="11" y2="13" />
+</svg></span></span></div>
+  <div class="appbar"><div class="logo"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJMb2dvIHRyw6FpIHPhuqd1IHJpw6puZyBSaTYiPgogIDwhLS0gQmFja2dyb3VuZCAoI2ZhZjhmNSkgLS0+CiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiNmYWY4ZjUiIC8+CgogIDwhLS0gU2hvcnQgc3R1cmR5IGJhc2FsdC1yZWQgc3RlbSAoIzlhMzQxMikgdGFwZXJpbmcgY2xlYW5seSBpbnRvIGNyb3duIC0tPgogIDxwYXRoCiAgICBkPSJNMjM4IDEzNiBMMjQ1IDg2IEMyNDcgNzMgMjU3IDY2IDI3MCA2OCBDMjgyIDcwIDI4OCA4MCAyODQgOTMgTDI3NCAxMzYgWiIKICAgIGZpbGw9IiM5YTM0MTIiCiAgICBzdHJva2U9IiMxNDUzMmQiCiAgICBzdHJva2Utd2lkdGg9IjE1IgogICAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAvPgoKICA8IS0tIFVwcmlnaHQgdGFwZXJlZCBvdmFsIGR1cmlhbiBzaGVsbCAoIzRkN2MwZikgd2l0aCA2IGJvbGQgdHJpYW5ndWxhciBvdXRlciBzcGlrZXMgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yNTYgMTIyCiAgICAgICBMMjkyIDE0MCBMMzI4IDE1OCBMMzM0IDE5MAogICAgICAgTDM3OCAyMjQgTDM2NCAyNjQKICAgICAgIEwzOTYgMzA4IEwzNTggMzQ0CiAgICAgICBMMzQ2IDM5MiBMMjk4IDQwOAogICAgICAgTDI1NiA0NDAKICAgICAgIEwyMTQgNDA4IEwxNjYgMzkyCiAgICAgICBMMTU0IDM0NCBMMTE2IDMwOAogICAgICAgTDE0OCAyNjQgTDEzNCAyMjQKICAgICAgIEwxNzggMTkwIEwxODQgMTU4IEwyMjAgMTQwIFoiCiAgICBmaWxsPSIjNGQ3YzBmIgogICAgc3Ryb2tlPSIjMTQ1MzJkIgogICAgc3Ryb2tlLXdpZHRoPSIxNiIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KCiAgPCEtLSBDYXJwZWwgc2VhbSBjdXJ2ZSAoIzNmNjIxMikgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yNTYgMTMyIEMyMjYgMjE4IDIyNCAzMTggMjU2IDQyNiIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiMzZjYyMTIiCiAgICBzdHJva2Utd2lkdGg9IjExIgogICAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogIC8+CgogIDwhLS0gOCBzaW1wbGUgZmxhdCB0cmlhbmd1bGFyIHRob3JucyBpbnNpZGUgc2hlbGwgKCMzZjYyMTIpIC0tPgogIDxnIGZpbGw9IiMzZjYyMTIiPgogICAgPHBvbHlnb24gcG9pbnRzPSIyMTYsMTc0IDE5OCwyMDIgMjM0LDE5OCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMjgyLDE2OCAyNjYsMTk0IDMwMCwxOTIiIC8+CiAgICA8cG9seWdvbiBwb2ludHM9IjE4MiwyMjggMTYwLDI1NiAyMDAsMjU0IiAvPgogICAgPHBvbHlnb24gcG9pbnRzPSIyMjgsMjQyIDIwOCwyNzIgMjQ0LDI3MCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMTcyLDI5NCAxNTIsMzIyIDE5MiwzMjAiIC8+CiAgICA8cG9seWdvbiBwb2ludHM9IjIxOCwzMTIgMTk4LDM0MiAyMzYsMzQwIiAvPgogICAgPHBvbHlnb24gcG9pbnRzPSIxOTgsMzYwIDE4MiwzODYgMjE4LDM4NCIgLz4KICAgIDxwb2x5Z29uIHBvaW50cz0iMjU2LDM3NiAyNDAsNDA0IDI3NCw0MDQiIC8+CiAgPC9nPgoKICA8IS0tIE9wZW5lZCBkdXJpYW4gbG9jdWxlIChtw7ppIGLhu5UgaMOpKSB3aXRoIGNyZWFtIHBpdGggcmltICgjZmFmOGY1KSAtLT4KICA8cGF0aAogICAgZD0iTTI4OCAyMDIKICAgICAgIEMzNDQgMjA0IDM3OCAyNDQgMzc0IDMwMgogICAgICAgQzM3MCAzNTggMzI2IDM5NiAyNzYgMzkyCiAgICAgICBDMjU0IDM5MCAyNDggMzY0IDI1MiAzMDYKICAgICAgIEMyNTYgMjQ2IDI2MiAyMDIgMjg4IDIwMiBaIgogICAgZmlsbD0iI2ZhZjhmNSIKICAgIHN0cm9rZT0iIzE0NTMyZCIKICAgIHN0cm9rZS13aWR0aD0iMTQiCiAgICBzdHJva2UtbGluZWpvaW49InJvdW5kIgogIC8+CgogIDwhLS0gUGx1bXAgZ29sZGVuIFJpNiBkdXJpYW4gYXJpbCAoY8ahbSB2w6BuZyAjZmJiZjI0KSB3aXRoIHN1YnRsZSAyLXNlZWQgcG9kIGNvbnRvdXIgLS0+CiAgPHBhdGgKICAgIGQ9Ik0yOTQgMjI0CiAgICAgICBDMzM0IDIyNiAzNTIgMjUwIDM0OCAyNzgKICAgICAgIEMzNDYgMjg4IDMzOCAyOTUgMzM4IDMwMgogICAgICAgQzMzOCAzMDkgMzQ4IDMxOCAzNDYgMzM0CiAgICAgICBDMzQyIDM1NiAzMTYgMzcyIDI4NiAzNzAKICAgICAgIEMyNjggMzY4IDI2NiAzNDYgMjcwIDMwMgogICAgICAgQzI3NCAyNTQgMjc2IDIyNCAyOTQgMjI0IFoiCiAgICBmaWxsPSIjZmJiZjI0IgogICAgc3Ryb2tlPSIjMTQ1MzJkIgogICAgc3Ryb2tlLXdpZHRoPSIxMCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KCiAgPCEtLSBTdWJ0bGUgZmxhdCBjcmVhc2UgYWNjZW50dWF0aW5nIGdvbGRlbiBSaTYgZmxlc2ggbG9iZSAtLT4KICA8cGF0aAogICAgZD0iTTI4NiAzMDAgUTMxMCAzMDQgMzM0IDMwMCIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiM5YTM0MTIiCiAgICBzdHJva2Utd2lkdGg9IjgiCiAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgLz4KPC9zdmc+Cg==" alt=""></div><div style="flex:1"><h1>Cây</h1><p>16 cây cá thể · Lô A 47 cây</p></div></div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Ghi nhật ký</h2><div class="iconbtn"><span class="ic" style="width:24px;height:24px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M18 6 6 18" />
+  <path d="m6 6 12 12" />
+</svg></span></div></div>
+    <div class="lbl">Loại công việc</div>
+    <div class="types">
+      <div class="type"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7 20h10" />
+  <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+  <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+  <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+</svg></span>Bón phân</div>
+      <div class="type sel"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 3h.01" />
+  <path d="M7 5h.01" />
+  <path d="M11 7h.01" />
+  <path d="M3 7h.01" />
+  <path d="M7 9h.01" />
+  <path d="M3 11h.01" />
+  <rect width="4" height="4" x="15" y="5" />
+  <path d="m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2" />
+  <path d="m13 14 8-2" />
+  <path d="m13 19 8-2" />
+</svg></span>Phun thuốc</div>
+      <div class="type"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z" />
+  <path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97" />
+</svg></span>Tưới</div>
+      <div class="type"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
+  <path d="M8.5 2h7" />
+  <path d="M7 16h10" />
+</svg></span>Đo pH</div>
+      <div class="type"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="6" cy="6" r="3" />
+  <path d="M8.12 8.12 12 12" />
+  <path d="M20 4 8.12 15.88" />
+  <circle cx="6" cy="18" r="3" />
+  <path d="M14.8 14.8 20 20" />
+</svg></span>Cắt tỉa</div>
+      <div class="type"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="1" />
+  <circle cx="19" cy="12" r="1" />
+  <circle cx="5" cy="12" r="1" />
+</svg></span>Khác</div>
+    </div>
+    <div class="lbl">Áp dụng cho</div>
+    <div class="chips"><span class="chip sel"><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20 6 9 17l-5-5" />
+</svg></span>Tất cả Lô B · 15 cây</span><span class="chip"><span class="ic" style="width:18px;height:18px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="M12 5v14" />
+</svg></span>Kèm Lô A</span></div>
+    <div class="lbl">Hoạt chất &amp; thời gian cách ly</div>
+    <div class="field focus"><label>Hoạt chất</label><div>Emamectin benzoate</div></div>
+    <div class="help">Nhóm IRAC 6 · liều lượng theo nhãn</div>
+    <div class="row2" style="margin-top:12px">
+      <div class="field"><label style="color:var(--text-3)">Ngày phun</label><div class="num">Hôm nay, 24/11</div></div>
+      <div class="stepper"><div class="iconbtn"><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+</svg></span></div><div style="text-align:center"><b class="num">21</b><br><small>ngày PHI</small></div><div class="iconbtn"><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="M12 5v14" />
+</svg></span></div></div>
+    </div>
+    <div class="banner" style="background:var(--warn-c);color:var(--warn)"><span class="ic" style="width:20px;height:20px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" />
+</svg></span><span class="num">Hết PHI <b>15/12</b>. Không thu hoạch trước ngày này.</span></div>
+    <div class="actionbar"><div class="btn text">Hủy</div><div class="btn filled"><span class="ic" style="width:22px;height:22px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20 6 9 17l-5-5" />
+</svg></span>Lưu cho 15 cây</div></div>
+  </div>
+</div>
+<div class="cap">③ Ghi nhật ký hàng loạt — bottom sheet một tay</div>
+</div>
+
+</div>
+</body>
+</html>

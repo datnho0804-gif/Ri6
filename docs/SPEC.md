@@ -212,7 +212,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - Vượt mức thì hiện cảnh báo (M6).
 - **Ảnh tuần:**
   - Chụp hoặc chọn ảnh bằng `<input type="file" accept="image/*" capture="environment">`.
-  - **Nén trên máy** về cạnh dài ≤ 1280 px, JPEG chất lượng khoảng 0,75, mục tiêu ≤ 300 KB.
+  - **Nén trên máy theo `docs/DESIGN.md` §5**: bản đầy đủ có cạnh dài 1600 px, định dạng WebP chất lượng khoảng 0,8 (JPEG nếu không mã hóa được WebP), mục tiêu ≤ 350 KB. Kèm thumbnail 480 px chỉ lưu trên máy, không đồng bộ.
   - Lưu vào IndexedDB, mốc 7 ngày tự đặt lại.
   - Xem dòng thời gian ảnh.
 - **Nhật ký:** thêm hoặc xóa mục.
@@ -221,7 +221,7 @@ Nếu tick "Chồi gốc ghép" thì luôn hiện nhắc "Cắt bỏ chồi gố
   - **[1.1]** Loại *Đo pH đất* bắt buộc nhập `soilPh` từ 3,0 đến 9,0, bước 0,1. Có thể ghi cho từng cây hoặc cho cả lô.
   - **[BS]** Loại *Phun thuốc* bắt buộc nhập **hoạt chất** và **PHI (ngày)**.
   - **[BS]** Loại *Bón phân* bắt buộc chọn **loại phân**: Vôi/Dolomite · Hữu cơ/Trichoderma · Urê/đạm amoni · Lân · NPK · Khác. Trường này dùng cho nhắc khoảng cách bón vôi ở M6.
-  - Xóa phải hỏi lại bằng Modal; xóa mềm (tombstone).
+  - Xóa một mục: xóa mềm (tombstone) ngay, rồi hiện Snackbar **"Đã xóa · Hoàn tác"** trong 5 giây (`docs/DESIGN.md` §6). "Xóa cả đợt" và "Xóa cây" vẫn phải xác nhận.
 - **[BS] Dự báo** (khi có ngày xổ nhụy): bảng mốc theo mục 3.2.
 - **[BS] Cảnh báo PHI:** nếu (ngày phun + PHI) > (xổ nhụy + 90) thì hiện "Không thu hoạch trước dd/mm/yyyy" ở hồ sơ cây và ở Tổng quan.
 - **Copy Prompt gửi AI** (một chạm):
@@ -607,6 +607,8 @@ Chỉ đồng bộ khi có mạng. Khi offline, thay đổi được xếp hàng
 - Vì vậy thay đổi native phải dồn lại, càng hiếm càng tốt. Phần lớn bản phát hành chỉ nên là OTA.
 
 ## 8. Giao diện
+
+> **Hệ thống thiết kế chi tiết nằm ở [`docs/DESIGN.md`](DESIGN.md)** (token, chữ, component, ảnh độ phân giải cao, checklist QA) cùng hình mẫu `docs/design/mockup.jpg`. Nếu mục này mâu thuẫn với DESIGN.md thì **làm theo DESIGN.md**.
 - **Màu:**
   - Xanh sầu riêng `#14532d` (chính).
   - Đỏ bazan `#9a3412` (nhấn).
