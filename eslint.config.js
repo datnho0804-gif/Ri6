@@ -11,6 +11,7 @@ export default tseslint.config(
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
+    ignores: ['src/sw.ts', 'src/sw/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
@@ -22,7 +23,17 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      // Mandatory rule per AGENTS.md: forbid window.alert / confirm / prompt
+      'no-alert': 'error',
+    },
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['src/sw.ts', 'src/sw/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.serviceworker,
+    },
+    rules: {
       'no-alert': 'error',
     },
   }

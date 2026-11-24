@@ -21,17 +21,21 @@ export type Stage =
 export type TreeHealth = 'tot' | 'theo-doi' | 'benh';
 
 export interface Tree extends SyncMeta {
-  // id: 'SR01'..'SR15'
-  lot: 'B';
+  // id: 'SR01'..'SR15' on initial seed; UUID for trees added later (SPEC 1.1)
+  code: string;
+  lot: 'A' | 'B';
   label: string;
   location: string;
-  ageYears: 3 | 4 | 5 | null;
+  ageYears: number | null;
   stage: Stage | null;
   health: TreeHealth;
   needsPruning: boolean;
   diseaseWatch: boolean;
   budDate?: ISODate;
   flowerDate?: ISODate;
+  fruitCount?: number;
+  fruitCountDate?: ISODate;
+  fruitLimit?: number;
   note?: string;
 }
 
@@ -49,7 +53,16 @@ export type LogType =
   | 'sau-benh'
   | 'lam-bong'
   | 'tuoi'
+  | 'do-ph'
   | 'ai'
+  | 'khac';
+
+export type FertKind =
+  | 'voi-dolomite'
+  | 'huu-co-trichoderma'
+  | 'dam-ure'
+  | 'lan'
+  | 'npk'
   | 'khac';
 
 export interface Log extends SyncMeta {
@@ -59,6 +72,20 @@ export interface Log extends SyncMeta {
   note: string;
   activeIngredient?: string;
   phiDays?: number;
+  fertilizerKind?: FertKind;
+  soilPh?: number;
+  batchId?: string;
+}
+
+export type TaskSource = 'rule' | 'manual' | 'ai';
+
+export interface Task extends SyncMeta {
+  title?: string;
+  targetId?: string;
+  dueDate?: ISODate;
+  done: boolean;
+  snoozeUntil?: ISODate;
+  source: TaskSource;
 }
 
 export type PhotoKind =
@@ -83,7 +110,33 @@ export interface PhotoBlobRecord {
   blob: Blob;
 }
 
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+  createdAt: ISOTime;
+  photoIds?: string[];
+}
+
+/**
+ * Local-only AI conversation history stored in Dexie `aiChats` table (never synced, max 50).
+ */
+export interface AiChat {
+  id: string;
+  title: string;
+  targetId?: string;
+  messages: AiChatMessage[];
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+}
+
 export type Season = 'kho' | 'mua';
+
+export interface NotifySettings {
+  enabled: boolean;
+  lastNotifiedAt?: ISOTime;
+  lastKeys: string[];
+}
 
 /**
  * Local-only settings stored in Dexie `settings` table (never localStorage, never exported/synced).
@@ -99,6 +152,9 @@ export interface Settings {
   geminiApiKey?: string;
   geminiModel?: string;
   seasonOverride?: Season | null;
+  notify?: NotifySettings;
+  geminiSchemaUnsupported?: string[];
+  seededAt?: ISOTime;
   lastSeenVersion?: string;
 }
 

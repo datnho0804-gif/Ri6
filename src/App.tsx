@@ -83,7 +83,7 @@ export function App() {
         }}
       />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 pt-5 pb-24 md:pb-10">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10">
         {activeView === 'settings' ? (
           <SettingsScreen
             appVersion={APP_VERSION}

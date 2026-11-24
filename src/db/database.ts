@@ -1,6 +1,15 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { nowUTC } from '../lib/date';
-import type { Log, Lot, Photo, PhotoBlobRecord, Settings, Tree } from '../types/models';
+import type {
+  AiChat,
+  Log,
+  Lot,
+  Photo,
+  PhotoBlobRecord,
+  Settings,
+  Task,
+  Tree,
+} from '../types/models';
 import {
   createInitialLotA,
   createInitialSettings,
@@ -15,19 +24,24 @@ export class Ri6Database extends Dexie {
   trees!: EntityTable<Tree, 'id'>;
   lots!: EntityTable<Lot, 'id'>;
   logs!: EntityTable<Log, 'id'>;
+  tasks!: EntityTable<Task, 'id'>;
   photos!: EntityTable<Photo, 'id'>;
   photoBlobs!: EntityTable<PhotoBlobRecord, 'id'>;
   settings!: EntityTable<Settings, 'id'>;
+  aiChats!: EntityTable<AiChat, 'id'>;
 
   constructor(name = 'ri6-orchard-db') {
     super(name);
+    // SPEC §5 (v1.1): 8 tables with required indexes for trees, logs, tasks
     this.version(SCHEMA_VERSION).stores({
-      trees: 'id, lot, health, needsPruning, diseaseWatch, updatedAt, deletedAt',
+      trees: 'id, code, lot, health, needsPruning, diseaseWatch, updatedAt, deletedAt',
       lots: 'id, updatedAt, deletedAt',
-      logs: 'id, targetId, date, type, updatedAt, deletedAt',
+      logs: 'id, targetId, date, type, batchId, updatedAt, deletedAt',
+      tasks: 'id, targetId, dueDate, done, updatedAt, deletedAt',
       photos: 'id, targetId, takenAt, kind, updatedAt, deletedAt',
       photoBlobs: 'id',
       settings: 'id',
+      aiChats: 'id, updatedAt',
     });
   }
 }
@@ -38,6 +52,7 @@ export interface DatabaseInitResult {
   settings: Settings;
   treeCount: number;
   lotACount: number;
+  tableCount: number;
   wasUpgradedFromVersion: string | null;
   persistentGranted: boolean;
   storageUsageBytes: number | null;
@@ -82,23 +97,28 @@ export async function requestPersistentStorage(): Promise<{
 }
 
 /**
- * Initializes Dexie DB v1:
+ * Initializes Dexie DB v1 (SPEC §5 v1.1):
  * - Ensures `settings` row with generated UUID `deviceId` exists
- * - Seeds empty SR01–SR15 and LOT_A (50 trees) on first run
+ * - Seeds empty SR01–SR15 and LOT_A ONCE on first run (`seededAt` guard ensures
+ *   re-running initDatabase never re-seeds even after trees are added or deleted)
  * - Calls navigator.storage.persist() and estimates quota
- * - Safely handles VersionError without crashing or clearing user data
+ * - Safely handles VersionError without crashing or deleting user data
  */
-export async function initDatabase(appVersion: string): Promise<DatabaseInitResult> {
+export async function initDatabase(
+  appVersion: string,
+  database: Ri6Database = db
+): Promise<DatabaseInitResult> {
   const storageInfo = await requestPersistentStorage();
 
   try {
-    await db.open();
+    await database.open();
   } catch (err) {
     if (err instanceof Error && err.name === 'VersionError') {
       return {
         settings: createInitialSettings(generateDeviceId(), appVersion),
         treeCount: 0,
         lotACount: 0,
+        tableCount: database.tables.length,
         wasUpgradedFromVersion: null,
         persistentGranted: storageInfo.persisted,
         storageUsageBytes: storageInfo.usage,
@@ -111,46 +131,52 @@ export async function initDatabase(appVersion: string): Promise<DatabaseInitResu
 
   let wasUpgradedFromVersion: string | null = null;
 
-  const settings = await db.transaction(
+  const settings = await database.transaction(
     'rw',
-    [db.settings, db.trees, db.lots],
+    [database.settings, database.trees, database.lots],
     async () => {
-      let current = await db.settings.get('app');
+      let current = await database.settings.get('app');
+      const existingTreeCount = await database.trees.count();
+      const existingLotA = await database.lots.get(LOT_A_ID);
+
       if (!current) {
         current = createInitialSettings(generateDeviceId(), appVersion);
-        await db.settings.put(current);
-      } else if (current.lastSeenVersion && current.lastSeenVersion !== appVersion) {
-        wasUpgradedFromVersion = current.lastSeenVersion;
-        current = { ...current, lastSeenVersion: appVersion };
-        await db.settings.put(current);
-      } else if (!current.lastSeenVersion) {
-        current = { ...current, lastSeenVersion: appVersion };
-        await db.settings.put(current);
+      } else {
+        if (current.lastSeenVersion && current.lastSeenVersion !== appVersion) {
+          wasUpgradedFromVersion = current.lastSeenVersion;
+        }
+        current = {
+          ...current,
+          notify: current.notify ?? { enabled: false, lastKeys: [] },
+          geminiSchemaUnsupported: current.geminiSchemaUnsupported ?? [],
+          lastSeenVersion: appVersion,
+        };
       }
 
-      const existingTreeCount = await db.trees.count();
-      if (existingTreeCount === 0) {
+      // Seed ONLY ONCE on a brand-new database (never re-seed after user edits/deletions)
+      const alreadyHasData = Boolean(current.seededAt) || existingTreeCount > 0 || Boolean(existingLotA);
+      if (!alreadyHasData) {
         const ts = nowUTC();
-        await db.trees.bulkPut(createInitialTrees(current.deviceId, ts));
+        await database.trees.bulkPut(createInitialTrees(current.deviceId, ts));
+        await database.lots.put(createInitialLotA(current.deviceId, ts));
+        current = { ...current, seededAt: ts };
+      } else if (!current.seededAt) {
+        current = { ...current, seededAt: nowUTC() };
       }
 
-      const existingLotA = await db.lots.get(LOT_A_ID);
-      if (!existingLotA) {
-        const ts = nowUTC();
-        await db.lots.put(createInitialLotA(current.deviceId, ts));
-      }
-
+      await database.settings.put(current);
       return current;
     }
   );
 
-  const treeCount = await db.trees.count();
-  const lotA = await db.lots.get(LOT_A_ID);
+  const activeTrees = await database.trees.filter((t) => !t.deletedAt).count();
+  const lotA = await database.lots.get(LOT_A_ID);
 
   return {
     settings,
-    treeCount,
+    treeCount: activeTrees,
     lotACount: lotA?.treeCount ?? 0,
+    tableCount: database.tables.length,
     wasUpgradedFromVersion,
     persistentGranted: storageInfo.persisted,
     storageUsageBytes: storageInfo.usage,

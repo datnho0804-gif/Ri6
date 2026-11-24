@@ -6,7 +6,6 @@ import {
   Scissors,
   Settings,
   Sprout,
-  Trees,
   Wifi,
   WifiOff,
 } from 'lucide-react';
@@ -27,6 +26,8 @@ const DESKTOP_TABS: { id: TabId; label: string; icon: typeof LayoutDashboard }[]
   { id: 'reference', label: 'Tra cứu', icon: BookOpen },
 ];
 
+const LOGO_URL = `${import.meta.env.BASE_URL}icons/logo.svg`;
+
 export function Header({
   activeView,
   onSelectView,
@@ -36,16 +37,20 @@ export function Header({
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-sand-200 safe-top shadow-[0_1px_2px_rgba(28,25,23,0.05)]">
-      {/* Row 1: Orchard Name + Primary Actions */}
+      {/* Row 1: Durian Logo + Orchard Name + Primary Actions */}
       <div className="max-w-5xl mx-auto px-3 sm:px-6 min-h-[64px] py-2 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => onSelectView('overview')}
           className="min-h-[48px] flex items-center gap-2.5 text-left min-w-0 rounded-xl pr-1"
         >
-          <div className="w-11 h-11 rounded-xl bg-durian-900 text-white flex items-center justify-center shrink-0">
-            <Trees className="w-6 h-6" aria-hidden="true" />
-          </div>
+          <img
+            src={LOGO_URL}
+            alt="Logo trái sầu riêng Ri6"
+            width={44}
+            height={44}
+            className="w-11 h-11 rounded-xl border border-sand-200 bg-sand shrink-0"
+          />
           <div className="min-w-0">
             <h1 className="text-base sm:text-lg font-extrabold text-ink truncate leading-tight">
               Sổ Tay Vườn Ri6

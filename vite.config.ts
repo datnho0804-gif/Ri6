@@ -21,13 +21,22 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
         registerType: 'autoUpdate',
         includeAssets: [
+          'favicon.ico',
           'favicon.svg',
-          'icons/icon-192.png',
-          'icons/icon-512.png',
-          'icons/icon-maskable-512.png',
+          'apple-touch-icon.png',
+          'icons/logo.svg',
+          'icons/pwa-192.png',
+          'icons/pwa-512.png',
+          'icons/maskable-512.png',
         ],
+        injectManifest: {
+          globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        },
         manifest: {
           name: 'Sổ Tay Vườn Ri6',
           short_name: 'Ri6',
@@ -42,29 +51,24 @@ export default defineConfig(({ mode }) => {
           background_color: '#faf8f5',
           icons: [
             {
-              src: 'icons/icon-192.png',
+              src: 'icons/pwa-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'icons/icon-512.png',
+              src: 'icons/pwa-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'icons/icon-maskable-512.png',
+              src: 'icons/maskable-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
             },
           ],
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-          navigateFallback: 'index.html',
-          cleanupOutdatedCaches: true,
         },
         devOptions: {
           enabled: false,

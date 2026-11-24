@@ -31,24 +31,24 @@ const TAB_META: Record<
     title: 'Tổng quan vườn Ri6',
     taskTag: 'Sẽ triển khai ở T02',
     description:
-      'Màn hình tổng quan KPI 65 cây, nhắc chụp ảnh tuần SR01–SR15, chuyển mùa khô/mưa Đông Nam Bộ và cảnh báo PHI.',
+      'Màn hình tổng quan KPI tổng số cây tính động, nhắc chụp ảnh tuần cho cây cá thể, chuyển mùa khô/mưa Đông Nam Bộ và cảnh báo PHI.',
     icon: LayoutDashboard,
     plannedItems: [
-      'KPI quy mô 65 cây (Lô A 50 cây 1 năm · Lô B 15 cây 3–5 năm)',
-      'Lưới 15 ô SR01–SR15 hiển thị màu + chữ trạng thái chụp ảnh tuần',
+      'KPI quy mô vườn tính động từ dữ liệu Lô A và danh sách cây cá thể',
+      'Lưới ô cây cá thể hiển thị màu + chữ trạng thái chụp ảnh tuần',
       'Khuyến cáo canh tác theo mùa khô (T11–T4) / mùa mưa (T5–T10)',
     ],
   },
   trees: {
-    title: 'Hồ sơ 15 cây & Lô A (50 cây)',
+    title: 'Hồ sơ cây cá thể & Lô A',
     taskTag: 'Sẽ triển khai ở T02',
     description:
-      'Quản lý cá thể SR01–SR15, chụp/nén ảnh tuần lưu IndexedDB, nhật ký bón phân/phun thuốc (nhập hoạt chất & PHI) và trang Lô A riêng.',
+      'Quản lý từng cây cá thể (có thể thêm/xóa mềm và tách cây từ Lô A), chụp/nén ảnh tuần lưu IndexedDB và ghi nhật ký đơn lẻ hoặc hàng loạt.',
     icon: Sprout,
     plannedItems: [
       'Tìm kiếm và lọc 4 trạng thái (Tất cả, Cần chụp, Cần cắt tỉa, Sâu bệnh)',
-      'Hồ sơ cây SR01–SR15 khởi tạo trống, dòng thời gian ảnh nén ≤ 1280 px',
-      'Copy Prompt gửi AI một chạm và xuất/nhập sao lưu JSON',
+      'Hồ sơ cây khởi tạo trống, tải trái (fruitCount/fruitLimit), dòng thời gian ảnh ≤ 1280 px',
+      'Nhật ký Phun thuốc (PHI), Bón phân (loại phân), Đo pH đất, ghi hàng loạt & sao lưu JSON',
     ],
   },
   pruning: {
@@ -67,10 +67,10 @@ const TAB_META: Record<
     title: 'Tra cứu phác đồ & Máy tính Ri6',
     taskTag: 'Sẽ triển khai ở T03',
     description:
-      '6 thẻ phác đồ sâu bệnh × 5 bước (FRAC/IRAC + PHI), máy tính mốc sinh lý giống Ri6 và máy tính béc tưới 2 lô.',
+      '8 thẻ phác đồ sâu bệnh × 5 bước (FRAC/IRAC + PHI), máy tính mốc sinh lý giống Ri6 và máy tính béc tưới theo dữ liệu vườn.',
     icon: BookOpen,
     plannedItems: [
-      '6 phác đồ tách riêng Cháy lá Rhizoctonia và Nấm hồng',
+      '8 phác đồ sâu bệnh chuẩn 5 bước kèm khuyến cáo nhóm cơ chế FRAC/IRAC',
       'Máy tính mốc Ri6 từ ngày mắt cua hoặc xổ nhụy tới ngày thu hoạch',
       'Máy tính lưu lượng m³/lần và m³/tuần kèm quy tắc đặt béc gốc',
     ],
@@ -141,7 +141,7 @@ export function PlaceholderTab({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="text-base font-bold text-ink flex items-center gap-2">
             <Database className="w-5 h-5 text-durian-900 shrink-0" aria-hidden="true" />
-            Cơ sở dữ liệu offline (Dexie IndexedDB v1)
+            Cơ sở dữ liệu offline (Dexie v1 · {dbState?.tableCount ?? 8} bảng)
           </h3>
           {dbState?.versionError ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-danger-bg text-status-danger text-sm font-bold">
@@ -161,15 +161,15 @@ export function PlaceholderTab({
         {dbState && !dbState.versionError && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-base">
             <div className="rounded-xl bg-sand border border-sand-200 p-3.5">
-              <p className="text-sm font-semibold text-ink-muted">Lô B (3–5 năm)</p>
+              <p className="text-sm font-semibold text-ink-muted">Cây cá thể (Lô B)</p>
               <p className="text-lg font-extrabold text-durian-900 mt-0.5 tabular-nums">
-                {dbState.treeCount} cây (SR01–SR15)
+                {dbState.treeCount} cây
               </p>
             </div>
             <div className="rounded-xl bg-sand border border-sand-200 p-3.5">
-              <p className="text-sm font-semibold text-ink-muted">Lô A (1 năm)</p>
+              <p className="text-sm font-semibold text-ink-muted">Lô A (LOT_A)</p>
               <p className="text-lg font-extrabold text-basalt-700 mt-0.5 tabular-nums">
-                {dbState.lotACount} cây (LOT_A)
+                {dbState.lotACount} cây
               </p>
             </div>
             <div className="rounded-xl bg-sand border border-sand-200 p-3.5">
