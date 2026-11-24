@@ -6,12 +6,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-interface UsePwaOptions {
-  appVersion: string;
-  onUpdated: (version: string) => void;
-  onOfflineReady?: () => void;
-}
-
 function detectStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   return (
@@ -20,24 +14,30 @@ function detectStandalone(): boolean {
   );
 }
 
-export function usePwa({ appVersion, onUpdated, onOfflineReady }: UsePwaOptions) {
+/**
+ * Registers VitePWA Service Worker (registerType: 'autoUpdate') and manages install/online state.
+ * Note: Version-update Toast is emitted exclusively once in App.tsx after reload by comparing
+ * Dexie `settings.lastSeenVersion` against `__APP_VERSION__` to avoid duplicate/stale toasts.
+ */
+export function usePwa() {
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [isStandalone, setIsStandalone] = useState<boolean>(detectStandalone);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
-  // Register VitePWA Service Worker (autoUpdate) & listen for controller updates
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const hadController = Boolean(navigator.serviceWorker?.controller);
-    let notifiedUpdate = false;
+    let reloading = false;
 
     const handleControllerChange = () => {
-      if (hadController && !notifiedUpdate) {
-        notifiedUpdate = true;
-        onUpdated(appVersion);
+      // When a newer SW activates via skipWaiting/clientsClaim while running an older bundle,
+      // reload once so the fresh bundle starts cleanly and triggers the single post-reload Toast.
+      if (hadController && !reloading) {
+        reloading = true;
+        window.location.reload();
       }
     };
 
@@ -45,24 +45,13 @@ export function usePwa({ appVersion, onUpdated, onOfflineReady }: UsePwaOptions)
 
     registerSW({
       immediate: true,
-      onOfflineReady() {
-        onOfflineReady?.();
-      },
-      onNeedRefresh() {
-        // autoUpdate refreshes automatically; notify if active
-        if (!notifiedUpdate) {
-          notifiedUpdate = true;
-          onUpdated(appVersion);
-        }
-      },
     });
 
     return () => {
       navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
     };
-  }, [appVersion, onOfflineReady, onUpdated]);
+  }, []);
 
-  // Listen for online/offline & beforeinstallprompt
   useEffect(() => {
     const onOnline = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);

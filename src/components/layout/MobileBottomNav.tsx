@@ -29,7 +29,7 @@ export function MobileBottomNav({ activeView, onSelectTab }: MobileBottomNavProp
               type="button"
               onClick={() => onSelectTab(tab.id)}
               aria-current={active ? 'page' : undefined}
-              className={`min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-1 text-xs font-bold transition ${
+              className={`min-h-[58px] px-0.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-sm font-bold leading-tight whitespace-nowrap tracking-tight transition ${
                 active
                   ? 'bg-durian-900 text-white'
                   : 'text-ink-muted hover:text-ink active:bg-sand-100'

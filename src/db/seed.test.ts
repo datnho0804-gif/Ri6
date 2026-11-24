@@ -86,15 +86,18 @@ describe('database initial seed builders and Dexie v1 schema (T01 AC6)', () => {
       'trees',
     ]);
 
-    // Verify required SPEC 1.1 indexes on trees, logs, tasks
+    // Verify required SPEC 1.1 indexes on trees, logs, tasks (excluding boolean flags which IndexedDB cannot index)
     const treeIndexes = testDb.trees.schema.indexes.map((i) => i.name);
     expect(treeIndexes).toEqual(expect.arrayContaining(['code', 'lot']));
+    expect(treeIndexes).not.toContain('needsPruning');
+    expect(treeIndexes).not.toContain('diseaseWatch');
 
     const logIndexes = testDb.logs.schema.indexes.map((i) => i.name);
     expect(logIndexes).toEqual(expect.arrayContaining(['targetId', 'date', 'type', 'batchId']));
 
     const taskIndexes = testDb.tasks.schema.indexes.map((i) => i.name);
-    expect(taskIndexes).toEqual(expect.arrayContaining(['targetId', 'dueDate', 'done']));
+    expect(taskIndexes).toEqual(expect.arrayContaining(['targetId', 'dueDate']));
+    expect(taskIndexes).not.toContain('done');
 
     // Verify initial seeded rows
     expect(await testDb.trees.count()).toBe(INITIAL_INDIVIDUAL_TREES);

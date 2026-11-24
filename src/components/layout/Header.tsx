@@ -36,7 +36,7 @@ export function Header({
   onInstallClick,
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-sand-200 safe-top shadow-[0_1px_2px_rgba(28,25,23,0.05)]">
+    <header className="app-header sticky top-0 z-30 bg-white border-b border-sand-200 safe-top shadow-[0_1px_2px_rgba(28,25,23,0.05)]">
       {/* Row 1: Durian Logo + Orchard Name + Primary Actions */}
       <div className="max-w-5xl mx-auto px-3 sm:px-6 min-h-[64px] py-2 flex items-center justify-between gap-2">
         <button
@@ -55,7 +55,7 @@ export function Header({
             <h1 className="text-base sm:text-lg font-extrabold text-ink truncate leading-tight">
               Sổ Tay Vườn Ri6
             </h1>
-            <p className="text-xs sm:text-sm text-ink-muted truncate leading-tight mt-0.5">
+            <p className="text-sm text-ink-muted truncate leading-tight mt-0.5">
               Lộc Tấn, Đồng Nai
             </p>
           </div>
@@ -120,26 +120,26 @@ export function Header({
       </div>
 
       {/* Mobile Always-Visible Sync & Network Status Strip (SPEC §6) */}
-      <div className="md:hidden border-t border-sand-200 bg-sand px-3 py-1.5 flex items-center justify-between gap-2 text-xs">
+      <div className="md:hidden border-t border-sand-200 bg-sand px-3 py-1.5 flex items-center justify-between gap-2 text-sm">
         <div
           data-testid="sync-status-slot-mobile"
           aria-label="Trạng thái đồng bộ"
           className="inline-flex items-center gap-1.5 font-medium text-ink-muted truncate"
         >
-          <CloudOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">Đồng bộ: chưa bật (T04)</span>
+          <CloudOff className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">Chưa bật đồng bộ</span>
         </div>
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold shrink-0 ${
+          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg font-bold shrink-0 ${
             isOnline
               ? 'bg-status-ok-bg text-status-ok'
               : 'bg-status-warn-bg text-status-warn'
           }`}
         >
           {isOnline ? (
-            <Wifi className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <Wifi className="w-4 h-4 shrink-0" aria-hidden="true" />
           ) : (
-            <WifiOff className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
           )}
           <span>{isOnline ? 'Trực tuyến' : 'Ngoại tuyến'}</span>
         </span>

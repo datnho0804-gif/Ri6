@@ -15,14 +15,14 @@ export default defineConfig({
     },
     maskable: {
       sizes: [512],
-      padding: 0.12,
+      padding: 0.09,
       resizeOptions: {
         background: '#faf8f5',
       },
     },
     apple: {
       sizes: [180],
-      padding: 0.04,
+      padding: 0.02,
       resizeOptions: {
         background: '#faf8f5',
       },

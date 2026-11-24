@@ -22,17 +22,7 @@ export function App() {
 
   const { toasts, showToast, dismissToast } = useToast();
 
-  const handleUpdated = useCallback(
-    (version: string) => {
-      showToast(`Đã cập nhật lên v${version}`, 'success', 5000);
-    },
-    [showToast]
-  );
-
-  const { isOnline, isStandalone, triggerInstallPrompt } = usePwa({
-    appVersion: APP_VERSION,
-    onUpdated: handleUpdated,
-  });
+  const { isOnline, isStandalone, triggerInstallPrompt } = usePwa();
 
   useEffect(() => {
     let mounted = true;

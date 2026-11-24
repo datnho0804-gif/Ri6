@@ -32,12 +32,13 @@ export class Ri6Database extends Dexie {
 
   constructor(name = 'ri6-orchard-db') {
     super(name);
-    // SPEC §5 (v1.1): 8 tables with required indexes for trees, logs, tasks
+    // SPEC §5 (v1.1): 8 tables; boolean flags (needsPruning, diseaseWatch, done) are filtered in memory
+    // because IndexedDB does not index boolean keys.
     this.version(SCHEMA_VERSION).stores({
-      trees: 'id, code, lot, health, needsPruning, diseaseWatch, updatedAt, deletedAt',
+      trees: 'id, code, lot, health, updatedAt, deletedAt',
       lots: 'id, updatedAt, deletedAt',
       logs: 'id, targetId, date, type, batchId, updatedAt, deletedAt',
-      tasks: 'id, targetId, dueDate, done, updatedAt, deletedAt',
+      tasks: 'id, targetId, dueDate, updatedAt, deletedAt',
       photos: 'id, targetId, takenAt, kind, updatedAt, deletedAt',
       photoBlobs: 'id',
       settings: 'id',

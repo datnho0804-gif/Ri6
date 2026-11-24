@@ -7,7 +7,8 @@ import {
   Info,
   Smartphone,
 } from 'lucide-react';
-import type { DatabaseInitResult } from '../../db/database';
+import { useEffect, useState } from 'react';
+import { type DatabaseInitResult, requestPersistentStorage } from '../../db/database';
 
 interface SettingsScreenProps {
   appVersion: string;
@@ -17,11 +18,17 @@ interface SettingsScreenProps {
   onBack: () => void;
 }
 
-function formatStorageBytes(bytes: number | null): string {
+const vnNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
+
+function formatStorageBytesVN(bytes: number | null): string {
   if (bytes === null) return 'Không đo được';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  if (bytes < 1024) return `${vnNumber.format(bytes)} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${vnNumber.format(kb)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${vnNumber.format(mb)} MB`;
+  const gb = mb / 1024;
+  return `${vnNumber.format(gb)} GB`;
 }
 
 export function SettingsScreen({
@@ -31,8 +38,29 @@ export function SettingsScreen({
   onInstallClick,
   onBack,
 }: SettingsScreenProps) {
-  const usageLabel = formatStorageBytes(dbState?.storageUsageBytes ?? null);
-  const quotaLabel = formatStorageBytes(dbState?.storageQuotaBytes ?? null);
+  const [liveStorage, setLiveStorage] = useState<{
+    persisted: boolean;
+    usage: number | null;
+    quota: number | null;
+  } | null>(null);
+
+  // Re-measure storage estimate every time Settings opens (so SW precache & new data are reflected)
+  useEffect(() => {
+    let active = true;
+    void requestPersistentStorage().then((info) => {
+      if (active) setLiveStorage(info);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const persisted = liveStorage?.persisted ?? dbState?.persistentGranted ?? false;
+  const usageBytes = liveStorage ? liveStorage.usage : (dbState?.storageUsageBytes ?? null);
+  const quotaBytes = liveStorage ? liveStorage.quota : (dbState?.storageQuotaBytes ?? null);
+
+  const usageLabel = formatStorageBytesVN(usageBytes);
+  const quotaLabel = formatStorageBytesVN(quotaBytes);
 
   return (
     <div className="space-y-5">
@@ -109,7 +137,7 @@ export function SettingsScreen({
               <HardDrive className="w-5 h-5 text-durian-900 shrink-0" aria-hidden="true" />
               Bộ nhớ bền vững
             </h3>
-            {dbState?.persistentGranted ? (
+            {persisted ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-ok-bg text-status-ok text-sm font-bold">
                 <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                 Đã cấp
@@ -123,9 +151,9 @@ export function SettingsScreen({
           </div>
           <p className="text-base text-ink-muted tabular-nums">
             Dung lượng đang dùng: <strong className="text-ink">{usageLabel}</strong>
-            {dbState?.storageQuotaBytes ? ` / ${quotaLabel}` : ''}
+            {quotaBytes !== null ? ` / ${quotaLabel}` : ''}
           </p>
-          {!dbState?.persistentGranted && (
+          {!persisted && (
             <p className="text-sm text-status-warn font-medium">
               Khuyến nghị: hãy cài app ra màn hình chính và bật đồng bộ GitHub (T04) để trình duyệt ưu tiên giữ dữ liệu lâu dài.
             </p>

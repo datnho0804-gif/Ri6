@@ -6,6 +6,7 @@ interface ModalProps {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  dismissOnBackdrop?: boolean;
   children: ReactNode;
   footer?: ReactNode;
 }
@@ -22,7 +23,15 @@ const FOCUSABLE_SELECTOR = [
 /**
  * Accessible reusable Modal with focus trap, focus restoration, and Escape-to-close (T01 AC5).
  */
-export function Modal({ open, title, subtitle, onClose, children, footer }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  subtitle,
+  onClose,
+  dismissOnBackdrop = true,
+  children,
+  footer,
+}: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -87,7 +96,7 @@ export function Modal({ open, title, subtitle, onClose, children, footer }: Moda
     <div
       className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-ink/60 backdrop-blur-[2px] sm:p-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (dismissOnBackdrop && e.target === e.currentTarget) onClose();
       }}
     >
       <div
