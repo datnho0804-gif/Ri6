@@ -88,14 +88,14 @@ function SampleLogSheetForm({
     triggerHaptic(hapticsEnabled);
     onClose();
     const label = LOG_OPTIONS.find((o) => o.id === logType)?.label ?? 'Nhật ký';
-    onSaved(`Đã lưu nháp mẫu "${label}" cho ${targetLabel}`);
+    onSaved(`Đã ghi xem trước "${label}" cho ${targetLabel}`);
   };
 
   return (
     <BottomSheet
       open
       title="Ghi nhật ký"
-      subtitle="Biểu mẫu mẫu (lưu dữ liệu thật vào IndexedDB ở T02)"
+      subtitle="Bản xem trước — chưa lưu dữ liệu"
       dirty={dirty}
       onClose={onClose}
       footer={({ requestClose }) => (
@@ -111,7 +111,7 @@ function SampleLogSheetForm({
             leadingIcon={<Check className="w-5 h-5" />}
             onClick={handleSave}
           >
-            {selectedTreeTotal > 0 ? `Lưu mẫu cho ${targetLabel}` : 'Chọn ít nhất 1 lô'}
+            {selectedTreeTotal > 0 ? `Lưu xem trước cho ${targetLabel}` : 'Chọn ít nhất 1 lô'}
           </Button>
         </>
       )}
@@ -177,7 +177,7 @@ function SampleLogSheetForm({
             helperText={
               logType === 'phun-thuoc'
                 ? 'Chỉ ghi hoạt chất & nhóm cơ chế FRAC/IRAC · liều lượng theo nhãn'
-                : 'Chỉnh sửa bất kỳ ô nào rồi đóng sheet để thử cảnh báo bỏ nháp'
+                : 'Bản xem trước biểu mẫu nhập nhật ký một tay'
             }
             onChange={(e) => {
               setActiveIngredient(e.target.value);

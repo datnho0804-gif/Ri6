@@ -1,18 +1,19 @@
 import { CheckCircle2, Cloud, CloudOff, Plus } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { DesignShowcaseScreen } from './components/screens/DesignShowcaseScreen';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { PlaceholderTab } from './components/screens/PlaceholderTab';
 import { SampleLogSheet } from './components/screens/SampleLogSheet';
 import { SettingsScreen } from './components/screens/SettingsScreen';
 import {
   Banner,
   Button,
+  Card,
   Dialog,
   ExtendedFab,
   InstallGuideModal,
   ListItem,
   NavBar,
   NavRail,
+  Skeleton,
   Snackbar,
   StatusPill,
   TopAppBar,
@@ -28,16 +29,26 @@ import type { TabId, ViewId } from './types/models';
 
 const APP_VERSION = __APP_VERSION__;
 
+const DesignShowcaseScreen = lazy(() =>
+  import('./components/screens/DesignShowcaseScreen').then((m) => ({
+    default: m.DesignShowcaseScreen,
+  })),
+);
+
+function hasDesignFlag(): boolean {
+  if (typeof window === 'undefined') return false;
+  const [, hashQuery = ''] = window.location.hash.split('?');
+  return (
+    new URLSearchParams(hashQuery).get('design') === '1' ||
+    new URLSearchParams(window.location.search).get('design') === '1'
+  );
+}
+
 function isDesignShowcaseUrl(): boolean {
   if (typeof window === 'undefined') return false;
-  const hash = window.location.hash;
-  const search = window.location.search;
-  const [hashPath, hashQuery = ''] = hash.split('?');
+  const [hashPath] = window.location.hash.split('?');
   const normalizedPath = hashPath.replace(/^#/, '');
-  if (normalizedPath !== '/design') return false;
-  const hashParams = new URLSearchParams(hashQuery);
-  const searchParams = new URLSearchParams(search);
-  return hashParams.get('design') === '1' || searchParams.get('design') === '1';
+  return normalizedPath === '/design' && hasDesignFlag();
 }
 
 function getShortcutAction(): 'log' | 'photo' | 'agenda' | null {
@@ -78,6 +89,13 @@ export function App() {
 
   useThemeColor('#faf8f5');
 
+  const closeAllOverlays = useCallback(() => {
+    setLogSheetOpen(false);
+    setSyncDialogOpen(false);
+    setDemoDialogOpen(false);
+    setInstallGuideOpen(false);
+  }, []);
+
   // Initialize Dexie database and detect version upgrades
   useEffect(() => {
     let mounted = true;
@@ -97,7 +115,7 @@ export function App() {
       })
       .catch(() => {
         if (!mounted) return;
-        showSnackbar('Không thể khởi tạo cơ sở dữ liệu offline trên thiết bị này.', {
+        showSnackbar('Không thể khởi tạo dữ liệu ngoại tuyến trên thiết bị này.', {
           tone: 'danger',
           durationMs: 6000,
         });
@@ -110,13 +128,13 @@ export function App() {
   // Listen to hash changes for #/design?design=1 and PWA manifest shortcuts (#/log, #/photo, #/agenda)
   useEffect(() => {
     const applyRoute = () => {
+      closeAllOverlays();
+      setFabHidden(false);
       if (isDesignShowcaseUrl()) {
         setDesignShowcaseOpen(true);
-        setFabHidden(false);
         return;
       }
       setDesignShowcaseOpen(false);
-      setFabHidden(false);
       const shortcut = getShortcutAction();
       if (shortcut === 'log') {
         setActiveView('overview');
@@ -133,7 +151,7 @@ export function App() {
 
     window.addEventListener('hashchange', applyRoute);
     return () => window.removeEventListener('hashchange', applyRoute);
-  }, []);
+  }, [closeAllOverlays]);
 
   // Auto-hide ExtendedFAB on downward scroll, reveal on upward scroll (DESIGN §3)
   useEffect(() => {
@@ -163,6 +181,7 @@ export function App() {
 
   const navigateToView = useCallback(
     (next: ViewId) => {
+      closeAllOverlays();
       scrollPositionsRef.current.set(currentViewKey, window.scrollY);
       if (designShowcaseOpen) {
         setDesignShowcaseOpen(false);
@@ -176,23 +195,25 @@ export function App() {
       setFabHidden(false);
       setActiveView(next);
     },
-    [currentViewKey, designShowcaseOpen],
+    [closeAllOverlays, currentViewKey, designShowcaseOpen],
   );
 
   const openDesignShowcase = useCallback(() => {
+    closeAllOverlays();
     scrollPositionsRef.current.set(currentViewKey, window.scrollY);
     window.location.hash = '#/design?design=1';
     setFabHidden(false);
     setDesignShowcaseOpen(true);
-  }, [currentViewKey]);
+  }, [closeAllOverlays, currentViewKey]);
 
   const closeDesignShowcase = useCallback(() => {
+    closeAllOverlays();
     scrollPositionsRef.current.set('design', window.scrollY);
     setDesignShowcaseOpen(false);
     setFabHidden(false);
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
     setActiveView(lastTab);
-  }, [lastTab]);
+  }, [closeAllOverlays, lastTab]);
 
   const handleToggleHaptics = useCallback(
     async (next: boolean) => {
@@ -219,12 +240,13 @@ export function App() {
       triggerHaptic(hapticsEnabled);
       showSnackbar('Đã cài Sổ Tay Vườn Ri6 ra màn hình chính!', { tone: 'ok' });
     } else if (outcome === 'fallback') {
+      closeAllOverlays();
       setInstallGuideOpen(true);
     }
-  }, [hapticsEnabled, showSnackbar, triggerInstallPrompt]);
+  }, [closeAllOverlays, hapticsEnabled, showSnackbar, triggerInstallPrompt]);
 
   const handleDemoUndoSnackbar = useCallback(
-    (message = 'Đã xóa 1 mục nhật ký mẫu') => {
+    (message = 'Đã xóa 1 mục xem trước') => {
       showSnackbar(message, {
         tone: 'ok',
         actionLabel: 'Hoàn tác',
@@ -241,6 +263,7 @@ export function App() {
   const today = todayVN();
   const treeCount = dbState?.treeCount ?? 0;
   const lotACount = dbState?.lotACount ?? 0;
+  const showDesignEntry = import.meta.env.DEV || hasDesignFlag();
 
   let barTitle = 'Vườn Ri6';
   let barSubtitle = `${formatHeaderDateVN(today)} · Lộc Tấn`;
@@ -292,10 +315,13 @@ export function App() {
         syncStatusDot={!isOnline ? 'warn' : 'neutral'}
         syncLabel={
           isOnline
-            ? 'Trạng thái đồng bộ GitHub (chưa thiết lập)'
+            ? 'Trạng thái đồng bộ sao lưu (chưa thiết lập)'
             : 'Đang ngoại tuyến — bấm để xem chi tiết lưu trữ'
         }
-        onSyncClick={() => setSyncDialogOpen(true)}
+        onSyncClick={() => {
+          closeAllOverlays();
+          setSyncDialogOpen(true);
+        }}
         onSettingsClick={
           designShowcaseOpen || activeView === 'settings'
             ? undefined
@@ -312,13 +338,24 @@ export function App() {
       >
         <div key={currentViewKey} className="animate-screen-enter">
           {designShowcaseOpen ? (
-            <DesignShowcaseScreen onShowUndoSnackbar={handleDemoUndoSnackbar} />
+            <Suspense
+              fallback={
+                <Card padding="md" className="space-y-3" role="status" aria-label="Đang tải trang thiết kế">
+                  <Skeleton variant="heading" />
+                  <Skeleton variant="card" />
+                  <Skeleton variant="card" />
+                </Card>
+              }
+            >
+              <DesignShowcaseScreen onShowUndoSnackbar={handleDemoUndoSnackbar} />
+            </Suspense>
           ) : activeView === 'settings' ? (
             <SettingsScreen
               appVersion={APP_VERSION}
               dbState={dbState}
               isStandalone={isStandalone}
               hapticsEnabled={hapticsEnabled}
+              showDesignEntry={showDesignEntry}
               onToggleHaptics={(next) => {
                 void handleToggleHaptics(next);
               }}
@@ -331,10 +368,15 @@ export function App() {
             <PlaceholderTab
               tab={activeView}
               dbState={dbState}
-              onOpenSampleSheet={() => setLogSheetOpen(true)}
-              onOpenDemoDialog={() => setDemoDialogOpen(true)}
+              onOpenSampleSheet={() => {
+                closeAllOverlays();
+                setLogSheetOpen(true);
+              }}
+              onOpenDemoDialog={() => {
+                closeAllOverlays();
+                setDemoDialogOpen(true);
+              }}
               onDemoUndoSnackbar={() => handleDemoUndoSnackbar()}
-              onOpenDesignShowcase={openDesignShowcase}
               onNavigateTab={navigateToView}
             />
           )}
@@ -347,7 +389,10 @@ export function App() {
             icon={<Plus className="w-6 h-6" />}
             label="Ghi nhật ký"
             hidden={fabHidden}
-            onClick={() => setLogSheetOpen(true)}
+            onClick={() => {
+              closeAllOverlays();
+              setLogSheetOpen(true);
+            }}
           />
         </div>
       )}
@@ -368,7 +413,7 @@ export function App() {
       <Dialog
         open={syncDialogOpen}
         title="Trạng thái đồng bộ"
-        subtitle="Đồng bộ hai chiều qua GitHub repo Ri6-data sẽ kích hoạt ở bước T04"
+        subtitle="Tính năng sao lưu trực tuyến đang được hoàn thiện"
         onClose={() => setSyncDialogOpen(false)}
         footer={
           <>
@@ -393,12 +438,12 @@ export function App() {
             icon={isOnline ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
           >
             {isOnline
-              ? 'Thiết bị đang có mạng. Dữ liệu vẫn lưu cục bộ trên máy trước (offline-first).'
-              : 'Thiết bị đang ngoại tuyến. Mọi thao tác vẫn hoạt động bình thường trên IndexedDB.'}
+              ? 'Thiết bị đang có mạng. Mọi ghi chép luôn lưu ngay trên máy trước để dùng không cần mạng.'
+              : 'Thiết bị đang ngoại tuyến. Mọi ghi chép vẫn lưu bình thường trên máy.'}
           </Banner>
           <ListItem
-            title="Cơ sở dữ liệu trên máy"
-            subtitle={`Dexie v1 · ${dbState?.tableCount ?? 8} bảng · ${treeCount} cây Lô B · ${lotACount} cây Lô A`}
+            title="Dữ liệu vườn trên máy"
+            subtitle={`Lô B: ${treeCount} cây · Lô A: ${lotACount} cây`}
             trailing={
               <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
                 Sẵn sàng
@@ -410,20 +455,20 @@ export function App() {
 
       <Dialog
         open={demoDialogOpen}
-        title="Kiểm tra hộp thoại Dialog"
-        subtitle="Hỗ trợ focus trap (Tab), đóng bằng Esc và nút Back Android"
+        title="Xác nhận thao tác?"
+        subtitle="Hộp thoại xác nhận dùng cho các thao tác quan trọng"
         onClose={() => setDemoDialogOpen(false)}
         footer={
           <>
             <Button variant="text" onClick={() => setDemoDialogOpen(false)}>
-              Đóng
+              Hủy
             </Button>
             <Button
               variant="filled"
               onClick={() => {
                 setDemoDialogOpen(false);
                 triggerHaptic(hapticsEnabled);
-                showSnackbar('Đã xác nhận từ Dialog (không dùng alert/confirm).', { tone: 'info' });
+                showSnackbar('Đã xác nhận thao tác.', { tone: 'info' });
               }}
             >
               Xác nhận
@@ -432,9 +477,8 @@ export function App() {
         }
       >
         <p>
-          Hộp thoại này thay thế hoàn toàn <code>alert()</code> và <code>confirm()</code> mặc định
-          của trình duyệt. Nhấn phím <strong>Tab</strong> để di chuyển vòng lặp bên trong hộp thoại
-          hoặc nhấn <strong>Esc</strong> để đóng.
+          Các thao tác quan trọng như xóa cây hoặc xóa cả đợt chăm sóc sẽ luôn hiện hộp xác nhận rõ
+          ràng như thế này trước khi thực hiện.
         </p>
       </Dialog>
 
