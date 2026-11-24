@@ -31,7 +31,7 @@
 
 ## 3. Quy tắc kỹ thuật
 
-- **Stack cố định:** Vite, React, TypeScript (`strict: true`), Tailwind CSS, `lucide-react`, Dexie (IndexedDB), `vite-plugin-pwa`, Vitest, ESLint. **Không** thêm Capacitor hay bất kỳ thứ gì liên quan đến APK.
+- **Stack cố định:** Vite, React, TypeScript (`strict: true`), Tailwind CSS, `lucide-react`, Dexie (IndexedDB), `vite-plugin-pwa`, Vitest, ESLint; `workbox-precaching`, `workbox-routing`, `workbox-core` cho `src/sw.ts` (SPEC §7.0). **Không** thêm Capacitor hay bất kỳ thứ gì liên quan đến APK.
   Muốn thêm thư viện khác thì phải nêu lý do trong báo cáo.
 - Dùng Node 20 LTS trở lên. Commit `package-lock.json`.
 - **Phiên bản.** Mỗi PR có thay đổi app phải tăng `version` trong `package.json`:
