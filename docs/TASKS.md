@@ -2,7 +2,7 @@
 
 - Làm theo thứ tự, mỗi task là một nhánh và một PR. Quy trình xem `AGENTS.md`; đặc tả xem `docs/SPEC.md`.
 - Trạng thái do Claude cập nhật sau mỗi lần review.
-- Theo **SPEC 1.1**. Các AC đánh dấu **[1.1]** là phần mới thêm.
+- Theo **SPEC 1.2**. Các AC đánh dấu **[1.1]**, **[1.2]** là phần mới thêm theo từng bản.
 - **Phân công code (AGENTS §1b):**
   - Mọi AC dạng **"Hàm `…`"**, phần xử lý dữ liệu và client GitHub/Gemini, `src/sw/*` là **Claude (T0x-L)**.
   - Màn hình, Dexie và phần ghép nối là **Antigravity (T0x-U)**.
@@ -12,11 +12,12 @@
 |---|---|---|
 | T01 | Khung dự án, PWA, CI/CD | ✅ Đã merge (PR #7, 25/11) |
 | **D01** | **Hệ thống thiết kế (`docs/DESIGN.md`) + trang `#/design`** | ✅ Đã duyệt (PR #10, #12) |
-| T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ⏳ |
-| T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ⏳ |
+| T02 | Tổng quan, hồ sơ cây, nhật ký, sao lưu JSON | ✅ Đã merge (L #14, U #19) — QA: PR #20 |
+| T03 | Cắt tỉa, tra cứu phác đồ, máy tính, cảnh báo PHI | ✅ Đã merge (L #15, U #20) — QA: PR #20 (3 mục 🟡) |
 | T04 | Cài đặt, đồng bộ GitHub | ⏳ |
 | T05 | Việc cần làm và nhắc nhở | ⏳ |
-| T06 | Trợ lý AI (Gemini) | ⏳ |
+| T06 | Trợ lý AI (Gemini) | ⏳ (L #18 đã merge) |
+| **T07** | **[1.2] 3 cây mặc định, danh mục vật tư, AI tự học & ghi nhớ** | ⏳ L: PR `[T07-L]` (Claude) · U: sau T06-U |
 | A01 | APK Android (Capacitor) và phát hành tự động | ⏸ Tạm hoãn — không làm |
 | A02 | Tự động cập nhật trong app (OTA + APK) | ⏸ Tạm hoãn — không làm |
 
@@ -57,7 +58,7 @@
   - `logs`: `id, targetId, date, type, batchId`;
   - `tasks`: `id, targetId, dueDate`.
 - **Không** lập index cho trường boolean (`needsPruning`, `diseaseWatch`, `done`...), vì IndexedDB không index được giá trị `true`/`false`. Các cờ này lọc trong bộ nhớ.
-- Lần chạy đầu tạo SR01–SR15 (`id = code`) và `LOT_A` **trống**, sinh `deviceId` (UUID).
+- Lần chạy đầu tạo SR01–SR15 (`id = code`) và `LOT_A` **trống**, sinh `deviceId` (UUID). **[1.2]** Đổi thành SR01–SR03 ở T07 (đọc `DEFAULT_INITIAL_TREES`).
 - **[1.1]** Số 15 và 50 chỉ nằm trong hằng số seed `INITIAL_INDIVIDUAL_TREES` và `INITIAL_LOT_A_COUNT`. Có test chứng minh seed **không chạy lại** khi DB đã có dữ liệu, kể cả khi đã thêm hoặc xóa cây.
 - Gọi `navigator.storage.persist()`.
 
@@ -168,6 +169,7 @@ Test với `today = '2026-11-24'`:
 | Danh sách mã hiện có | Kết quả |
 |---|---|
 | SR01–SR15 | `SR16` |
+| **[1.2]** SR01–SR03 | `SR04` |
 | SR01–SR15 + SR16 đã xóa (tombstone) | `SR17` (không cấp lại mã đã xóa) |
 | SR01, SR09, `Góc cổng` | `SR10` (bỏ qua mã không theo mẫu) |
 
@@ -260,7 +262,7 @@ Test với **mắt cua `2026-12-01`**:
 **AC5. Màn Tra cứu (M4).**
 - **8 thẻ phác đồ [1.1]** × 5 bước theo SPEC §3.5, có tìm kiếm và dòng cảnh báo Danh mục thuốc / nhãn.
 - **[1.1]** Phác đồ 7 (Sâu đục trái & Rệp sáp) chia 2 mục con ở mỗi bước. Phác đồ 8 (Mọt đục cành / Xén tóc) có cách xử lý cơ giới: móc sâu non, bơm thuốc vào lỗ rồi bịt, cắt và tiêu hủy cành.
-- Các hoạt chất đều kèm nhóm IRAC/FRAC, không có liều lượng hay tên thương mại.
+- Các hoạt chất đều kèm nhóm IRAC/FRAC. **[1.2]** Thương hiệu, quy cách, giá, cách dùng lấy từ `src/lib/supplies.ts` (T07); không tự ghi số liệu trong giao diện.
 - **Test:** dữ liệu phác đồ có đúng 8 mục, mỗi mục có đủ 5 bước không rỗng.
 - Có máy tính Ri6 và máy tính béc tưới.
 
@@ -459,6 +461,43 @@ Test với **mắt cua `2026-12-01`**:
 
 **AC9. Báo cáo.**
 - `docs/reports/T06.md` kèm ảnh: màn Hỏi AI, kết quả phân tích, action đã được thêm vào Việc cần làm.
+
+> **[1.2]** Từ PR #T07-L, `GenerateResult`/`AiAnswer` có thêm `learnedMemories` (luôn là mảng). T06-U chỉ cần bỏ qua trường này; giao diện ghi nhớ làm ở T07-U.
+
+---
+
+## T07 — [1.2] 3 cây mặc định, danh mục vật tư, AI tự học và ghi nhớ
+**Nhánh:** Claude `claude/T07-lib` (PR `[T07-L]`) → Antigravity `ag/T07-vat-tu-ghi-nho` (PR `[T07-U]`). SPEC §2, §3.4, §3.7, M1, M4, M7, M7.1, §5, §6.
+
+**AC1. Vườn mới 3 cây + ô "+ Thêm cây".** (L: `DEFAULT_INITIAL_TREES` · U: `src/db/seed.ts`, Tổng quan, danh sách cây)
+- Vườn mới: SR01–SR03 + `LOT_A` 50 cây, trống. Test seed: 3 cây; DB đã có dữ liệu (kể cả 15 cây cũ) → **không** đổi gì.
+- Lưới ảnh Tổng quan và danh sách cây có **ô cuối "+ Thêm cây"** (≥ 48 px, có chữ), mở form thêm cây với mã `nextTreeCode` (vector: SR01–SR03 → `SR04`).
+- Nhập file app cũ SR01–SR15 vào vườn 3 cây: tạo đủ cây thiếu; cây thêm tay trùng `code` được vá, không tạo trùng mã (test có sẵn ở `src/lib/t07.test.ts`).
+
+**AC2. Danh mục vật tư.** (L: `src/lib/supplies.ts` · U: tab "Vật tư" ở Tra cứu, thẻ phác đồ, form nhật ký)
+- Đủ 3 nhóm; mọi mục có hãng, hoạt chất, quy cách, cách dùng, liều (`doseNote`), lưu ý an toàn. Giá chỉ khi có nguồn + tháng. Không có hoạt chất bị cấm.
+- Tìm không dấu: "nhen do" → có Nissorun 5EC; "phu my ure" → đúng Urê Phú Mỹ.
+- Thẻ phác đồ hiện sản phẩm liên quan (`getSuppliesForProtocol`).
+- Form nhật ký Phun thuốc / Bón phân có ô chọn vật tư (tùy chọn) → tự điền hoạt chất; ô **"Giá mua (đ)"** tùy chọn → `Log.supplyId`, `Log.priceVnd`.
+- Dòng giá dùng `priceLine`: đã ghi giá mua → hiện "giá vườn mua dd/mm/yyyy"; chưa → giá tham khảo kèm tháng hoặc "Chưa có giá tham khảo".
+- Hồ sơ cây hiện nhắc luân phiên từ `rotationAlerts` (2 lần cùng nhóm trong 30 ngày).
+
+**AC3. Ghi nhớ AI.** (L: `src/lib/ai/memory.ts`, `parseLearnedMemories`, merge/xuất/nhập/state.json · U: Dexie v2 bảng `aiMemories`, màn Ghi nhớ, nút dưới câu trả lời)
+- Dexie **schema v2** thêm bảng `aiMemories: 'id, updatedAt'`; nâng cấp từ v1 không mất dữ liệu (có test).
+- Dưới câu trả lời AI: mỗi `learnedMemories` có nút "Ghi nhớ" / "Bỏ qua" / sửa. Đã lọc trùng bằng `deduplicateMemories`.
+- **Cài đặt → Ghi nhớ của trợ lý**: liệt kê theo nhóm, thêm tay, sửa, xóa (Snackbar Hoàn tác). Có dòng giải thích "tự học = ghi nhớ, không huấn luyện lại model".
+- Nhập nội dung trông như token / API key / mật khẩu → báo lỗi, không lưu (`looksSensitive`).
+- `aiMemories` nằm trong snapshot đồng bộ, file xuất JSON; file/state cũ thiếu khóa vẫn nhập được (test có sẵn).
+
+**AC4. Prompt AI dùng ghi nhớ + vật tư.** (L: `buildSystemPrompt` · U: truyền `memories`, `trees`, `logs`)
+- Có cây: ghi nhớ của cây đó trước, rồi chung vườn; **không** có ghi nhớ riêng của cây khác; không có mục chưa duyệt.
+- Có mục "RÚT RA TỪ NHẬT KÝ" khi có nhắc luân phiên hoặc giá vườn đã mua.
+- Có danh mục vật tư; AI được yêu cầu nêu thương hiệu, quy cách, giá (không đoán), cách dùng, liều đối chiếu nhãn.
+- Hồ sơ cây có nút "Hỏi AI về cây này".
+
+**AC5. Khuyến cáo mùa.** Banner Tổng quan đọc `SEASON_ADVICE` (bỏ chữ ghi cứng trong `src/hooks/treePresentation.ts`).
+
+**AC6. Báo cáo.** `docs/reports/T07.md` kèm ảnh: Tổng quan 3 cây + ô Thêm cây, tab Vật tư, thẻ phác đồ có sản phẩm, đề xuất ghi nhớ dưới câu trả lời, màn Ghi nhớ.
 
 ---
 

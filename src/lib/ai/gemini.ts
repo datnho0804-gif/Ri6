@@ -82,7 +82,7 @@ export function createGeminiClient(apiKey: string, fetchFn: FetchLike = (i, init
 
     /**
      * Gọi `generateContent`. Mặc định yêu cầu JSON theo `RESPONSE_SCHEMA`;
-     * nếu bị **HTTP 400** → tự gọi lại 1 lần KHÔNG kèm schema, coi `actions = []` (SPEC M7 [1.1]).
+     * nếu bị **HTTP 400** → tự gọi lại 1 lần KHÔNG kèm schema, coi `actions = []`, `learnedMemories = []` (SPEC M7 [1.1]).
      * Model nằm trong `schemaUnsupported` → gọi thẳng chế độ Markdown (1 request).
      * 401/403/429/mạng → `AiError`, KHÔNG fallback.
      */
@@ -121,7 +121,7 @@ export function createGeminiClient(apiKey: string, fetchFn: FetchLike = (i, init
       }
       const res = await send(false);
       if (!res.ok) throw errorFor(res.status);
-      return { answer: (await textOf(res)).trim(), confidence: null, actions: [], usedSchema: false, schemaUnsupportedDetected: !skipSchema };
+      return { answer: (await textOf(res)).trim(), confidence: null, actions: [], learnedMemories: [], usedSchema: false, schemaUnsupportedDetected: !skipSchema };
     },
   };
 }

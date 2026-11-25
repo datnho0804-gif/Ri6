@@ -1,3 +1,7 @@
+import type { AiMemoryCategory } from '../../types/models';
+import { AI_MEMORY } from '../agronomy';
+import { AI_MEMORY_CATEGORIES, cleanMemoryText, looksSensitive, type MemoryProposal } from './memory';
+
 export type AiConfidence = 'thap' | 'vua' | 'cao';
 
 export interface AiAction {
@@ -11,6 +15,8 @@ export interface AiAnswer {
   answer: string;
   confidence: AiConfidence | null;
   actions: AiAction[];
+  /** [1.2] Đề xuất ghi nhớ mới — UI hiện để chủ vườn duyệt, KHÔNG tự lưu. */
+  learnedMemories: MemoryProposal[];
 }
 
 export const MAX_DUE_IN_DAYS = 60;
@@ -31,6 +37,19 @@ export const RESPONSE_SCHEMA = {
           targetId: { type: 'STRING' },
         },
         required: ['title', 'dueInDays'],
+      },
+    },
+    learnedMemories: {
+      type: 'ARRAY',
+      description: 'Tối đa 3 điều đáng nhớ lâu dài về vườn do chủ vườn cho biết; để trống nếu không có',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          content: { type: 'STRING' },
+          category: { type: 'STRING', enum: ['kinh-nghiem', 'so-thich', 'phan-ung', 'vat-tu', 'khac'] },
+          targetIds: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+        required: ['content', 'category'],
       },
     },
   },
@@ -58,7 +77,29 @@ export function parseAiActions(raw: unknown, validTargetIds: ReadonlySet<string>
 }
 
 /**
- * Đọc câu trả lời JSON của Gemini. JSON hỏng → `actions = []`, vẫn hiện phần chữ (nếu có).
+ * Lọc đề xuất ghi nhớ (T07 AC3): bỏ mục rỗng / nhạy cảm (token, API key, mật khẩu),
+ * cắt độ dài, nhóm lạ → 'khac', bỏ `targetIds` không tồn tại, tối đa `AI_MEMORY.maxProposalsPerAnswer`.
+ */
+export function parseLearnedMemories(raw: unknown, validTargetIds: ReadonlySet<string>): MemoryProposal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MemoryProposal[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const content = typeof o.content === 'string' ? cleanMemoryText(o.content) : '';
+    if (!content || looksSensitive(content)) continue;
+    const category = (AI_MEMORY_CATEGORIES as readonly unknown[]).includes(o.category) ? (o.category as AiMemoryCategory) : 'khac';
+    const targetIds = Array.isArray(o.targetIds)
+      ? [...new Set(o.targetIds.filter((t): t is string => typeof t === 'string' && validTargetIds.has(t)))]
+      : [];
+    out.push({ content, category, ...(targetIds.length && { targetIds }) });
+    if (out.length >= AI_MEMORY.maxProposalsPerAnswer) break;
+  }
+  return out;
+}
+
+/**
+ * Đọc câu trả lời JSON của Gemini. JSON hỏng → `actions = []`, `learnedMemories = []`, vẫn hiện phần chữ (nếu có).
  */
 export function parseAiAnswer(text: string, validTargetIds: ReadonlySet<string>): AiAnswer {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -69,6 +110,7 @@ export function parseAiAnswer(text: string, validTargetIds: ReadonlySet<string>)
       answer: typeof j.answer === 'string' ? j.answer : '',
       confidence: conf === 'thap' || conf === 'vua' || conf === 'cao' ? conf : null,
       actions: parseAiActions(j.actions, validTargetIds),
+      learnedMemories: parseLearnedMemories(j.learnedMemories, validTargetIds),
     };
   } catch {
     // Thử lấy trường "answer" từ JSON bị cắt dở.
@@ -81,6 +123,6 @@ export function parseAiAnswer(text: string, validTargetIds: ReadonlySet<string>)
         answer = m[1];
       }
     }
-    return { answer, confidence: null, actions: [] };
+    return { answer, confidence: null, actions: [], learnedMemories: [] };
   }
 }

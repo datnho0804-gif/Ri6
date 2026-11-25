@@ -1,19 +1,29 @@
-import type { Log, Lot, Photo, SyncMeta, Task, Tree } from '../types/models';
+import type { AiMemory, Log, Lot, Photo, SyncMeta, Task, Tree } from '../types/models';
 
-/** Dữ liệu đồng bộ được (SPEC §6) — không có Settings, không có blob ảnh. */
+/** Dữ liệu đồng bộ được (SPEC §6) — không có Settings, không có blob ảnh, không có lịch sử chat AI. */
 export interface SyncState {
   trees: Tree[];
   lots: Lot[];
   logs: Log[];
   tasks: Task[];
   photos: Photo[];
+  /**
+   * [1.2] Ghi nhớ AI (SPEC M7.1). TÙY CHỌN để file/snapshot cũ vẫn hợp lệ:
+   * mọi hàm trong `src/lib` coi thiếu khóa là `[]`; đầu ra của merge/parse luôn có khóa này.
+   */
+  aiMemories?: AiMemory[];
 }
 
-export const SYNC_COLLECTIONS = ['trees', 'lots', 'logs', 'tasks', 'photos'] as const;
+export const SYNC_COLLECTIONS = ['trees', 'lots', 'logs', 'tasks', 'photos', 'aiMemories'] as const;
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
 
 export function emptySyncState(): SyncState {
-  return { trees: [], lots: [], logs: [], tasks: [], photos: [] };
+  return { trees: [], lots: [], logs: [], tasks: [], photos: [], aiMemories: [] };
+}
+
+/** Mảng của một bộ sưu tập, thiếu khóa → `[]`. */
+export function collectionOf(state: SyncState, key: SyncCollection): SyncMeta[] {
+  return (state[key] ?? []) as SyncMeta[];
 }
 
 /**
@@ -46,6 +56,7 @@ export function mergeState(a: SyncState, b: SyncState): SyncState {
     logs: mergeById(a.logs, b.logs),
     tasks: mergeById(a.tasks, b.tasks),
     photos: mergeById(a.photos, b.photos),
+    aiMemories: mergeById(a.aiMemories ?? [], b.aiMemories ?? []),
   };
 }
 
@@ -62,9 +73,9 @@ export interface MergeCounts {
 export function diffCounts(local: SyncState, incoming: SyncState): Record<SyncCollection, MergeCounts> {
   const out = {} as Record<SyncCollection, MergeCounts>;
   for (const key of SYNC_COLLECTIONS) {
-    const localMap = new Map<string, SyncMeta>((local[key] as SyncMeta[]).map((r) => [r.id, r]));
+    const localMap = new Map<string, SyncMeta>(collectionOf(local, key).map((r) => [r.id, r]));
     const c: MergeCounts = { added: 0, updated: 0, unchanged: 0 };
-    for (const r of incoming[key] as SyncMeta[]) {
+    for (const r of collectionOf(incoming, key)) {
       const cur = localMap.get(r.id);
       if (!cur) c.added += 1;
       else if (pickWinner(cur, r) !== cur && stableStringify(cur) !== stableStringify(r)) c.updated += 1;
