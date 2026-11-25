@@ -122,3 +122,49 @@ export function dataUrlToBlob(dataUrl: string): Blob {
   }
   return new Blob([bytes], { type: mime });
 }
+
+export interface CompressedAiImage {
+  mime: string;
+  base64: string;
+  previewUrl: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Compresses an image file or Blob to max edge <= 1280 px for Gemini inlineData (SPEC M7).
+ */
+export async function compressForAi(
+  source: File | Blob,
+  maxEdge = 1280,
+): Promise<CompressedAiImage> {
+  const loaded = await loadImageElement(source);
+  try {
+    const longest = Math.max(loaded.width, loaded.height, 1);
+    const scale = longest > maxEdge ? maxEdge / longest : 1;
+    const width = Math.max(1, Math.round(loaded.width * scale));
+    const height = Math.max(1, Math.round(loaded.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Trình duyệt không hỗ trợ xử lý ảnh Canvas.');
+    ctx.drawImage(loaded.source, 0, 0, width, height);
+
+    const blob = await encodeCanvas(canvas, 0.8, 350 * 1024);
+    const dataUrl = await blobToDataUrl(blob);
+    const commaIdx = dataUrl.indexOf(',');
+    const base64 = commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+
+    return {
+      mime: blob.type || 'image/jpeg',
+      base64,
+      previewUrl: dataUrl,
+      width,
+      height,
+    };
+  } finally {
+    loaded.cleanup();
+  }
+}

@@ -66,6 +66,8 @@ interface TreesScreenProps {
   onCaptureLotAPhoto: (file: File) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
   onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
+  canUseAi?: boolean;
+  onAskAiAboutTree?: (tree: Tree, initialPhotoIds: string[]) => void;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -109,6 +111,8 @@ export function TreesScreen({
   onCaptureLotAPhoto,
   getPhotoFullUrl,
   onEnsureRemotePhoto,
+  canUseAi,
+  onAskAiAboutTree,
   onNotify,
 }: TreesScreenProps) {
   const [query, setQuery] = useState('');
@@ -345,6 +349,8 @@ export function TreesScreen({
             onCaptureWeeklyPhoto={onCaptureWeeklyPhoto}
             getPhotoFullUrl={getPhotoFullUrl}
             onEnsureRemotePhoto={onEnsureRemotePhoto}
+            canUseAi={canUseAi}
+            onAskAiAboutTree={onAskAiAboutTree}
             onNotify={onNotify}
           />
         ) : (

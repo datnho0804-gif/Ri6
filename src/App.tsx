@@ -1,11 +1,12 @@
-import { AlertTriangle, CheckCircle2, Cloud, CloudOff, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Cloud, CloudOff, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AiLaunchPreset } from './components/screens/AiChatSheet';
 import { OverviewScreen } from './components/screens/OverviewScreen';
 import { Banner } from './components/ui/Banner';
 import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
 import { Dialog } from './components/ui/Dialog';
-import { ExtendedFab } from './components/ui/Fab';
+import { ExtendedFab, Fab } from './components/ui/Fab';
 import { ListItem } from './components/ui/ListItem';
 import { NavBar } from './components/ui/NavBar';
 import { NavRail } from './components/ui/NavRail';
@@ -27,7 +28,7 @@ import type { SyncState } from './lib/merge';
 import { effectiveSeason as resolveSeason } from './lib/season';
 import { duplicateCodes } from './lib/treeCodes';
 import type { TreeFilter } from './lib/treeFilters';
-import type { Log, PhotoKind, Season, TabId, Tree, ViewId } from './types/models';
+import type { ISODate, Log, PhotoKind, Season, TabId, Tree, ViewId } from './types/models';
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -44,6 +45,11 @@ const DesignShowcaseScreen = lazy(() =>
 const AgendaScreen = lazy(() =>
   import('./components/screens/AgendaScreen').then((m) => ({
     default: m.AgendaScreen,
+  })),
+);
+const AiChatSheet = lazy(() =>
+  import('./components/screens/AiChatSheet').then((m) => ({
+    default: m.AiChatSheet,
   })),
 );
 const TreesScreen = lazy(() =>
@@ -136,6 +142,10 @@ export function App() {
 
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [aiSheetState, setAiSheetState] = useState<{
+    open: boolean;
+    preset: AiLaunchPreset | null;
+  }>({ open: false, preset: null });
   const [quickPhotoOpen, setQuickPhotoOpen] = useState<boolean>(
     () => !isDesignShowcaseUrl() && getShortcutAction() === 'photo',
   );
@@ -183,6 +193,7 @@ export function App() {
   }, [sync.notifyLocalChange]);
 
   const hapticsEnabled = orchard.settings?.hapticsEnabled ?? true;
+  const canUseAi = isOnline && Boolean(orchard.settings?.geminiApiKey?.trim());
   const today = todayVN();
   const effectiveSeason: Season = resolveSeason(today, orchard.settings?.seasonOverride);
   const deviceId = orchard.settings?.deviceId ?? orchard.dbState?.settings.deviceId ?? 'local-device';
@@ -214,6 +225,7 @@ export function App() {
     setQuickPhotoOpen(false);
     setSyncDialogOpen(false);
     setInstallGuideOpen(false);
+    setAiSheetState((prev) => (prev.open ? { open: false, preset: null } : prev));
   }, []);
 
   // Listen to hash changes for #/design?design=1 and PWA manifest shortcuts (#/log, #/photo, #/agenda)
@@ -510,6 +522,67 @@ export function App() {
     [hapticsEnabled, orchard, showSnackbar],
   );
 
+  const openAiSheet = useCallback(
+    (preset?: Omit<AiLaunchPreset, 'nonce'>) => {
+      closeAllOverlays();
+      setAiSheetState({
+        open: true,
+        preset: preset ? { ...preset, nonce: Date.now() } : { nonce: Date.now() },
+      });
+    },
+    [closeAllOverlays],
+  );
+
+  const handleAskAiAboutTree = useCallback(
+    (tree: Tree, initialPhotoIds: string[]) => {
+      openAiSheet({
+        targetId: tree.id,
+        initialQuestion: `Hãy phân tích tình trạng cây ${tree.code}, đánh giá rủi ro sâu bệnh/PHI và đề xuất việc cần làm trong 7 ngày tới.`,
+        initialPhotoIds,
+      });
+    },
+    [openAiSheet],
+  );
+
+  const handleAskAiPruning = useCallback(
+    (tree: Tree, question: string, photoIds: string[]) => {
+      openAiSheet({
+        targetId: tree.id,
+        initialQuestion: question,
+        initialPhotoIds: photoIds,
+      });
+    },
+    [openAiSheet],
+  );
+
+  const handleAddAiTask = useCallback(
+    async (input: { title: string; dueDate: ISODate; targetId?: string }) => {
+      await orchard.addManualTask({
+        title: input.title,
+        dueDate: input.dueDate,
+        targetId: input.targetId,
+        source: 'ai',
+      });
+    },
+    [orchard],
+  );
+
+  const handleSaveAiLog = useCallback(
+    async (input: { targetId: string; note: string }) => {
+      const log: Log = {
+        id: generateDeviceId(),
+        targetId: input.targetId,
+        date: todayVN(),
+        type: 'ai',
+        note: input.note,
+        updatedAt: nowUTC(),
+        updatedBy: deviceId,
+      };
+      await orchard.saveLogs([log]);
+    },
+    [deviceId, orchard],
+  );
+
   const treeCount = orchard.trees.length;
   const lotACount = orchard.lotA?.treeCount ?? 0;
   const showDesignEntry = import.meta.env.DEV || hasDesignFlag();
@@ -590,6 +663,7 @@ export function App() {
             thumbUrls={orchard.thumbUrls}
             season={effectiveSeason}
             hapticsEnabled={hapticsEnabled}
+            canUseAi={canUseAi}
             onBack={() => setMobileDetailTargetId(null)}
             onUpdateTree={orchard.updateTree}
             onDeleteTree={async (t) => {
@@ -614,6 +688,7 @@ export function App() {
             onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
             getPhotoFullUrl={orchard.getPhotoFullUrl}
             onEnsureRemotePhoto={orchard.ensureRemotePhoto}
+            onAskAiAboutTree={handleAskAiAboutTree}
             onNotify={notify}
           />
         </Suspense>
@@ -869,6 +944,8 @@ export function App() {
                     onCaptureLotAPhoto={handleCaptureLotAPhoto}
                     getPhotoFullUrl={orchard.getPhotoFullUrl}
                     onEnsureRemotePhoto={orchard.ensureRemotePhoto}
+                    canUseAi={canUseAi}
+                    onAskAiAboutTree={handleAskAiAboutTree}
                     onNotify={notify}
                   />
                 </Suspense>
@@ -887,10 +964,12 @@ export function App() {
                     thumbUrls={orchard.thumbUrls}
                     season={effectiveSeason}
                     hapticsEnabled={hapticsEnabled}
+                    canUseAi={canUseAi}
                     onSavePruningAssessment={handleSavePruningAssessment}
                     onCapturePrunePhoto={handleCapturePrunePhoto}
                     getPhotoFullUrl={orchard.getPhotoFullUrl}
                     onEnsureRemotePhoto={orchard.ensureRemotePhoto}
+                    onAskAiPruning={handleAskAiPruning}
                     onNotify={notify}
                   />
                 </Suspense>
@@ -909,20 +988,6 @@ export function App() {
             </div>
           </main>
 
-          {showFab && (
-            <div className="fixed right-4 bottom-24 rail:bottom-6 rail:right-6 z-30">
-              <ExtendedFab
-                icon={<Plus className="w-6 h-6" />}
-                label="Ghi nhật ký"
-                hidden={fabHidden}
-                onClick={() => {
-                  closeAllOverlays();
-                  setLogSheetTarget({ open: true });
-                }}
-              />
-            </div>
-          )}
-
           {!designShowcaseOpen && (
             <NavBar
               activeView={activeView}
@@ -931,6 +996,39 @@ export function App() {
             />
           )}
         </>
+      )}
+
+      {/* Floating FAB stack: "Hỏi AI" on every screen (SPEC M7) + "Ghi nhật ký" on Overview/Trees */}
+      {!designShowcaseOpen && !aiSheetState.open && (
+        <div className="fixed right-4 bottom-24 rail:bottom-6 rail:right-6 z-30 flex flex-col items-end gap-3 pointer-events-none">
+          <Fab
+            variant="secondary"
+            icon={<Sparkles className="w-6 h-6" />}
+            label="Hỏi AI"
+            title="Hỏi trợ lý AI"
+            className="pointer-events-auto"
+            onClick={() => {
+              const ctxTreeId =
+                activeMobileTree?.id ??
+                (activeView === 'trees' && selectedTargetId && selectedTargetId !== LOT_A_ID
+                  ? selectedTargetId
+                  : undefined);
+              openAiSheet(ctxTreeId ? { targetId: ctxTreeId } : undefined);
+            }}
+          />
+          {showFab && (
+            <ExtendedFab
+              icon={<Plus className="w-6 h-6" />}
+              label="Ghi nhật ký"
+              hidden={fabHidden}
+              className="pointer-events-auto"
+              onClick={() => {
+                closeAllOverlays();
+                setLogSheetTarget({ open: true });
+              }}
+            />
+          )}
+        </div>
       )}
 
       {/* Persistent Single & Batch Log Form BottomSheet (T02 AC5) */}
@@ -966,6 +1064,34 @@ export function App() {
               await handleCaptureWeeklyPhoto(tree, file);
               openTargetDetail(tree.id);
             }}
+          />
+        </Suspense>
+      )}
+
+      {/* AI Assistant BottomSheet (M7, T06) */}
+      {aiSheetState.open && (
+        <Suspense fallback={null}>
+          <AiChatSheet
+            open={aiSheetState.open}
+            preset={aiSheetState.preset}
+            isOnline={isOnline}
+            season={effectiveSeason}
+            trees={orchard.trees}
+            logs={orchard.logs}
+            photos={orchard.photos}
+            thumbUrls={orchard.thumbUrls}
+            agendaItems={agendaItems}
+            settings={orchard.settings}
+            hapticsEnabled={hapticsEnabled}
+            onClose={() => setAiSheetState({ open: false, preset: null })}
+            onOpenSettings={() => {
+              setAiSheetState({ open: false, preset: null });
+              navigateToView('settings');
+            }}
+            onUpdateSettings={orchard.updateSettings}
+            onAddAiTask={handleAddAiTask}
+            onSaveAiLog={handleSaveAiLog}
+            onNotify={notify}
           />
         </Suspense>
       )}

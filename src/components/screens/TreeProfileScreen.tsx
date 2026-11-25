@@ -11,6 +11,7 @@ import {
   Plus,
   Scissors,
   ShieldCheck,
+  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -63,6 +64,7 @@ interface TreeProfileScreenProps {
   thumbUrls: Map<string, string>;
   season: Season;
   hapticsEnabled: boolean;
+  canUseAi?: boolean;
   /** True when embedded in right-hand master-detail column on >=840px screens. */
   embedded?: boolean;
   onBack?: () => void;
@@ -74,6 +76,7 @@ interface TreeProfileScreenProps {
   onCaptureWeeklyPhoto: (tree: Tree, file: File) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
   onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
+  onAskAiAboutTree?: (tree: Tree, initialPhotoIds: string[]) => void;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -90,7 +93,7 @@ const HEALTH_OPTIONS = (Object.entries(HEALTH_LABEL) as Array<[TreeHealth, strin
 );
 
 /**
- * Full-bleed M2 Tree Profile screen matching docs/design/mockup.jpg panel #2 (T02 AC4–AC6, T03 AC6).
+ * Full-bleed M2 Tree Profile screen matching docs/design/mockup.jpg panel #2 (T02 AC4–AC6, T03 AC6, T06 AC5).
  */
 export function TreeProfileScreen({
   tree,
@@ -100,6 +103,7 @@ export function TreeProfileScreen({
   thumbUrls,
   season,
   hapticsEnabled,
+  canUseAi = false,
   embedded = false,
   onBack,
   onUpdateTree,
@@ -110,6 +114,7 @@ export function TreeProfileScreen({
   onCaptureWeeklyPhoto,
   getPhotoFullUrl,
   onEnsureRemotePhoto,
+  onAskAiAboutTree,
   onNotify,
 }: TreeProfileScreenProps) {
   const today = todayVN();
@@ -585,17 +590,34 @@ export function TreeProfileScreen({
         {/* Inline action bar when embedded in desktop master-detail */}
         {embedded && (
           <div className="pt-2 flex items-center gap-2.5 border-t border-outline">
-            <Button
-              variant="tonal"
-              size="lg"
-              leadingIcon={<Copy className="w-5 h-5" />}
-              className="whitespace-nowrap shrink-0 px-4"
-              onClick={() => {
-                void handleCopyPrompt();
-              }}
-            >
-              Copy Prompt
-            </Button>
+            {canUseAi && onAskAiAboutTree ? (
+              <Button
+                variant="tonal"
+                size="lg"
+                leadingIcon={<Sparkles className="w-5 h-5" />}
+                className="whitespace-nowrap shrink-0 px-4"
+                onClick={() => {
+                  onAskAiAboutTree(
+                    tree,
+                    treePhotos.slice(0, 3).map((p) => p.id),
+                  );
+                }}
+              >
+                Phân tích bằng AI
+              </Button>
+            ) : (
+              <Button
+                variant="tonal"
+                size="lg"
+                leadingIcon={<Copy className="w-5 h-5" />}
+                className="whitespace-nowrap shrink-0 px-4"
+                onClick={() => {
+                  void handleCopyPrompt();
+                }}
+              >
+                Copy Prompt
+              </Button>
+            )}
             <Button
               variant="filled"
               size="lg"
@@ -618,17 +640,34 @@ export function TreeProfileScreen({
       {/* Sticky bottom action bar on mobile (mockup #2) */}
       {!embedded && (
         <div className="fixed inset-x-0 bottom-0 z-30 bg-bg/95 backdrop-blur-sm border-t border-outline px-4 pt-3 safe-bottom flex items-center gap-2.5">
-          <Button
-            variant="tonal"
-            size="lg"
-            leadingIcon={<Copy className="w-5 h-5" />}
-            className="whitespace-nowrap shrink-0 px-4"
-            onClick={() => {
-              void handleCopyPrompt();
-            }}
-          >
-            Copy Prompt
-          </Button>
+          {canUseAi && onAskAiAboutTree ? (
+            <Button
+              variant="tonal"
+              size="lg"
+              leadingIcon={<Sparkles className="w-5 h-5" />}
+              className="whitespace-nowrap shrink-0 px-4"
+              onClick={() => {
+                onAskAiAboutTree(
+                  tree,
+                  treePhotos.slice(0, 3).map((p) => p.id),
+                );
+              }}
+            >
+              Phân tích bằng AI
+            </Button>
+          ) : (
+            <Button
+              variant="tonal"
+              size="lg"
+              leadingIcon={<Copy className="w-5 h-5" />}
+              className="whitespace-nowrap shrink-0 px-4"
+              onClick={() => {
+                void handleCopyPrompt();
+              }}
+            >
+              Copy Prompt
+            </Button>
+          )}
           <Button
             variant="filled"
             size="lg"
