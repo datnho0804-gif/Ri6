@@ -13,9 +13,10 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { batchSize as getBatchSize } from '../../lib/batchLogs';
-import { addDays, formatDateVN } from '../../lib/date';
+import { formatDateVN } from '../../lib/date';
 import { formatNumberVN, formatShortDateVN } from '../../lib/format';
 import { FERT_KIND_LABEL, LOG_TYPE_LABEL } from '../../lib/labels';
+import { phiEnd } from '../../lib/phi';
 import type { Log, LogType } from '../../types/models';
 import {
   Button,
@@ -104,9 +105,9 @@ export function LogTimeline({
 
           const metaParts: string[] = [formatDateVN(log.date)];
           if (log.type === 'phun-thuoc') {
-            if (typeof log.phiDays === 'number') {
-              const phiEnd = formatShortDateVN(addDays(log.date, log.phiDays));
-              metaParts.push(`PHI ${log.phiDays} ngày (hết ${phiEnd})`);
+            const endIso = phiEnd(log);
+            if (endIso && typeof log.phiDays === 'number') {
+              metaParts.push(`PHI ${log.phiDays} ngày (hết ${formatShortDateVN(endIso)})`);
             } else {
               metaParts.push('PHI chưa rõ');
             }

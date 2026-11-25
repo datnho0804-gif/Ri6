@@ -35,6 +35,13 @@ export default tseslint.config(
     },
     rules: {
       'no-alert': 'error',
+      'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage'],
+    },
+  },
+  {
+    files: ['src/lib/sync/**/*.ts', 'src/db/syncStore.ts', 'src/db/database.ts', 'src/db/seed.ts'],
+    rules: {
+      'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage'],
     },
   }
 );

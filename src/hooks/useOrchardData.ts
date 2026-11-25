@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type DatabaseInitResult, db, initDatabase } from '../db/database';
 import { generateDeviceId, LOT_A_ID } from '../db/seed';
+import { isValidGitHubRepo } from '../db/syncStore';
 import { tombstoneBatch } from '../lib/batchLogs';
 import { nowUTC, todayVN } from '../lib/date';
 import { splitFromLotA as splitFromLotAPure } from '../lib/lotSplit';
@@ -30,8 +31,9 @@ export interface OrchardDataHook {
   logs: Log[];
   photos: Photo[];
   thumbUrls: Map<string, string>;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { resetPhotoErrors?: boolean }) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
+  ensureRemotePhoto: (photoId: string, forceRetry?: boolean) => Promise<void>;
   addTree: (input: { code: string; lot: 'A' | 'B'; label: string; location: string; ageYears: number | null }) => Promise<Tree>;
   updateTree: (tree: Tree, patch: Partial<Tree>) => Promise<Tree>;
   softDeleteTree: (tree: Tree) => Promise<void>;
@@ -49,13 +51,22 @@ export interface OrchardDataHook {
   getOrchardStateSnapshot: () => Promise<SyncState>;
 }
 
+function mimeFromRemotePath(path: string): string {
+  const lower = path.toLowerCase();
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.png')) return 'image/png';
+  return 'image/jpeg';
+}
+
 /**
  * Central Dexie IndexedDB data & mutations hook for Sổ Tay Vườn Ri6.
- * Keeps UI strictly synchronized with IndexedDB and manages thumbnail Object URLs cleanly.
+ * Keeps UI strictly synchronized with IndexedDB, triggers sync notifications on local mutations,
+ * and downloads remote photos from GitHub on demand when viewed online.
  */
 export function useOrchardData(
   appVersion: string,
   onStartupNotice: (notice: { message: string; tone: 'ok' | 'danger' }) => void,
+  onDataChanged?: () => void,
 ): OrchardDataHook {
   const [loading, setLoading] = useState(true);
   const [dbState, setDbState] = useState<DatabaseInitResult | null>(null);
@@ -68,12 +79,23 @@ export function useOrchardData(
 
   const thumbUrlCacheRef = useRef<Map<string, string>>(new Map());
   const fullUrlCacheRef = useRef<Map<string, string>>(new Map());
+  const remoteFetchInFlightRef = useRef<Map<string, Promise<Blob | null>>>(new Map());
+  const remoteFetchFailedRef = useRef<Set<string>>(new Set());
   const onStartupNoticeRef = useRef(onStartupNotice);
+  const onDataChangedRef = useRef(onDataChanged);
   useEffect(() => {
     onStartupNoticeRef.current = onStartupNotice;
+    onDataChangedRef.current = onDataChanged;
   });
 
-  const loadAll = useCallback(async () => {
+  const emitDataChanged = useCallback(() => {
+    onDataChangedRef.current?.();
+  }, []);
+
+  const loadAll = useCallback(async (opts?: { resetPhotoErrors?: boolean }) => {
+    if (opts?.resetPhotoErrors) {
+      remoteFetchFailedRef.current.clear();
+    }
     const [s, tList, lot, lList, pList] = await Promise.all([
       db.settings.get('app'),
       db.trees.toArray(),
@@ -180,15 +202,89 @@ export function useOrchardData(
 
   const deviceId = settings?.deviceId ?? dbState?.settings.deviceId ?? 'local-device';
 
-  const getPhotoFullUrl = useCallback(async (photoId: string): Promise<string | null> => {
-    const cached = fullUrlCacheRef.current.get(photoId);
-    if (cached) return cached;
-    const rec = await db.photoBlobs.get(photoId);
-    if (!rec?.blob) return thumbUrlCacheRef.current.get(photoId) ?? null;
-    const url = URL.createObjectURL(rec.blob);
-    fullUrlCacheRef.current.set(photoId, url);
-    return url;
-  }, []);
+  const downloadRemotePhotoBlob = useCallback(
+    async (photoId: string, forceRetry = false): Promise<Blob | null> => {
+      if (forceRetry) {
+        remoteFetchFailedRef.current.delete(photoId);
+      } else if (remoteFetchFailedRef.current.has(photoId)) {
+        return null;
+      }
+
+      const existing = await db.photoBlobs.get(photoId);
+      if (existing?.blob) return existing.blob;
+
+      const inflight = remoteFetchInFlightRef.current.get(photoId);
+      if (inflight) return inflight;
+
+      const task = (async (): Promise<Blob | null> => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return null;
+        const [photo, s] = await Promise.all([db.photos.get(photoId), db.settings.get('app')]);
+        if (
+          !photo?.remotePath ||
+          !s?.githubToken?.trim() ||
+          !isValidGitHubRepo(s.dataRepo ?? '')
+        ) {
+          return null;
+        }
+
+        try {
+          const { createGitHubClient } = await import('../lib/sync/github');
+          const client = createGitHubClient({
+            token: s.githubToken.trim(),
+            repo: s.dataRepo.trim(),
+            branch: s.dataBranch?.trim() || 'main',
+          });
+          const bytes = await client.getBytes(photo.remotePath);
+          if (!bytes) {
+            remoteFetchFailedRef.current.add(photoId);
+            return null;
+          }
+          remoteFetchFailedRef.current.delete(photoId);
+          const copy = new Uint8Array(bytes.byteLength);
+          copy.set(bytes);
+          const blob = new Blob([copy], { type: mimeFromRemotePath(photo.remotePath) });
+          await db.photoBlobs.put({ id: photoId, blob });
+          const objUrl = URL.createObjectURL(blob);
+          thumbUrlCacheRef.current.set(photoId, objUrl);
+          setThumbUrls(new Map(thumbUrlCacheRef.current));
+          return blob;
+        } catch {
+          remoteFetchFailedRef.current.add(photoId);
+          return null;
+        } finally {
+          remoteFetchInFlightRef.current.delete(photoId);
+        }
+      })();
+
+      remoteFetchInFlightRef.current.set(photoId, task);
+      return task;
+    },
+    [],
+  );
+
+  const ensureRemotePhoto = useCallback(
+    async (photoId: string, forceRetry = false): Promise<void> => {
+      if (thumbUrlCacheRef.current.has(photoId)) return;
+      await downloadRemotePhotoBlob(photoId, forceRetry);
+    },
+    [downloadRemotePhotoBlob],
+  );
+
+  const getPhotoFullUrl = useCallback(
+    async (photoId: string): Promise<string | null> => {
+      const cached = fullUrlCacheRef.current.get(photoId);
+      if (cached) return cached;
+      let blob = (await db.photoBlobs.get(photoId))?.blob ?? null;
+      if (!blob) {
+        blob = await downloadRemotePhotoBlob(photoId, true);
+      }
+      if (!blob) return thumbUrlCacheRef.current.get(photoId) ?? null;
+      const url = URL.createObjectURL(blob);
+      fullUrlCacheRef.current.set(photoId, url);
+      return url;
+    },
+    [downloadRemotePhotoBlob],
+  );
 
   const addTree = useCallback(
     async (input: {
@@ -216,9 +312,10 @@ export function useOrchardData(
       };
       await db.trees.put(tree);
       await loadAll();
+      emitDataChanged();
       return tree;
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const updateTree = useCallback(
@@ -231,9 +328,10 @@ export function useOrchardData(
       };
       await db.trees.put(updated);
       await loadAll();
+      emitDataChanged();
       return updated;
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const softDeleteTree = useCallback(
@@ -246,8 +344,9 @@ export function useOrchardData(
         updatedBy: deviceId,
       });
       await loadAll();
+      emitDataChanged();
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const updateLotA = useCallback(
@@ -261,8 +360,9 @@ export function useOrchardData(
         updatedBy: deviceId,
       });
       await loadAll();
+      emitDataChanged();
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const splitFromLotA = useCallback(
@@ -287,9 +387,10 @@ export function useOrchardData(
         await db.logs.put(res.log);
       });
       await loadAll();
+      emitDataChanged();
       return { ok: true, createdCount: res.newTrees.length };
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const saveLogs = useCallback(
@@ -297,8 +398,9 @@ export function useOrchardData(
       if (newLogs.length === 0) return;
       await db.logs.bulkPut(newLogs);
       await loadAll();
+      emitDataChanged();
     },
-    [loadAll],
+    [emitDataChanged, loadAll],
   );
 
   const deleteSingleLog = useCallback(
@@ -307,9 +409,10 @@ export function useOrchardData(
       const tomb: Log = { ...log, deletedAt: now, updatedAt: now, updatedBy: deviceId };
       await db.logs.put(tomb);
       await loadAll();
+      emitDataChanged();
       return tomb;
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const undoDeleteLog = useCallback(
@@ -319,8 +422,9 @@ export function useOrchardData(
       const restored: Log = { ...rest, updatedAt: nowUTC(), updatedBy: deviceId };
       await db.logs.put(restored);
       await loadAll();
+      emitDataChanged();
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const deleteBatchById = useCallback(
@@ -330,10 +434,11 @@ export function useOrchardData(
       if (tombstones.length > 0) {
         await db.logs.bulkPut(tombstones);
         await loadAll();
+        emitDataChanged();
       }
       return tombstones.length;
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const saveCapturedPhoto = useCallback(
@@ -361,13 +466,21 @@ export function useOrchardData(
         ]);
       });
       await loadAll();
+      emitDataChanged();
       return photo;
     },
-    [deviceId, loadAll],
+    [deviceId, emitDataChanged, loadAll],
   );
 
   const updateSettings = useCallback(
     async (patch: Partial<Settings>) => {
+      if (
+        patch.githubToken !== undefined ||
+        patch.dataRepo !== undefined ||
+        patch.dataBranch !== undefined
+      ) {
+        remoteFetchFailedRef.current.clear();
+      }
       await db.settings.update('app', patch);
       const next = await db.settings.get('app');
       if (next) setSettings(next);
@@ -460,8 +573,9 @@ export function useOrchardData(
       );
 
       await loadAll();
+      emitDataChanged();
     },
-    [getOrchardStateSnapshot, loadAll],
+    [emitDataChanged, getOrchardStateSnapshot, loadAll],
   );
 
   const activeTrees = filterTrees(
@@ -482,6 +596,7 @@ export function useOrchardData(
     thumbUrls,
     refresh: loadAll,
     getPhotoFullUrl,
+    ensureRemotePhoto,
     addTree,
     updateTree,
     softDeleteTree,

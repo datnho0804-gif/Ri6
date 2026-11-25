@@ -249,6 +249,15 @@
   .skeleton-shimmer {
     animation: none;
   }
+
+  .ptr-indicator {
+    transition: opacity var(--duration-press) linear;
+  }
+
+  .ptr-icon {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 /* DESIGN AC5: Landscape phones (844x390) -> header <= 15% height (56px = 14.3% of 390px) & unstick */
@@ -257,6 +266,34 @@
     position: static;
     height: 56px;
     min-height: 56px;
+  }
+}
+
+/* QA PR #20 yellow #3: Keep all NavRail tabs + Settings button visible within landscape 844x390 (>= 48px targets) */
+@media (max-height: 480px) {
+  .nav-rail {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .nav-rail-logo {
+    display: none;
+  }
+
+  .nav-rail-items {
+    gap: 0.25rem;
+  }
+
+  .nav-rail-btn {
+    min-height: 3rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    gap: 0.125rem;
+  }
+
+  .nav-rail-pill {
+    height: 1.75rem;
   }
 }
 

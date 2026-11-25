@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import sampleCanopyUrl from '../../assets/sample-canopy.svg';
 import { copyTextToClipboard } from '../../hooks/clipboard';
 import { formatMilestoneDates, latestPhiSprayEnd } from '../../hooks/treePresentation';
@@ -73,6 +73,7 @@ interface TreeProfileScreenProps {
   onDeleteBatch: (batchId: string) => void;
   onCaptureWeeklyPhoto: (tree: Tree, file: File) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
+  onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -108,6 +109,7 @@ export function TreeProfileScreen({
   onDeleteBatch,
   onCaptureWeeklyPhoto,
   getPhotoFullUrl,
+  onEnsureRemotePhoto,
   onNotify,
 }: TreeProfileScreenProps) {
   const today = todayVN();
@@ -140,6 +142,21 @@ export function TreeProfileScreen({
     () => treePhotos.find((p) => p.kind === 'weekly') ?? null,
     [treePhotos],
   );
+
+  // SPEC §6 step 7: only download remote photos from GitHub when opening to view
+  useEffect(() => {
+    if (!onEnsureRemotePhoto) return;
+    if (latestWeeklyPhoto?.remotePath && !thumbUrls.has(latestWeeklyPhoto.id)) {
+      void onEnsureRemotePhoto(latestWeeklyPhoto.id);
+    }
+    if (subTab === 'photos') {
+      for (const p of treePhotos) {
+        if (p.remotePath && !thumbUrls.has(p.id)) {
+          void onEnsureRemotePhoto(p.id);
+        }
+      }
+    }
+  }, [latestWeeklyPhoto, onEnsureRemotePhoto, subTab, thumbUrls, treePhotos]);
 
   const heroSrc = latestWeeklyPhoto ? thumbUrls.get(latestWeeklyPhoto.id) : undefined;
   const isDuplicate = duplicateCodeSet.has(tree.code.trim().toUpperCase());
@@ -965,7 +982,8 @@ function TreeEditSheetForm({ tree, hapticsEnabled, onClose, onSave }: TreeEditSh
             <div className="space-y-1.5">
               <DateField
                 label="Ngày mắt cua"
-                value={budDate || todayVN()}
+                value={budDate}
+                placeholder="Chưa đặt"
                 helperText={budDate ? `Đã đặt: ${formatDateVN(budDate)}` : 'Chưa đặt ngày mắt cua'}
                 onChange={(next) => {
                   setBudDate(next);
@@ -988,7 +1006,8 @@ function TreeEditSheetForm({ tree, hapticsEnabled, onClose, onSave }: TreeEditSh
             <div className="space-y-1.5">
               <DateField
                 label="Ngày xổ nhụy"
-                value={flowerDate || todayVN()}
+                value={flowerDate}
+                placeholder="Chưa đặt"
                 helperText={
                   flowerDate ? `Đã đặt: ${formatDateVN(flowerDate)}` : 'Chưa đặt ngày xổ nhụy'
                 }

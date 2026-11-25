@@ -30,13 +30,13 @@ export function NavRail({
       className={[
         preview
           ? 'flex flex-col items-center w-20 py-3 bg-surface border border-outline rounded-lg shadow-e1 gap-2'
-          : 'hidden rail:flex fixed left-0 top-0 bottom-0 z-40 w-20 flex-col items-center py-3 bg-surface border-r border-outline gap-2 overflow-y-auto',
+          : 'nav-rail hidden rail:flex fixed left-0 top-0 bottom-0 z-40 w-20 flex-col items-center py-3 bg-surface border-r border-outline gap-2 overflow-y-auto',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="w-11 h-11 rounded-sm bg-bg border border-outline flex items-center justify-center mb-2 shrink-0">
+      <div className="nav-rail-logo w-11 h-11 rounded-sm bg-bg border border-outline flex items-center justify-center mb-2 shrink-0">
         <img
           src={logoSrc}
           alt=""
@@ -47,7 +47,7 @@ export function NavRail({
         />
       </div>
 
-      <div className="flex-1 flex flex-col items-center gap-2 w-full px-1">
+      <div className="nav-rail-items flex-1 flex flex-col items-center gap-2 w-full px-1">
         {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
           const isActive = activeView === id;
           const badge = id === 'overview' && overviewBadgeCount > 0 ? overviewBadgeCount : 0;
@@ -59,13 +59,13 @@ export function NavRail({
               onClick={() => onSelectTab(id)}
               aria-current={isActive ? 'page' : undefined}
               className={[
-                'pressable flex flex-col items-center justify-center gap-1 w-full min-h-14 py-1.5 rounded-sm',
+                'nav-rail-btn pressable flex flex-col items-center justify-center gap-1 w-full min-h-14 py-1.5 rounded-sm',
                 isActive ? 'text-text' : 'text-text-2',
               ].join(' ')}
             >
               <span
                 className={[
-                  'relative w-14 h-8 rounded-pill flex items-center justify-center transition-colors',
+                  'nav-rail-pill relative w-14 h-8 rounded-pill flex items-center justify-center transition-colors',
                   isActive ? 'bg-primary-container text-on-primary-container' : 'bg-transparent',
                 ].join(' ')}
               >
@@ -85,27 +85,29 @@ export function NavRail({
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={onSelectSettings}
-        aria-current={activeView === 'settings' ? 'page' : undefined}
-        className={[
-          'pressable flex flex-col items-center justify-center gap-1 w-full min-h-14 py-1.5 rounded-sm',
-          activeView === 'settings' ? 'text-text' : 'text-text-2',
-        ].join(' ')}
-      >
-        <span
+      <div className="w-full px-1 shrink-0">
+        <button
+          type="button"
+          onClick={onSelectSettings}
+          aria-current={activeView === 'settings' ? 'page' : undefined}
           className={[
-            'w-14 h-8 rounded-pill flex items-center justify-center transition-colors',
-            activeView === 'settings'
-              ? 'bg-primary-container text-on-primary-container'
-              : 'bg-transparent',
+            'nav-rail-btn pressable flex flex-col items-center justify-center gap-1 w-full min-h-14 py-1.5 rounded-sm',
+            activeView === 'settings' ? 'text-text' : 'text-text-2',
           ].join(' ')}
         >
-          <Settings className="w-5.5 h-5.5" strokeWidth={2} aria-hidden="true" />
-        </span>
-        <span className="text-label font-semibold leading-tight">Cài đặt</span>
-      </button>
+          <span
+            className={[
+              'nav-rail-pill w-14 h-8 rounded-pill flex items-center justify-center transition-colors',
+              activeView === 'settings'
+                ? 'bg-primary-container text-on-primary-container'
+                : 'bg-transparent',
+            ].join(' ')}
+          >
+            <Settings className="w-5.5 h-5.5" strokeWidth={2} aria-hidden="true" />
+          </span>
+          <span className="text-label font-semibold leading-tight">Cài đặt</span>
+        </button>
+      </div>
     </nav>
   );
 }

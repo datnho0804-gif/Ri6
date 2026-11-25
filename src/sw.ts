@@ -6,6 +6,8 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { createDexieSyncStore, loadSwSyncConfig } from './db/syncStore';
+import { registerBackgroundSync } from './sw/sync';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -20,3 +22,9 @@ precacheAndRoute(self.__WB_MANIFEST);
 const navigationHandler = createHandlerBoundToURL('index.html');
 const navigationRoute = new NavigationRoute(navigationHandler);
 registerRoute(navigationRoute);
+
+// T04 AC8: Background Sync (tag 'ri6-sync') reading settings/data directly from Dexie
+registerBackgroundSync(self, {
+  store: createDexieSyncStore(),
+  loadConfig: () => loadSwSyncConfig(),
+});

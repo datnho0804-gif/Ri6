@@ -6,8 +6,9 @@ import type { ISODate } from '../../types/models';
 
 export interface DateFieldProps {
   label: string;
-  value: ISODate;
+  value: ISODate | '';
   onChange: (next: ISODate) => void;
+  placeholder?: string;
   min?: ISODate;
   max?: ISODate;
   disabled?: boolean;
@@ -21,6 +22,7 @@ export function DateField({
   label,
   value,
   onChange,
+  placeholder = 'Chưa đặt',
   min,
   max,
   disabled = false,
@@ -32,7 +34,7 @@ export function DateField({
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const today = todayVN();
-  const displayLabel = formatDateFieldLabelVN(value, today);
+  const displayLabel = value ? formatDateFieldLabelVN(value, today) : placeholder;
   const errorId = error ? `${id}-err` : undefined;
   const helperId = helperText ? `${id}-help` : undefined;
 
@@ -57,7 +59,11 @@ export function DateField({
             >
               {label}
             </span>
-            <span className="block text-body font-medium text-text tabular-nums truncate mt-0.5">
+            <span
+              className={`block text-body font-medium tabular-nums truncate mt-0.5 ${
+                value ? 'text-text' : 'text-text-3'
+              }`}
+            >
               {displayLabel}
             </span>
           </div>
