@@ -39,7 +39,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/lib/sync/**/*.ts', 'src/db/syncStore.ts', 'src/db/database.ts', 'src/db/seed.ts'],
+    files: [
+      'src/lib/sync/**/*.ts',
+      'src/lib/agenda/agenda.ts',
+      'src/lib/agenda/notify.ts',
+      'src/db/syncStore.ts',
+      'src/db/database.ts',
+      'src/db/seed.ts',
+    ],
     rules: {
       'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage'],
     },

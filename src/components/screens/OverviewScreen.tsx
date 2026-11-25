@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CalendarCheck2,
   Camera,
   CheckCircle2,
   Clock,
@@ -14,6 +15,7 @@ import {
   latestPhiSprayEnd,
   SEASON_BANNER_COPY,
 } from '../../hooks/treePresentation';
+import type { AgendaItem } from '../../lib/agenda/agenda';
 import { SOIL_PH } from '../../lib/agronomy';
 import { formatDateVN, todayVN } from '../../lib/date';
 import { formatNumberVN } from '../../lib/format';
@@ -25,6 +27,7 @@ import type { Log, Lot, Photo, Season, Tree } from '../../types/models';
 import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { Card, KpiCard } from '../ui/Card';
+import { ListItem } from '../ui/ListItem';
 import { PhotoTile } from '../ui/PhotoTile';
 import { Skeleton } from '../ui/Skeleton';
 import { StatusPill } from '../ui/StatusPill';
@@ -37,12 +40,15 @@ interface OverviewScreenProps {
   logs: Log[];
   photos: Photo[];
   thumbUrls: Map<string, string>;
+  agendaSummary: AgendaItem[];
+  totalAgendaCount: number;
   isSyncConfigured?: boolean;
   isSyncing?: boolean;
   onPullToSync?: () => Promise<void>;
   onToggleSeason: (next: Season) => void;
   onSelectTree: (treeId: string) => void;
   onOpenQuickPhoto: () => void;
+  onOpenAgenda: () => void;
   onOpenTreesFiltered: (filter: TreeFilter) => void;
 }
 
@@ -51,11 +57,12 @@ const PULL_MAX = 96;
 const PULL_DEADZONE = 8;
 
 /**
- * M1 Overview screen (SPEC M1, T02 AC1, T03 AC6, DESIGN §6 pull-to-refresh):
+ * M1 Overview screen (SPEC M1, T02 AC1, T03 AC6, T05 AC2, DESIGN §6 pull-to-refresh):
  * - Pull-to-refresh at scroll top triggering GitHub sync
  * - Dynamic total tree count KPI, overdue photo count, union pruning/disease watch count, pH target
  * - Season toggle (Dry/Rainy) with Southeast Vietnam agronomic recommendations
  * - Active PHI harvest conflict alerts computed via src/lib/phi.ts
+ * - "Hôm nay cần làm" top-5 agenda summary card linking to M6 Việc cần làm
  * - Photo grid for ALL active individual trees (3 cols mobile, 5 cols desktop) opening tree profiles
  */
 export function OverviewScreen({
@@ -66,12 +73,15 @@ export function OverviewScreen({
   logs,
   photos,
   thumbUrls,
+  agendaSummary,
+  totalAgendaCount,
   isSyncConfigured = false,
   isSyncing = false,
   onPullToSync,
   onToggleSeason,
   onSelectTree,
   onOpenQuickPhoto,
+  onOpenAgenda,
   onOpenTreesFiltered,
 }: OverviewScreenProps) {
   const [showAllSeasonTips, setShowAllSeasonTips] = useState(false);
@@ -325,6 +335,85 @@ export function OverviewScreen({
           ))}
         </div>
       )}
+
+      {/* Today's Agenda summary block (SPEC M1 & M6, T05 AC2: top 5 items + Xem tất cả) */}
+      <section aria-labelledby="overview-agenda-heading" className="space-y-2.5">
+        <div className="flex items-center justify-between gap-2 px-0.5 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 id="overview-agenda-heading" className="text-title font-bold text-text">
+              Hôm nay cần làm
+            </h2>
+            {totalAgendaCount > 0 && (
+              <StatusPill
+                tone={agendaSummary.some((i) => i.priority === 'cao') ? 'danger' : 'warn'}
+                icon={<CalendarCheck2 className="w-4 h-4" />}
+              >
+                {totalAgendaCount} việc
+              </StatusPill>
+            )}
+          </div>
+          <Button
+            variant="tonal"
+            leadingIcon={<CalendarCheck2 className="w-5 h-5" />}
+            onClick={onOpenAgenda}
+            className="whitespace-nowrap"
+          >
+            Xem tất cả
+          </Button>
+        </div>
+
+        {loading ? (
+          <Card padding="md" className="space-y-3">
+            <Skeleton variant="text" />
+            <Skeleton variant="text" />
+          </Card>
+        ) : agendaSummary.length === 0 ? (
+          <Card padding="md" className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <CheckCircle2 className="w-5.5 h-5.5 text-ok shrink-0" aria-hidden="true" />
+              <p className="text-body text-text-2">
+                Không có việc tồn đọng trong 7 ngày tới.
+              </p>
+            </div>
+            <Button variant="text" onClick={onOpenAgenda}>
+              Thêm việc
+            </Button>
+          </Card>
+        ) : (
+          <Card padding="none">
+            {agendaSummary.map((item, idx) => {
+              const isHigh = item.priority === 'cao';
+              const isMed = item.priority === 'vua';
+              return (
+                <ListItem
+                  key={item.key}
+                  divider={idx > 0}
+                  leadingIcon={
+                    item.category === 'photo' ? (
+                      <Camera className="w-5.5 h-5.5" />
+                    ) : isHigh ? (
+                      <AlertTriangle className="w-5.5 h-5.5" />
+                    ) : (
+                      <Clock className="w-5.5 h-5.5" />
+                    )
+                  }
+                  leadingTone={isHigh ? 'danger' : isMed ? 'warn' : 'info'}
+                  title={item.title}
+                  subtitle={item.reason}
+                  showChevron
+                  onClick={() => {
+                    if (item.key === 'photo:summary') {
+                      onOpenQuickPhoto();
+                    } else {
+                      onOpenAgenda();
+                    }
+                  }}
+                />
+              );
+            })}
+          </Card>
+        )}
+      </section>
 
       {/* Weekly photo grid for ALL individual trees (3 cols mobile, 5 cols desktop per SPEC M1) */}
       <section aria-labelledby="overview-photos-heading" className="space-y-2.5">

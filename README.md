@@ -14,7 +14,7 @@
 
 ## 1. Cài ứng dụng từ Chrome lên nhiều máy Android (kèm mẹo Xiaomi / HyperOS)
 
-Thực hiện lần lượt trên điện thoại chính, điện thoại phụ và máy tính bảng (ví dụ Redmi K90, Xiaomi Pad):
+Thực hiện lần lượt trên điện thoại chính, điện thoại phụ và máy tính bảng dùng ngoài vườn:
 
 1. Mở **Google Chrome** và truy cập địa chỉ: `https://datnho0804-gif.github.io/Ri6/`.
 2. Chờ trang tải xong, vào biểu tượng **Cài đặt (⚙️)** ở góc trên bên phải → bấm **"Cài app lên điện thoại"**.
@@ -59,8 +59,8 @@ Làm lần lượt trên từng điện thoại / máy tính bảng cần đồn
 
 1. Mở ứng dụng **Sổ Tay Vườn Ri6** → bấm biểu tượng **Cài đặt (⚙️)** → mục **Thiết bị & Đồng bộ GitHub**.
 2. Điền thông tin:
-   - **Tên thiết bị:** đặt tên phân biệt từng máy (ví dụ: `Redmi K90 – Đạt`, `Xiaomi Pad 7 Pro`). Tên này sẽ hiện trong lịch sử commit của `Ri6-data`.
-   - **Repo dữ liệu riêng tư:** nhập đúng dạng `chủ-tài-khoản/tên-repo` (mặc định: `datnho0804-gif/Ri6-data`, không dán cả đường dẫn `https://github.com/`).
+   - **Tên thiết bị:** đặt tên phân biệt từng máy (ví dụ: `Điện thoại vườn 1`, `Máy tính bảng ở nhà`). Tên này sẽ hiện trong lịch sử commit của `Ri6-data`.
+   - **Repo dữ liệu riêng tư:** nhập đúng dạng `chủ-tài-khoản/tên-repo` (ví dụ: `ten-ban/Ri6-data`, không dán cả đường dẫn `https://github.com/`).
    - **Nhánh:** mặc định `main`.
    - **GitHub Fine-grained Token (PAT):** dán mã `github_pat_...` vừa tạo (có nút con mắt để ẩn/hiện khi kiểm tra).
 3. Bấm **"Kiểm tra kết nối"**:

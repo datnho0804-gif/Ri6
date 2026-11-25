@@ -1,7 +1,13 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initDatabase, Ri6Database } from './database';
-import { createDexieSyncStore, isValidGitHubRepo, loadSwSyncConfig } from './syncStore';
+import {
+  createDexieSyncStore,
+  isValidGitHubRepo,
+  loadSwNotifySettings,
+  loadSwSyncConfig,
+  saveSwNotifySettings,
+} from './syncStore';
 
 describe('Dexie SyncStore (T04)', () => {
   const dbs: Ri6Database[] = [];
@@ -149,5 +155,28 @@ describe('Dexie SyncStore (T04)', () => {
     expect(cfg?.repo).toBe('datnho0804-gif/Ri6-data');
     expect(cfg?.deviceName).toBe('Máy vườn');
     expect(cfg?.autoSync).toBe(true);
+  });
+
+  it('reads and updates notification settings directly in Dexie for Service Worker (T05 AC5)', async () => {
+    const testDb = new Ri6Database(`ri6-notify-cfg-${crypto.randomUUID()}`);
+    dbs.push(testDb);
+    await initDatabase('0.6.0', testDb);
+
+    expect(await loadSwNotifySettings(testDb)).toEqual({ enabled: false, lastKeys: [] });
+
+    await saveSwNotifySettings(
+      {
+        enabled: true,
+        lastNotifiedAt: '2026-11-25T01:00:00.000Z',
+        lastKeys: ['photo:SR01', 'ri6-kali:SR01'],
+      },
+      testDb,
+    );
+
+    expect(await loadSwNotifySettings(testDb)).toEqual({
+      enabled: true,
+      lastNotifiedAt: '2026-11-25T01:00:00.000Z',
+      lastKeys: ['photo:SR01', 'ri6-kali:SR01'],
+    });
   });
 });

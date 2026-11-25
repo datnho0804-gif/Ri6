@@ -1,6 +1,7 @@
 import type { SyncState } from '../lib/merge';
 import type { SyncStore } from '../lib/sync/engine';
 import type { SwSyncConfig } from '../sw/sync';
+import type { NotifySettings } from '../types/models';
 import { db, type Ri6Database } from './database';
 
 /**
@@ -85,4 +86,24 @@ export async function loadSwSyncConfig(database: Ri6Database = db): Promise<SwSy
     deviceName: s.deviceName?.trim() || 'Thiết bị Ri6',
     autoSync: s.autoSync,
   };
+}
+
+/**
+ * Reads local-only notification preferences directly from Dexie `settings` table (works in SW & UI).
+ */
+export async function loadSwNotifySettings(
+  database: Ri6Database = db,
+): Promise<NotifySettings | null> {
+  const s = await database.settings.get('app');
+  return s?.notify ?? null;
+}
+
+/**
+ * Persists notification delivery metadata (`lastNotifiedAt`, `lastKeys`) back to Dexie `settings` (works in SW & UI).
+ */
+export async function saveSwNotifySettings(
+  notify: NotifySettings,
+  database: Ri6Database = db,
+): Promise<void> {
+  await database.settings.update('app', { notify });
 }
