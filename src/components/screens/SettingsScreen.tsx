@@ -17,6 +17,7 @@ import {
   Send,
   ShieldAlert,
   Smartphone,
+  Sparkles,
   Upload,
   Vibrate,
 } from 'lucide-react';
@@ -30,6 +31,8 @@ import {
   notifyCapability,
   type NotifyCapability,
 } from '../../lib/agenda/register';
+import { AiError, createGeminiClient } from '../../lib/ai/gemini';
+import { type GeminiModelInfo, modelLabel, pickDefaultModel } from '../../lib/ai/models';
 import { nowUTC, todayVN } from '../../lib/date';
 import {
   exportFileName,
@@ -47,7 +50,17 @@ import {
 import type { SyncResult } from '../../lib/sync/engine';
 import { type GitHubConfig, REPO_SIZE_WARN_KB } from '../../lib/sync/github';
 import type { Settings } from '../../types/models';
-import { Banner, Button, Card, Dialog, IconButton, ListItem, StatusPill, TextField } from '../ui';
+import {
+  Banner,
+  Button,
+  Card,
+  Dialog,
+  IconButton,
+  ListItem,
+  SelectField,
+  StatusPill,
+  TextField,
+} from '../ui';
 
 interface SettingsScreenProps {
   appVersion: string;
@@ -131,6 +144,18 @@ export function SettingsScreen({
   const dataBranch = draftDataBranch ?? settings?.dataBranch ?? 'main';
   const githubToken = draftGithubToken ?? settings?.githubToken ?? '';
   const autoSync = draftAutoSync ?? settings?.autoSync ?? true;
+
+  // Gemini AI local-only settings draft overrides (T06 AC1 — zero hard-coded model names)
+  const [draftGeminiKey, setDraftGeminiKey] = useState<string | null>(null);
+  const [draftGeminiModel, setDraftGeminiModel] = useState<string | null>(null);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiModels, setGeminiModels] = useState<GeminiModelInfo[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [savingGemini, setSavingGemini] = useState(false);
+  const [geminiCheck, setGeminiCheck] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const geminiApiKey = draftGeminiKey ?? settings?.geminiApiKey ?? '';
+  const geminiModel = draftGeminiModel ?? settings?.geminiModel ?? '';
 
   // JSON Export / Import state
   const [includePhotosInExport, setIncludePhotosInExport] = useState(false);
@@ -262,6 +287,73 @@ export function SettingsScreen({
       onNotify('Không gửi được thông báo thử lúc này.', 'danger');
     } finally {
       setSendingTestNotify(false);
+    }
+  };
+
+  const handleTestAndLoadGeminiModels = async () => {
+    const cleanKey = geminiApiKey.trim();
+    if (!cleanKey) {
+      setGeminiCheck({ ok: false, message: 'Hãy nhập Gemini API key trước khi kiểm tra.' });
+      return;
+    }
+    setLoadingModels(true);
+    setGeminiCheck(null);
+    try {
+      const client = createGeminiClient(cleanKey);
+      const list = await client.listChatModels();
+      setGeminiModels(list);
+      if (list.length === 0) {
+        setGeminiCheck({
+          ok: false,
+          message: 'API key hợp lệ nhưng không tìm thấy model Gemini hỗ trợ hỏi đáp.',
+        });
+        return;
+      }
+      const hasCurrent = list.some((m) => m.name === geminiModel);
+      const recommended = hasCurrent ? geminiModel : (pickDefaultModel(list) ?? list[0].name);
+      if (!hasCurrent) {
+        setDraftGeminiModel(recommended);
+      }
+      setGeminiCheck({
+        ok: true,
+        message: `Kết nối thành công! Tìm thấy ${list.length} model phù hợp · Đang chọn: ${modelLabel(recommended)}.`,
+      });
+      triggerHaptic(hapticsEnabled);
+      onNotify(`Đã tải ${list.length} model Gemini từ API.`, 'ok');
+    } catch (err) {
+      const msg =
+        err instanceof AiError
+          ? err.message
+          : 'Không kiểm tra được Gemini API key lúc này.';
+      setGeminiCheck({ ok: false, message: msg });
+      onNotify(msg, 'danger');
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const handleSaveGeminiSettings = async () => {
+    const cleanKey = geminiApiKey.trim();
+    const cleanModel = geminiModel.trim();
+    setSavingGemini(true);
+    try {
+      await onUpdateSettings({
+        geminiApiKey: cleanKey || undefined,
+        geminiModel: cleanModel || undefined,
+      });
+      setDraftGeminiKey(null);
+      setDraftGeminiModel(null);
+      triggerHaptic(hapticsEnabled);
+      onNotify(
+        cleanKey
+          ? 'Đã lưu cài đặt Trợ lý AI Gemini trên máy này.'
+          : 'Đã xóa Gemini API key (chuyển về chế độ Copy Prompt).',
+        'ok',
+      );
+    } catch {
+      onNotify('Không lưu được cài đặt Gemini vào bộ nhớ máy.', 'danger');
+    } finally {
+      setSavingGemini(false);
     }
   };
 
@@ -984,6 +1076,116 @@ export function SettingsScreen({
         </Card>
       </section>
 
+      {/* Gemini AI Assistant Settings (SPEC M7 & T06 AC1 — zero hard-coded models) */}
+      <section aria-labelledby="sec-gemini-heading">
+        <div className="flex items-center justify-between gap-2 px-0.5 mb-2 flex-wrap">
+          <h2 id="sec-gemini-heading" className="text-title font-bold text-text">
+            Trợ lý AI (Gemini)
+          </h2>
+          <StatusPill
+            tone={settings?.geminiApiKey?.trim() ? 'ok' : 'neutral'}
+            icon={<Sparkles className="w-4 h-4" />}
+          >
+            {settings?.geminiApiKey?.trim() ? 'Đã cấu hình' : 'Chưa nhập key'}
+          </StatusPill>
+        </div>
+
+        <Card padding="md" className="space-y-4">
+          <TextField
+            label="Gemini API Key (Google AI Studio)"
+            type={showGeminiKey ? 'text' : 'password'}
+            placeholder="AIza..."
+            value={geminiApiKey}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            helperText="Chỉ lưu cục bộ trên máy này, không xuất vào tệp JSON và không đồng bộ lên GitHub."
+            onChange={(e) => {
+              setDraftGeminiKey(e.target.value);
+              setGeminiCheck(null);
+            }}
+            suffix={
+              <IconButton
+                label={showGeminiKey ? 'Ẩn Gemini API key' : 'Hiện Gemini API key'}
+                onClick={() => setShowGeminiKey((v) => !v)}
+                className="-mr-2"
+              >
+                {showGeminiKey ? (
+                  <EyeOff className="w-5 h-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="w-5 h-5" aria-hidden="true" />
+                )}
+              </IconButton>
+            }
+          />
+
+          <SelectField
+            label="Model Gemini (tải trực tiếp từ API)"
+            value={geminiModel}
+            options={
+              geminiModels.length > 0
+                ? geminiModels.map((m) => ({
+                    value: m.name,
+                    label: m.displayName
+                      ? `${modelLabel(m.name)} (${m.displayName})`
+                      : modelLabel(m.name),
+                  }))
+                : geminiModel
+                  ? [{ value: geminiModel, label: modelLabel(geminiModel) }]
+                  : [{ value: '', label: '— Bấm "Kiểm tra & tải model" để lấy danh sách —' }]
+            }
+            helperText="Danh sách được lọc tự động từ GET /v1beta/models (bỏ model âm thanh, TTS, embedding, sinh ảnh)."
+            onChange={(e) => setDraftGeminiModel(e.target.value)}
+          />
+
+          <Banner tone="info" icon={<Info className="w-5 h-5" />}>
+            Gói miễn phí: Google có thể dùng nội dung gửi lên để cải thiện dịch vụ. Khi chưa nhập
+            key hoặc đang ngoại tuyến, mọi nút AI sẽ tự chuyển thành <strong>Copy Prompt</strong>.
+          </Banner>
+
+          {geminiCheck && (
+            <Banner
+              tone={geminiCheck.ok ? 'ok' : 'danger'}
+              icon={
+                geminiCheck.ok ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5" />
+                )
+              }
+            >
+              {geminiCheck.message}
+            </Banner>
+          )}
+
+          <div className="flex flex-wrap gap-2.5">
+            <Button
+              variant="filled"
+              size="lg"
+              loading={savingGemini}
+              leadingIcon={<Check className="w-5 h-5" />}
+              onClick={() => {
+                void handleSaveGeminiSettings();
+              }}
+            >
+              Lưu cài đặt AI
+            </Button>
+            <Button
+              variant="tonal"
+              size="lg"
+              loading={loadingModels}
+              leadingIcon={<Sparkles className="w-5 h-5" />}
+              onClick={() => {
+                void handleTestAndLoadGeminiModels();
+              }}
+            >
+              Kiểm tra &amp; tải model
+            </Button>
+          </div>
+        </Card>
+      </section>
+
       {/* Touch & Haptics (D01 AC6) */}
       <section aria-labelledby="sec-feel-heading">
         <h2 id="sec-feel-heading" className="text-title font-bold text-text px-0.5 mb-2">
@@ -1147,16 +1349,9 @@ export function SettingsScreen({
         GitHub để luôn có bản sao.
       </Banner>
 
-      <Card padding="none">
-        <ListItem
-          leadingIcon={<Info className="w-5.5 h-5.5" />}
-          leadingTone="info"
-          title="Trợ lý AI nông học (Gemini)"
-          subtitle="Sẽ mở ở bước tiếp theo (T06): hỏi đáp tiếng Việt kèm ảnh lá/tán và đề xuất việc cần làm (API key chỉ lưu cục bộ trên máy)."
-        />
-        {showDesignEntry && (
+      {showDesignEntry && (
+        <Card padding="none">
           <ListItem
-            divider
             leadingIcon={<Palette className="w-5.5 h-5.5" />}
             leadingTone="ph"
             title="Hệ thống thiết kế (#/design)"
@@ -1164,8 +1359,8 @@ export function SettingsScreen({
             showChevron
             onClick={onOpenDesignShowcase}
           />
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Import Merge Preview Dialog (T02 AC7 & AC8) */}
       <Dialog

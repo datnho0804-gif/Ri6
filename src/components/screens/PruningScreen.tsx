@@ -7,6 +7,7 @@ import {
   Info,
   Scissors,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { copyTextToClipboard } from '../../hooks/clipboard';
@@ -43,10 +44,12 @@ interface PruningScreenProps {
   thumbUrls: Map<string, string>;
   season: Season;
   hapticsEnabled: boolean;
+  canUseAi?: boolean;
   onSavePruningAssessment: (tree: Tree, note: string) => Promise<void>;
   onCapturePrunePhoto: (tree: Tree, file: File, kind: PhotoKind) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
   onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
+  onAskAiPruning?: (tree: Tree, question: string, photoIds: string[]) => void;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -58,11 +61,11 @@ const LEVEL_TONE: Record<PruneLevel, SemanticTone> = {
 };
 
 /**
- * M3 Pruning analysis screen (SPEC M3, T03 AC1 & AC2):
+ * M3 Pruning analysis screen (SPEC M3, T03 AC1 & AC2, T06 AC5):
  * - Tree selector + 6-sign checklist with live pruneLevel(signs) evaluation
  * - Rootstock sucker immediate warning banner
  * - 3 guided photo angle cards (prune-overview, prune-under, prune-closeup)
- * - "Lưu: Cần cắt tỉa" (flags tree + creates 'cat-tia' log) & "Copy Prompt cắt tỉa"
+ * - "Lưu: Cần cắt tỉa" (flags tree + creates 'cat-tia' log) & "Phân tích bằng AI" / "Copy Prompt cắt tỉa"
  * - Pruning safety & Phytophthora disinfection reminder box
  */
 export function PruningScreen({
@@ -71,10 +74,12 @@ export function PruningScreen({
   thumbUrls,
   season,
   hapticsEnabled,
+  canUseAi = false,
   onSavePruningAssessment,
   onCapturePrunePhoto,
   getPhotoFullUrl,
   onEnsureRemotePhoto,
+  onAskAiPruning,
   onNotify,
 }: PruningScreenProps) {
   const today = todayVN();
@@ -374,17 +379,36 @@ export function PruningScreen({
             >
               Lưu: Cần cắt tỉa
             </Button>
-            <Button
-              variant="tonal"
-              size="lg"
-              fullWidth
-              leadingIcon={<Copy className="w-5 h-5" />}
-              onClick={() => {
-                void handleCopyPrompt();
-              }}
-            >
-              Copy Prompt cắt tỉa
-            </Button>
+            {canUseAi && onAskAiPruning ? (
+              <Button
+                variant="tonal"
+                size="lg"
+                fullWidth
+                leadingIcon={<Sparkles className="w-5 h-5" />}
+                onClick={() => {
+                  const angleIds = PRUNE_ANGLES.map((a) => latestAnglePhotos.get(a.kind)?.id).filter(
+                    (id): id is string => Boolean(id),
+                  );
+                  const noteSummary = pruneLogNote(signs);
+                  const promptQ = `Hãy phân tích cắt tỉa cho cây ${selectedTree.code} kèm các góc ảnh đính kèm.\nKết quả đánh giá checklist: ${noteSummary}.\nNhờ tư vấn thứ tự tỉa cành, lưu ý giữ tán thoáng và tránh nấm bệnh.`;
+                  onAskAiPruning(selectedTree, promptQ, angleIds);
+                }}
+              >
+                Phân tích bằng AI
+              </Button>
+            ) : (
+              <Button
+                variant="tonal"
+                size="lg"
+                fullWidth
+                leadingIcon={<Copy className="w-5 h-5" />}
+                onClick={() => {
+                  void handleCopyPrompt();
+                }}
+              >
+                Copy Prompt cắt tỉa
+              </Button>
+            )}
           </div>
         </div>
 
