@@ -1,6 +1,7 @@
 import { RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { TouchEvent as ReactTouchEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOverlayBack } from '../../hooks/useOverlayBack';
 import { IconButton } from './IconButton';
@@ -61,14 +62,14 @@ function PhotoLightboxContent({
     pinchStartDistRef.current = null;
   };
 
-  return (
+  const content = (
     <div
       ref={containerRef}
       role="dialog"
       aria-modal="true"
       aria-label={caption ?? 'Xem ảnh toàn màn hình'}
       tabIndex={-1}
-      className="fixed inset-0 z-50 bg-text flex flex-col focus:outline-none animate-fade-in"
+      className="fixed inset-0 z-60 bg-text flex flex-col focus:outline-none animate-fade-in"
     >
       <div className="flex items-center justify-between gap-2 px-3 py-2 safe-top bg-hero-scrim-top text-on-primary">
         <div className="min-w-0 flex-1 px-1">
@@ -119,4 +120,6 @@ function PhotoLightboxContent({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
