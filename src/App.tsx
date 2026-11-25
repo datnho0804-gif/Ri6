@@ -1,4 +1,4 @@
-import { CheckCircle2, Cloud, CloudOff, Plus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Cloud, CloudOff, Plus, RefreshCw } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OverviewScreen } from './components/screens/OverviewScreen';
 import { Banner } from './components/ui/Banner';
@@ -14,6 +14,7 @@ import { Snackbar } from './components/ui/Snackbar';
 import { StatusPill } from './components/ui/StatusPill';
 import { TopAppBar } from './components/ui/TopAppBar';
 import { generateDeviceId, LOT_A_ID } from './db/seed';
+import { useGitHubSync } from './hooks/useGitHubSync';
 import { useOrchardData } from './hooks/useOrchardData';
 import { usePwa } from './hooks/usePwa';
 import { useSnackbar } from './hooks/useSnackbar';
@@ -155,7 +156,22 @@ export function App() {
     [showSnackbar],
   );
 
-  const orchard = useOrchardData(APP_VERSION, handleStartupNotice);
+  const notifySyncChangeRef = useRef<() => void>(() => {});
+  const handleLocalDataChanged = useCallback(() => {
+    notifySyncChangeRef.current();
+  }, []);
+
+  const orchard = useOrchardData(APP_VERSION, handleStartupNotice, handleLocalDataChanged);
+
+  const sync = useGitHubSync({
+    settings: orchard.settings,
+    isOnline,
+    onDataPulled: () => orchard.refresh({ resetPhotoErrors: true }),
+  });
+
+  useEffect(() => {
+    notifySyncChangeRef.current = sync.notifyLocalChange;
+  }, [sync.notifyLocalChange]);
 
   const hapticsEnabled = orchard.settings?.hapticsEnabled ?? true;
   const today = todayVN();
@@ -396,6 +412,25 @@ export function App() {
     [orchard],
   );
 
+  const handleManualSyncNow = useCallback(async () => {
+    if (!sync.isConfigured) {
+      notify('Chưa thiết lập đồng bộ GitHub. Mở Cài đặt để nhập token.', 'warn');
+      return;
+    }
+    if (!isOnline) {
+      notify('Thiết bị đang ngoại tuyến. Sẽ tự đồng bộ khi có mạng trở lại.', 'warn');
+      return;
+    }
+    const res = await sync.syncNow();
+    if (!res) return;
+    if (res.status === 'ok') {
+      triggerHaptic(hapticsEnabled);
+      notify('Đã đồng bộ dữ liệu vườn thành công.', 'ok');
+    } else {
+      notify(res.message, 'danger');
+    }
+  }, [hapticsEnabled, isOnline, notify, sync]);
+
   const handleDemoUndoSnackbar = useCallback(
     (message = 'Đã xóa 1 mục mẫu') => {
       showSnackbar(message, {
@@ -433,7 +468,7 @@ export function App() {
     barOnBack = closeDesignShowcase;
   } else if (activeView === 'settings') {
     barTitle = 'Cài đặt';
-    barSubtitle = `Sổ Tay Vườn Ri6 · v${APP_VERSION}`;
+    barSubtitle = `Phiên bản v${APP_VERSION}`;
     barOnBack = () => navigateToView(lastTab);
   } else if (activeView === 'trees') {
     barTitle = 'Cây';
@@ -509,6 +544,7 @@ export function App() {
             }}
             onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
             getPhotoFullUrl={orchard.getPhotoFullUrl}
+            onEnsureRemotePhoto={orchard.ensureRemotePhoto}
             onNotify={notify}
           />
         </Suspense>
@@ -545,6 +581,7 @@ export function App() {
             }}
             onCaptureLotPhoto={handleCaptureLotAPhoto}
             getPhotoFullUrl={orchard.getPhotoFullUrl}
+            onEnsureRemotePhoto={orchard.ensureRemotePhoto}
             onNotify={notify}
           />
         </Suspense>
@@ -555,12 +592,20 @@ export function App() {
             subtitle={barSubtitle}
             onBack={barOnBack}
             isOffline={!isOnline}
-            syncStatusDot={!isOnline ? 'warn' : 'neutral'}
-            syncLabel={
-              isOnline
-                ? 'Trạng thái đồng bộ sao lưu (chưa thiết lập)'
-                : 'Đang ngoại tuyến — bấm để xem chi tiết lưu trữ'
+            syncStatusDot={
+              sync.headerStatus.tone === 'ok'
+                ? 'ok'
+                : sync.headerStatus.tone === 'danger'
+                  ? 'danger'
+                  : sync.headerStatus.tone === 'warn'
+                    ? 'warn'
+                    : 'neutral'
             }
+            syncTone={sync.headerStatus.tone}
+            syncText={sync.headerStatus.shortText}
+            syncWideText={sync.headerStatus.wideText}
+            syncSpinning={sync.headerStatus.spinning}
+            syncLabel={sync.headerStatus.fullText}
             onSyncClick={() => {
               closeAllOverlays();
               setSyncDialogOpen(true);
@@ -609,10 +654,20 @@ export function App() {
                   <SettingsScreen
                     appVersion={APP_VERSION}
                     dbState={orchard.dbState}
+                    settings={orchard.settings}
                     deviceId={deviceId}
                     isStandalone={isStandalone}
+                    isOnline={isOnline}
                     hapticsEnabled={hapticsEnabled}
                     showDesignEntry={showDesignEntry}
+                    syncStatus={sync.headerStatus}
+                    isSyncing={sync.isSyncing}
+                    isSyncConfigured={sync.isConfigured}
+                    pendingSyncCount={sync.pendingCount}
+                    lastSyncError={sync.lastErrorMessage}
+                    onUpdateSettings={orchard.updateSettings}
+                    onTestConnection={sync.testConnection}
+                    onSyncNow={sync.syncNow}
                     onToggleHaptics={(next) => {
                       void handleToggleHaptics(next);
                     }}
@@ -635,6 +690,9 @@ export function App() {
                   logs={orchard.logs}
                   photos={orchard.photos}
                   thumbUrls={orchard.thumbUrls}
+                  isSyncConfigured={sync.isConfigured}
+                  isSyncing={sync.isSyncing}
+                  onPullToSync={handleManualSyncNow}
                   onToggleSeason={(next) => {
                     void orchard.setSeasonOverride(next).then(() => {
                       triggerHaptic(hapticsEnabled);
@@ -714,6 +772,7 @@ export function App() {
                     onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
                     onCaptureLotAPhoto={handleCaptureLotAPhoto}
                     getPhotoFullUrl={orchard.getPhotoFullUrl}
+                    onEnsureRemotePhoto={orchard.ensureRemotePhoto}
                     onNotify={notify}
                   />
                 </Suspense>
@@ -735,6 +794,7 @@ export function App() {
                     onSavePruningAssessment={handleSavePruningAssessment}
                     onCapturePrunePhoto={handleCapturePrunePhoto}
                     getPhotoFullUrl={orchard.getPhotoFullUrl}
+                    onEnsureRemotePhoto={orchard.ensureRemotePhoto}
                     onNotify={notify}
                   />
                 </Suspense>
@@ -816,8 +876,12 @@ export function App() {
 
       <Dialog
         open={syncDialogOpen}
-        title="Trạng thái đồng bộ"
-        subtitle="Tính năng sao lưu trực tuyến đang được hoàn thiện"
+        title="Trạng thái đồng bộ GitHub"
+        subtitle={
+          sync.isConfigured
+            ? `${orchard.settings?.dataRepo ?? ''} (${orchard.settings?.dataBranch ?? 'main'})`
+            : 'Chưa nhập GitHub token trên máy này'
+        }
         onClose={() => setSyncDialogOpen(false)}
         footer={
           <>
@@ -830,30 +894,69 @@ export function App() {
             >
               Mở Cài đặt
             </Button>
-            <Button variant="filled" onClick={() => setSyncDialogOpen(false)}>
-              Đóng
-            </Button>
+            {sync.isConfigured ? (
+              <Button
+                variant="filled"
+                loading={sync.isSyncing}
+                disabled={sync.isSyncing || !isOnline}
+                leadingIcon={<RefreshCw className="w-5 h-5" />}
+                onClick={() => {
+                  void handleManualSyncNow();
+                }}
+              >
+                Đồng bộ ngay
+              </Button>
+            ) : (
+              <Button variant="filled" onClick={() => setSyncDialogOpen(false)}>
+                Đóng
+              </Button>
+            )}
           </>
         }
       >
         <div className="space-y-3">
-          <Banner
-            tone={isOnline ? 'ok' : 'warn'}
-            icon={isOnline ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
-          >
-            {isOnline
-              ? 'Thiết bị đang có mạng. Mọi ghi chép luôn lưu ngay trên máy trước để dùng không cần mạng.'
-              : 'Thiết bị đang ngoại tuyến. Mọi ghi chép vẫn lưu bình thường trên máy.'}
-          </Banner>
+          {sync.lastErrorMessage ? (
+            <Banner
+              tone="danger"
+              icon={<AlertTriangle className="w-5 h-5" />}
+              title="Đồng bộ gặp lỗi"
+            >
+              {sync.lastErrorMessage}
+            </Banner>
+          ) : (
+            <Banner
+              tone={isOnline ? 'ok' : 'warn'}
+              icon={isOnline ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
+            >
+              {sync.headerStatus.fullText}
+            </Banner>
+          )}
           <ListItem
-            title="Dữ liệu vườn trên máy"
-            subtitle={`Lô B: ${treeCount} cây cá thể · Lô A: ${lotACount} cây`}
+            title="Dữ liệu trên máy"
+            subtitle={`${treeCount} cây cá thể · Lô A: ${lotACount} cây`}
             trailing={
-              <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
-                Sẵn sàng
+              <StatusPill
+                tone={sync.headerStatus.tone}
+                icon={
+                  sync.headerStatus.tone === 'danger' ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )
+                }
+              >
+                {sync.isConfigured ? (sync.lastErrorMessage ? 'Có lỗi' : 'Đã nối') : 'Cục bộ'}
               </StatusPill>
             }
           />
+          {sync.pendingCount > 0 && (
+            <ListItem
+              divider
+              title="Thay đổi chờ đẩy lên"
+              subtitle="Sẽ tự động đẩy khi có mạng hoặc khi bấm Đồng bộ ngay"
+              trailing={<span className="font-mono font-bold text-warn">{sync.pendingCount}</span>}
+            />
+          )}
         </div>
       </Dialog>
 

@@ -1,17 +1,26 @@
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
+  Cloud,
   Download,
+  Eye,
+  EyeOff,
   FileJson,
   HardDrive,
   Info,
+  KeyRound,
   Palette,
+  RefreshCw,
+  ShieldAlert,
   Smartphone,
   Upload,
   Vibrate,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { type DatabaseInitResult, requestPersistentStorage } from '../../db/database';
+import { isValidGitHubRepo } from '../../db/syncStore';
+import type { RepoTestOutcome, SyncHeaderStatus } from '../../hooks/useGitHubSync';
 import { nowUTC, todayVN } from '../../lib/date';
 import {
   exportFileName,
@@ -19,21 +28,35 @@ import {
   parseImportFile,
 } from '../../lib/exportImport';
 import { formatBytesVN } from '../../lib/format';
+import { triggerHaptic } from '../../lib/haptics';
 import {
   diffCounts,
   type MergeCounts,
   type SyncCollection,
   type SyncState,
 } from '../../lib/merge';
-import { Banner, Button, Card, Dialog, ListItem, StatusPill } from '../ui';
+import type { SyncResult } from '../../lib/sync/engine';
+import { type GitHubConfig, REPO_SIZE_WARN_KB } from '../../lib/sync/github';
+import type { Settings } from '../../types/models';
+import { Banner, Button, Card, Dialog, IconButton, ListItem, StatusPill, TextField } from '../ui';
 
 interface SettingsScreenProps {
   appVersion: string;
   dbState: DatabaseInitResult | null;
+  settings: Settings | null;
   deviceId: string;
   isStandalone: boolean;
+  isOnline: boolean;
   hapticsEnabled: boolean;
   showDesignEntry: boolean;
+  syncStatus: SyncHeaderStatus;
+  isSyncing: boolean;
+  isSyncConfigured: boolean;
+  pendingSyncCount: number;
+  lastSyncError: string | null;
+  onUpdateSettings: (patch: Partial<Settings>) => Promise<void>;
+  onTestConnection: (cfg: GitHubConfig) => Promise<RepoTestOutcome>;
+  onSyncNow: () => Promise<SyncResult | null>;
   onToggleHaptics: (next: boolean) => void;
   onInstallClick: () => void;
   onOpenDesignShowcase: () => void;
@@ -43,13 +66,28 @@ interface SettingsScreenProps {
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
+function formatSizeMb(sizeKB: number): string {
+  if (sizeKB < 1024) return `${sizeKB} KB`;
+  return `${(sizeKB / 1024).toFixed(1).replace('.', ',')} MB`;
+}
+
 export function SettingsScreen({
   appVersion,
   dbState,
+  settings,
   deviceId,
   isStandalone,
+  isOnline,
   hapticsEnabled,
   showDesignEntry,
+  syncStatus,
+  isSyncing,
+  isSyncConfigured,
+  pendingSyncCount,
+  lastSyncError,
+  onUpdateSettings,
+  onTestConnection,
+  onSyncNow,
   onToggleHaptics,
   onInstallClick,
   onOpenDesignShowcase,
@@ -64,6 +102,25 @@ export function SettingsScreen({
     quota: number | null;
   } | null>(null);
 
+  // Device & GitHub sync form draft overrides (persisted in Dexie `settings`, never localStorage)
+  const [draftDeviceName, setDeviceName] = useState<string | null>(null);
+  const [draftDataRepo, setDataRepo] = useState<string | null>(null);
+  const [draftDataBranch, setDataBranch] = useState<string | null>(null);
+  const [draftGithubToken, setGithubToken] = useState<string | null>(null);
+  const [draftAutoSync, setAutoSync] = useState<boolean | null>(null);
+  const [showToken, setShowToken] = useState(false);
+  const [repoError, setRepoError] = useState<string | undefined>();
+  const [savingSync, setSavingSync] = useState(false);
+  const [testingConn, setTestingConn] = useState(false);
+  const [testOutcome, setTestOutcome] = useState<RepoTestOutcome | null>(null);
+
+  const deviceName = draftDeviceName ?? settings?.deviceName ?? 'Điện thoại của tôi';
+  const dataRepo = draftDataRepo ?? settings?.dataRepo ?? 'datnho0804-gif/Ri6-data';
+  const dataBranch = draftDataBranch ?? settings?.dataBranch ?? 'main';
+  const githubToken = draftGithubToken ?? settings?.githubToken ?? '';
+  const autoSync = draftAutoSync ?? settings?.autoSync ?? true;
+
+  // JSON Export / Import state
   const [includePhotosInExport, setIncludePhotosInExport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -93,6 +150,173 @@ export function SettingsScreen({
   const quotaBytes = liveStorage ? liveStorage.quota : (dbState?.storageQuotaBytes ?? null);
   const usageLabel = formatBytesVN(usageBytes);
   const quotaLabel = formatBytesVN(quotaBytes);
+
+  const REPO_FORMAT_ERROR =
+    'Nhập đúng dạng chủ-tài-khoản/tên-repo (ví dụ: datnho0804-gif/Ri6-data), không dán cả đường dẫn https://github.com/.';
+
+  const persistFormSettings = async (opts?: { silent?: boolean }): Promise<boolean> => {
+    const cleanName = deviceName.trim() || 'Điện thoại của tôi';
+    const cleanRepo = dataRepo.trim() || 'datnho0804-gif/Ri6-data';
+    const cleanBranch = dataBranch.trim() || 'main';
+    const cleanToken = githubToken.trim();
+
+    if (!isValidGitHubRepo(cleanRepo)) {
+      setRepoError(REPO_FORMAT_ERROR);
+      if (!opts?.silent) {
+        onNotify('Tên repo chưa đúng dạng chủ-tài-khoản/tên-repo.', 'danger');
+      }
+      return false;
+    }
+    setRepoError(undefined);
+
+    const repoChanged = cleanRepo !== (settings?.dataRepo ?? '');
+    setSavingSync(true);
+    try {
+      await onUpdateSettings({
+        deviceName: cleanName,
+        dataRepo: cleanRepo,
+        dataBranch: cleanBranch,
+        githubToken: cleanToken || undefined,
+        autoSync,
+        ...(repoChanged ? { lastRepoSizeKB: undefined, lastRepoCheckedAt: undefined } : {}),
+      });
+      setDeviceName(null);
+      setDataRepo(null);
+      setDataBranch(null);
+      setGithubToken(null);
+      setAutoSync(null);
+      if (!opts?.silent) {
+        triggerHaptic(hapticsEnabled);
+        onNotify(
+          cleanToken
+            ? 'Đã lưu cài đặt thiết bị và đồng bộ GitHub trên máy này.'
+            : 'Đã lưu tên thiết bị. Nhập token GitHub để bật đồng bộ nhiều máy.',
+          'ok',
+        );
+      }
+      return true;
+    } catch {
+      onNotify('Không lưu được cài đặt vào bộ nhớ máy.', 'danger');
+      return false;
+    } finally {
+      setSavingSync(false);
+    }
+  };
+
+  const handleSaveDeviceAndSync = async () => {
+    await persistFormSettings();
+  };
+
+  const handleToggleAutoSync = async (next: boolean) => {
+    setAutoSync(next);
+    try {
+      await onUpdateSettings({ autoSync: next });
+      setAutoSync(null);
+      triggerHaptic(hapticsEnabled);
+      onNotify(
+        next
+          ? 'Đã bật tự động đồng bộ và đồng bộ nền.'
+          : 'Đã tắt tự động đồng bộ — bạn vẫn có thể bấm Đồng bộ ngay bất cứ lúc nào.',
+        'info',
+      );
+    } catch {
+      setAutoSync(null);
+      onNotify('Không lưu được tùy chọn tự động đồng bộ.', 'danger');
+    }
+  };
+
+  const handleTestConnection = async () => {
+    const cleanToken = githubToken.trim();
+    const cleanRepo = dataRepo.trim();
+    const cleanBranch = dataBranch.trim() || 'main';
+    if (!cleanToken) {
+      setTestOutcome({
+        ok: false,
+        error: 'Chưa nhập GitHub token để kiểm tra kết nối.',
+        errorKind: 'config',
+      });
+      return;
+    }
+    if (!cleanRepo || !isValidGitHubRepo(cleanRepo)) {
+      setRepoError(REPO_FORMAT_ERROR);
+      setTestOutcome({
+        ok: false,
+        error: REPO_FORMAT_ERROR,
+        errorKind: 'config',
+      });
+      return;
+    }
+    setRepoError(undefined);
+    setTestingConn(true);
+    setTestOutcome(null);
+    try {
+      const outcome = await onTestConnection({
+        token: cleanToken,
+        repo: cleanRepo,
+        branch: cleanBranch,
+      });
+      setTestOutcome(outcome);
+      if (outcome.ok && outcome.repoCheck) {
+        try {
+          await onUpdateSettings({
+            lastRepoSizeKB: outcome.repoCheck.sizeKB,
+            lastRepoCheckedAt: nowUTC(),
+          });
+        } catch {
+          // Best-effort persistence of repo size metadata
+        }
+      }
+      if (!outcome.ok) {
+        onNotify(outcome.error ?? 'Không kiểm tra được kết nối GitHub.', 'danger');
+      } else if (outcome.repoCheck && !outcome.repoCheck.private && !outcome.repoCheck.canPush) {
+        onNotify(
+          'Cảnh báo đỏ: Repo đang CÔNG KHAI (Public) VÀ token thiếu quyền ghi (Push)!',
+          'danger',
+        );
+      } else if (outcome.repoCheck && !outcome.repoCheck.canPush) {
+        onNotify('Token thiếu quyền ghi (Contents: Read and write).', 'danger');
+      } else if (outcome.repoCheck && !outcome.repoCheck.private) {
+        onNotify('Cảnh báo đỏ: Repo dữ liệu đang ở chế độ công khai!', 'danger');
+      } else {
+        triggerHaptic(hapticsEnabled);
+        onNotify('Kết nối GitHub hợp lệ: repo riêng tư và có quyền ghi.', 'ok');
+      }
+    } finally {
+      setTestingConn(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!isSyncConfigured && !githubToken.trim()) {
+      onNotify('Hãy nhập token GitHub trước khi đồng bộ.', 'warn');
+      return;
+    }
+    if (hasUnsavedSyncEdits) {
+      const saved = await persistFormSettings({ silent: true });
+      if (!saved) return;
+    }
+    if (!isOnline) {
+      onNotify('Thiết bị đang ngoại tuyến. Sẽ tự đồng bộ khi có mạng trở lại.', 'warn');
+      return;
+    }
+    const res = await onSyncNow();
+    if (!res) return;
+    if (res.status === 'ok') {
+      triggerHaptic(hapticsEnabled);
+      const summaryParts: string[] = [];
+      if (res.pushedChanges > 0) summaryParts.push(`đẩy ${res.pushedChanges} thay đổi`);
+      if (res.pulled > 0) summaryParts.push(`nhận ${res.pulled} cập nhật`);
+      if (res.uploadedPhotos > 0) summaryParts.push(`tải lên ${res.uploadedPhotos} ảnh`);
+      onNotify(
+        summaryParts.length > 0
+          ? `Đã đồng bộ xong: ${summaryParts.join(', ')}.`
+          : 'Dữ liệu đã khớp mới nhất với GitHub.',
+        'ok',
+      );
+    } else {
+      onNotify(res.message, 'danger');
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -164,12 +388,297 @@ export function SettingsScreen({
     }
   };
 
+  const hasUnsavedSyncEdits =
+    deviceName.trim() !== (settings?.deviceName ?? 'Điện thoại của tôi') ||
+    dataRepo.trim() !== (settings?.dataRepo ?? 'datnho0804-gif/Ri6-data') ||
+    dataBranch.trim() !== (settings?.dataBranch ?? 'main') ||
+    githubToken.trim() !== (settings?.githubToken ?? '');
+
+  const persistedRepoSizeKB = testOutcome?.ok
+    ? testOutcome.repoCheck?.sizeKB
+    : settings?.lastRepoSizeKB;
+
   return (
     <div className="space-y-4">
+      {/* Device & GitHub Two-Way Sync (T04 AC1, AC2, AC8, AC9) */}
+      <section aria-labelledby="sec-sync-heading">
+        <div className="flex items-center justify-between gap-2 px-0.5 mb-2 flex-wrap">
+          <h2 id="sec-sync-heading" className="text-title font-bold text-text">
+            Thiết bị &amp; Đồng bộ GitHub
+          </h2>
+          <StatusPill
+            tone={syncStatus.tone}
+            icon={
+              syncStatus.spinning ? (
+                <RefreshCw className="w-4 h-4 animate-spin motion-reduce:animate-none" />
+              ) : syncStatus.tone === 'danger' ? (
+                <AlertTriangle className="w-4 h-4" />
+              ) : (
+                <Cloud className="w-4 h-4" />
+              )
+            }
+          >
+            {syncStatus.shortText || 'Chưa cấu hình'}
+          </StatusPill>
+        </div>
+
+        <Card padding="md" className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TextField
+              label="Tên thiết bị"
+              placeholder="Ví dụ: Redmi K90 – Đạt"
+              value={deviceName}
+              helperText="Hiện trong lịch sử commit đồng bộ để phân biệt từng điện thoại."
+              onChange={(e) => setDeviceName(e.target.value)}
+            />
+            <TextField
+              label="Mã máy (deviceId)"
+              value={deviceId}
+              disabled
+              helperText="Tự tạo duy nhất trên máy này, chỉ đọc."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <TextField
+              label="Repo dữ liệu riêng tư"
+              placeholder="datnho0804-gif/Ri6-data"
+              value={dataRepo}
+              error={repoError}
+              containerClassName="sm:col-span-2"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setDataRepo(e.target.value);
+                setRepoError(undefined);
+                setTestOutcome(null);
+              }}
+            />
+            <TextField
+              label="Nhánh"
+              placeholder="main"
+              value={dataBranch}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setDataBranch(e.target.value);
+                setTestOutcome(null);
+              }}
+            />
+          </div>
+
+          {/* Token input + Hide/Show toggle + Mandatory *.github.io warning right next to token (AC1, AC9) */}
+          <div className="space-y-2.5">
+            <TextField
+              label="GitHub Fine-grained Token (PAT)"
+              type={showToken ? 'text' : 'password'}
+              placeholder="github_pat_..."
+              value={githubToken}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              helperText="Chỉ lưu trong bộ nhớ ngoại tuyến trên máy này — không bao giờ xuất vào tệp JSON hay đẩy lên GitHub."
+              onChange={(e) => {
+                setGithubToken(e.target.value);
+                setTestOutcome(null);
+              }}
+              suffix={
+                <IconButton
+                  label={showToken ? 'Ẩn token GitHub' : 'Hiện token GitHub'}
+                  onClick={() => setShowToken((v) => !v)}
+                  className="-mr-2"
+                >
+                  {showToken ? (
+                    <EyeOff className="w-5 h-5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="w-5 h-5" aria-hidden="true" />
+                  )}
+                </IconButton>
+              }
+            />
+
+            <Banner
+              tone="warn"
+              icon={<KeyRound className="w-5 h-5" />}
+              title="Lưu ý tên miền dùng chung *.github.io"
+            >
+              Mọi trang GitHub Pages của cùng tài khoản đều dùng chung miền{' '}
+              <span className="font-mono font-semibold">*.github.io</span> và dùng chung bộ nhớ
+              trình duyệt trên máy (gồm cả token này). Không bật GitHub Pages cho repo chứa mã không
+              tin cậy, và chỉ cấp token quyền ghi riêng cho repo riêng tư{' '}
+              <span className="font-mono font-semibold">Ri6-data</span>.
+            </Banner>
+          </div>
+
+          {/* Auto-sync switch */}
+          <div className="flex items-center gap-3 pt-2 border-t border-surface-2 min-h-14">
+            <div
+              className="w-11 h-11 rounded-tile bg-primary-container text-on-primary-container flex items-center justify-center shrink-0"
+              aria-hidden="true"
+            >
+              <Cloud className="w-5.5 h-5.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div id="auto-sync-label" className="text-body font-semibold text-text leading-snug">
+                Tự động đồng bộ &amp; đồng bộ nền
+              </div>
+              <p className="text-caption text-text-3 leading-snug mt-0.5">
+                Tự đồng bộ khi mở app, quay lại màn hình, sau 30 giây kể từ thay đổi cuối và đẩy ngầm
+                khi có sóng trở lại.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoSync}
+              aria-labelledby="auto-sync-label"
+              onClick={() => {
+                void handleToggleAutoSync(!autoSync);
+              }}
+              className="pressable min-w-14 min-h-12 px-1 flex items-center justify-center rounded-pill shrink-0"
+            >
+              <span
+                className={[
+                  'w-13 h-8 rounded-pill p-1 transition-colors flex items-center',
+                  autoSync
+                    ? 'bg-primary justify-end'
+                    : 'bg-surface-2 border border-outline-strong justify-start',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'w-6 h-6 rounded-pill shadow-e1 transition-transform',
+                    autoSync ? 'bg-on-primary' : 'bg-text-3',
+                  ].join(' ')}
+                />
+              </span>
+            </button>
+          </div>
+
+          {/* Connection Check Result Banners (AC1: error on no push, RED warning if public!) */}
+          {testOutcome && !testOutcome.ok && (
+            <Banner
+              tone="danger"
+              icon={<ShieldAlert className="w-5 h-5" />}
+              title="Kiểm tra kết nối thất bại"
+            >
+              {testOutcome.error}
+            </Banner>
+          )}
+
+          {testOutcome?.ok && testOutcome.repoCheck && (
+            <div className="space-y-2">
+              {!testOutcome.repoCheck.private && (
+                <Banner
+                  tone="danger"
+                  icon={<ShieldAlert className="w-5 h-5" />}
+                  title="CẢNH BÁO ĐỎ: Repo dữ liệu đang CÔNG KHAI (Public)!"
+                >
+                  Repo <span className="font-mono font-semibold">{dataRepo.trim()}</span> hiện không
+                  phải là repo riêng tư. Người lạ có thể xem toàn bộ nhật ký và ảnh vườn. Hãy vào
+                  GitHub → Settings → Danger Zone chuyển sang <strong>Private</strong> ngay lập tức.
+                </Banner>
+              )}
+
+              {!testOutcome.repoCheck.canPush && (
+                <Banner
+                  tone="danger"
+                  icon={<AlertTriangle className="w-5 h-5" />}
+                  title="Thiếu quyền ghi (Push) vào repo"
+                >
+                  Token hiện tại không có quyền ghi vào repo này. Hãy cấp quyền{' '}
+                  <strong>Contents: Read and write</strong> cho fine-grained PAT rồi thử lại.
+                </Banner>
+              )}
+
+              {testOutcome.repoCheck.private && testOutcome.repoCheck.canPush && (
+                <Banner
+                  tone="ok"
+                  icon={<CheckCircle2 className="w-5 h-5" />}
+                  title="Kết nối hợp lệ — sẵn sàng đồng bộ"
+                >
+                  Repo riêng tư (Private), đủ quyền đọc/ghi. Nhánh mặc định:{' '}
+                  <span className="font-mono">{testOutcome.repoCheck.defaultBranch}</span> · Dung
+                  lượng hiện tại: {formatSizeMb(testOutcome.repoCheck.sizeKB)}.
+                </Banner>
+              )}
+            </div>
+          )}
+
+          {persistedRepoSizeKB !== undefined && persistedRepoSizeKB > REPO_SIZE_WARN_KB && (
+            <Banner
+              tone="warn"
+              icon={<AlertTriangle className="w-5 h-5" />}
+              title="Repo dữ liệu sắp chạm ngưỡng dung lượng"
+            >
+              Dung lượng hiện tại khoảng {formatSizeMb(persistedRepoSizeKB)} (khuyến nghị giữ dưới
+              800 MB). Bạn nên xuất sao lưu JSON định kỳ hoặc dọn ảnh không cần thiết.
+            </Banner>
+          )}
+
+          {lastSyncError && (
+            <Banner
+              tone="danger"
+              icon={<AlertTriangle className="w-5 h-5" />}
+              title="Lỗi ở lần đồng bộ gần nhất"
+            >
+              {lastSyncError}
+            </Banner>
+          )}
+
+          {pendingSyncCount > 0 && (
+            <p className="text-caption text-warn font-medium">
+              Đang có {pendingSyncCount} thay đổi chờ đẩy lên GitHub.
+            </p>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2.5 pt-1">
+            <Button
+              variant="filled"
+              size="lg"
+              loading={savingSync}
+              leadingIcon={<Check className="w-5 h-5" />}
+              onClick={() => {
+                void handleSaveDeviceAndSync();
+              }}
+            >
+              {hasUnsavedSyncEdits ? 'Lưu cài đặt' : 'Đã lưu cài đặt'}
+            </Button>
+            <Button
+              variant="tonal"
+              size="lg"
+              loading={testingConn}
+              leadingIcon={<ShieldAlert className="w-5 h-5" />}
+              onClick={() => {
+                void handleTestConnection();
+              }}
+            >
+              Kiểm tra kết nối
+            </Button>
+            <Button
+              variant="outlined"
+              size="lg"
+              loading={isSyncing}
+              disabled={(!isSyncConfigured && !githubToken.trim()) || isSyncing}
+              leadingIcon={<RefreshCw className="w-5 h-5" />}
+              onClick={() => {
+                void handleManualSync();
+              }}
+            >
+              Đồng bộ ngay
+            </Button>
+          </div>
+        </Card>
+      </section>
+
       {/* Backup & Restore JSON (T02 AC7 & AC8) */}
       <section aria-labelledby="sec-backup-heading">
         <h2 id="sec-backup-heading" className="text-title font-bold text-text px-0.5 mb-2">
-          Sao lưu &amp; Khôi phục dữ liệu
+          Sao lưu &amp; Khôi phục thủ công (JSON)
         </h2>
         <Card padding="none">
           <div className="flex items-center gap-3 px-4 py-3 min-h-17">
@@ -184,7 +693,7 @@ export function SettingsScreen({
                 Kèm ảnh cây khi xuất tệp
               </div>
               <p className="text-caption text-text-3 leading-snug mt-0.5">
-                Tệp xuất không bao giờ chứa khóa kết nối hay mật khẩu.
+                Tệp xuất không bao giờ chứa GitHub token hay khóa API.
               </p>
             </div>
             <button
@@ -346,10 +855,10 @@ export function SettingsScreen({
         </Card>
       </section>
 
-      {/* Device & Storage Info */}
+      {/* Storage & Version Info (T04 AC9, SPEC §7.0) */}
       <section aria-labelledby="sec-storage-heading">
         <h2 id="sec-storage-heading" className="text-title font-bold text-text px-0.5 mb-2">
-          Thiết bị &amp; Lưu trữ ngoại tuyến
+          Lưu trữ ngoại tuyến &amp; Phiên bản
         </h2>
         <Card padding="none">
           <ListItem
@@ -357,13 +866,16 @@ export function SettingsScreen({
             subtitle="Tự cập nhật khi có bản mới"
             trailing={<span className="font-mono text-text">v{appVersion}</span>}
           />
-          <ListItem divider title="Mã máy" subtitle={deviceId} />
           <ListItem
             divider
             leadingIcon={<HardDrive className="w-5.5 h-5.5" />}
             leadingTone={persisted ? 'ok' : 'warn'}
             title="Bộ nhớ bền vững"
-            subtitle={`Đang dùng ${usageLabel}${quotaBytes !== null ? ` / ${quotaLabel}` : ''}`}
+            subtitle={
+              persisted
+                ? `Đang dùng ${usageLabel}${quotaBytes !== null ? ` / ${quotaLabel}` : ''}`
+                : `Đang dùng ${usageLabel}${quotaBytes !== null ? ` / ${quotaLabel}` : ''} · Nên cài app ra màn hình chính & bật đồng bộ`
+            }
             trailing={
               persisted ? (
                 <StatusPill tone="ok" icon={<CheckCircle2 className="w-4 h-4" />}>
@@ -376,25 +888,48 @@ export function SettingsScreen({
               )
             }
           />
+          {persistedRepoSizeKB !== undefined && (
+            <ListItem
+              divider
+              leadingIcon={<Cloud className="w-5.5 h-5.5" />}
+              leadingTone={persistedRepoSizeKB > REPO_SIZE_WARN_KB ? 'warn' : 'ok'}
+              title="Dung lượng repo dữ liệu"
+              subtitle="Khuyến nghị giữ dưới 800 MB"
+              trailing={
+                <StatusPill
+                  tone={persistedRepoSizeKB > REPO_SIZE_WARN_KB ? 'warn' : 'ok'}
+                  icon={
+                    persistedRepoSizeKB > REPO_SIZE_WARN_KB ? (
+                      <AlertTriangle className="w-4 h-4" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )
+                  }
+                >
+                  {formatSizeMb(persistedRepoSizeKB)}
+                </StatusPill>
+              }
+            />
+          )}
         </Card>
       </section>
 
-      {/* Mandatory Chrome Warning (SPEC §7.0) */}
+      {/* Mandatory Chrome Data-Loss Warning (SPEC §7.0 & T04 AC9) */}
       <Banner
         tone="danger"
         icon={<AlertTriangle className="w-5 h-5" />}
-        title="Lưu ý giữ an toàn dữ liệu"
+        title="Lưu ý giữ an toàn dữ liệu trên Chrome"
       >
-        Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy xuất sao lưu định
-        kỳ hoặc bật đồng bộ khi sẵn sàng để luôn có bản dự phòng.
+        Gỡ app hoặc xóa dữ liệu trang của Chrome sẽ xóa dữ liệu trên máy này. Hãy bật đồng bộ
+        GitHub để luôn có bản sao.
       </Banner>
 
       <Card padding="none">
         <ListItem
           leadingIcon={<Info className="w-5.5 h-5.5" />}
           leadingTone="info"
-          title="Đồng bộ tự động & Trợ lý AI"
-          subtitle="Sắp có: đồng bộ sao lưu hai chiều và trợ lý chăm sóc vườn. Các khóa kết nối chỉ lưu trên máy này, không xuất ra ngoài."
+          title="Nhắc nhở tự động & Trợ lý AI (Gemini)"
+          subtitle="Sẽ mở ở các bước tiếp theo: thông báo việc cần làm định kỳ và trợ lý AI nông học (nhập khóa cục bộ trên máy)."
         />
         {showDesignEntry && (
           <ListItem

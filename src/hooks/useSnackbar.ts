@@ -36,7 +36,12 @@ export function useSnackbar() {
       const durationMs = options.durationMs ?? (onAction ? 5000 : 4000);
       const id = `sb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-      setItems((prev) => [...prev.slice(-2), { id, message, tone, actionLabel, onAction }]);
+      for (const timer of timersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      timersRef.current.clear();
+
+      setItems([{ id, message, tone, actionLabel, onAction }]);
 
       const timer = window.setTimeout(() => {
         timersRef.current.delete(id);

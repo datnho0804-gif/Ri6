@@ -61,6 +61,10 @@ export interface DatabaseInitResult {
   versionError: boolean;
 }
 
+type PersistableStorageManager = StorageManager & {
+  persist?: () => Promise<boolean>;
+};
+
 export async function requestPersistentStorage(): Promise<{
   persisted: boolean;
   usage: number | null;
@@ -71,12 +75,13 @@ export async function requestPersistentStorage(): Promise<{
   let quota: number | null = null;
 
   if (typeof navigator !== 'undefined' && navigator.storage) {
+    const storage = navigator.storage as PersistableStorageManager;
     try {
-      if (typeof navigator.storage.persisted === 'function') {
-        persisted = await navigator.storage.persisted();
+      if (typeof storage.persisted === 'function') {
+        persisted = await storage.persisted();
       }
-      if (!persisted && typeof navigator.storage.persist === 'function') {
-        persisted = await navigator.storage.persist();
+      if (!persisted && typeof storage.persist === 'function') {
+        persisted = await storage.persist();
       }
     } catch {
       persisted = false;

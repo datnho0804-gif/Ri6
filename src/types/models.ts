@@ -184,6 +184,8 @@ export interface Settings {
   hapticsEnabled?: boolean;
   seededAt?: ISOTime;
   lastSeenVersion?: string;
+  lastRepoSizeKB?: number;
+  lastRepoCheckedAt?: ISOTime;
 }
 
 export type TabId = 'overview' | 'trees' | 'pruning' | 'reference';

@@ -8,7 +8,7 @@ import {
   Scissors,
   ShieldAlert,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { copyTextToClipboard } from '../../hooks/clipboard';
 import { formatDateVN, todayVN } from '../../lib/date';
 import { formatBytesVN } from '../../lib/format';
@@ -46,6 +46,7 @@ interface PruningScreenProps {
   onSavePruningAssessment: (tree: Tree, note: string) => Promise<void>;
   onCapturePrunePhoto: (tree: Tree, file: File, kind: PhotoKind) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
+  onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -73,6 +74,7 @@ export function PruningScreen({
   onSavePruningAssessment,
   onCapturePrunePhoto,
   getPhotoFullUrl,
+  onEnsureRemotePhoto,
   onNotify,
 }: PruningScreenProps) {
   const today = todayVN();
@@ -132,6 +134,15 @@ export function PruningScreen({
     }
     return map;
   }, [photos, selectedTree]);
+
+  useEffect(() => {
+    if (!onEnsureRemotePhoto) return;
+    for (const photo of latestAnglePhotos.values()) {
+      if (photo.remotePath && !thumbUrls.has(photo.id)) {
+        void onEnsureRemotePhoto(photo.id);
+      }
+    }
+  }, [latestAnglePhotos, onEnsureRemotePhoto, thumbUrls]);
 
   const toggleSign = (index: number) => {
     setSigns((prev) => prev.map((v, i) => (i === index ? !v : v)));
@@ -196,7 +207,12 @@ export function PruningScreen({
   const handleOpenLightbox = async (photo: Photo, title: string) => {
     const url = await getPhotoFullUrl(photo.id);
     if (!url || !selectedTree) {
-      onNotify('Ảnh gốc chưa có trên máy này.', 'warn');
+      onNotify(
+        photo.remotePath
+          ? 'Ảnh gốc chưa có trên máy này. Hãy kết nối mạng để tải từ GitHub.'
+          : 'Ảnh gốc chưa có trên máy này.',
+        'warn',
+      );
       return;
     }
     setLightbox({
@@ -393,24 +409,33 @@ export function PruningScreen({
                 return (
                   <Card key={angle.kind} padding="md">
                     <div className="flex items-start gap-3">
-                      {thumb && latest ? (
+                      {latest ? (
                         <button
                           type="button"
                           onClick={() => {
                             void handleOpenLightbox(latest, angle.title);
                           }}
-                          className="pressable w-20 h-20 rounded-md overflow-hidden bg-surface-2 shrink-0 shadow-e1"
+                          className="pressable w-20 h-20 rounded-md overflow-hidden bg-surface-2 shrink-0 shadow-e1 flex flex-col items-center justify-center gap-1 text-text-2"
                           aria-label={`Xem lớn ảnh ${angle.title}`}
                         >
-                          <img
-                            src={thumb}
-                            alt={`Ảnh ${angle.title} cây ${selectedTree.code}`}
-                            width={160}
-                            height={160}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover"
-                          />
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={`Ảnh ${angle.title} cây ${selectedTree.code}`}
+                              width={160}
+                              height={160}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <>
+                              <Camera className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
+                              <span className="text-label font-semibold leading-tight px-1 text-center">
+                                {latest.remotePath ? 'Tải ảnh' : `Góc ${idx + 1}`}
+                              </span>
+                            </>
+                          )}
                         </button>
                       ) : (
                         <div

@@ -1,18 +1,22 @@
 import type { ReactNode } from 'react';
+import { RI6 } from '../../lib/agronomy';
 import { Card } from './Card';
 
 export interface Ri6ProgressProps {
-  /** Days since xổ nhụy (0 to 105+). */
+  /** Days since xổ nhụy (0 to RI6.harvest[1]+). */
   day: number;
   subtitle?: string;
   children?: ReactNode;
   className?: string;
 }
 
-const MAX_DAYS = 105;
+const MAX_DAYS = RI6.harvest[1];
+const [KALI_START, KALI_END] = RI6.potassium;
+const [FLESH_START, FLESH_END] = RI6.fleshFilling;
+const [HARVEST_START, HARVEST_END] = RI6.harvest;
 
 /**
- * Ri6 fruit development timeline (0 -> 105 days) showing Kali 55-65, Lên cơm 60-65, Thu hoạch 90-105 (DESIGN §4).
+ * Ri6 fruit development timeline (0 -> RI6.harvest[1] days) reading all bands from src/lib/agronomy.ts (DESIGN §4).
  */
 export function Ri6Progress({ day, subtitle, children, className = '' }: Ri6ProgressProps) {
   const clamped = Math.max(0, Math.min(MAX_DAYS, day));
@@ -34,17 +38,23 @@ export function Ri6Progress({ day, subtitle, children, className = '' }: Ri6Prog
         aria-valuetext={`Ngày ${day} trên ${MAX_DAYS} ngày`}
         className="relative h-3 rounded-pill bg-surface-2 my-3.5"
       >
-        {/* Kali 55-65 band (52.4%..61.9%) */}
+        {/* Potassium band from RI6.potassium */}
         <span
           aria-hidden="true"
           className="absolute -top-0.5 -bottom-0.5 rounded-sm bg-tertiary/35"
-          style={{ left: `${(55 / MAX_DAYS) * 100}%`, width: `${(10 / MAX_DAYS) * 100}%` }}
+          style={{
+            left: `${(KALI_START / MAX_DAYS) * 100}%`,
+            width: `${((KALI_END - KALI_START) / MAX_DAYS) * 100}%`,
+          }}
         />
-        {/* Harvest 90-105 band (85.7%..100%) */}
+        {/* Harvest band from RI6.harvest */}
         <span
           aria-hidden="true"
           className="absolute -top-0.5 -bottom-0.5 rounded-sm bg-tertiary/60"
-          style={{ left: `${(90 / MAX_DAYS) * 100}%`, width: `${(15 / MAX_DAYS) * 100}%` }}
+          style={{
+            left: `${(HARVEST_START / MAX_DAYS) * 100}%`,
+            width: `${((HARVEST_END - HARVEST_START) / MAX_DAYS) * 100}%`,
+          }}
         />
         {/* Current fill */}
         <span
@@ -61,9 +71,15 @@ export function Ri6Progress({ day, subtitle, children, className = '' }: Ri6Prog
       </div>
 
       <div className="flex items-center justify-between gap-2 text-caption font-medium text-text-3 tabular-nums flex-wrap">
-        <span>Kali 55–65</span>
-        <span>Lên cơm 60–65</span>
-        <span>Thu 90–105</span>
+        <span>
+          Kali {KALI_START}–{KALI_END}
+        </span>
+        <span>
+          Lên cơm {FLESH_START}–{FLESH_END}
+        </span>
+        <span>
+          Thu {HARVEST_START}–{HARVEST_END}
+        </span>
       </div>
 
       {children && <div className="mt-3 space-y-2">{children}</div>}

@@ -19,11 +19,12 @@ import {
   LOT_A_TARGET,
   withoutViolations,
 } from '../../lib/batchLogs';
-import { addDays, formatDateVN, nowUTC, todayVN } from '../../lib/date';
+import { formatDateVN, nowUTC, todayVN } from '../../lib/date';
 import { formatShortDateVN } from '../../lib/format';
 import { triggerHaptic } from '../../lib/haptics';
 import { FERT_KIND_LABEL, LOG_TYPE_LABEL } from '../../lib/labels';
 import type { LimeGapViolation } from '../../lib/logRules';
+import { phiEnd } from '../../lib/phi';
 import type { FertKind, ISODate, Log, LogType, Tree } from '../../types/models';
 import {
   Banner,
@@ -270,7 +271,7 @@ function LogFormSheetContent({
           ? `Lưu cho Lô A (${lotACount} cây)`
           : `Lưu cho ${selectedTreeIds.length} cây`;
 
-  const phiEndDate = addDays(logDate, phiDays);
+  const phiEndDate = phiEnd({ date: logDate, phiDays }) ?? logDate;
   const options = isBatchMode ? BATCH_LOG_OPTIONS : SINGLE_LOG_OPTIONS;
 
   const limeViolations = pendingBatch?.limeViolations ?? null;

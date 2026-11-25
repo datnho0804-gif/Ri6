@@ -7,7 +7,7 @@ import {
   Scissors,
   Sprout,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LOT_A_ID } from '../../db/seed';
 import { formatDateVN } from '../../lib/date';
 import { formatBytesVN } from '../../lib/format';
@@ -43,6 +43,7 @@ interface LotADetailScreenProps {
   onDeleteBatch: (batchId: string) => void;
   onCaptureLotPhoto: (file: File) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
+  onEnsureRemotePhoto?: (photoId: string) => Promise<void>;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -72,6 +73,7 @@ export function LotADetailScreen({
   onDeleteBatch,
   onCaptureLotPhoto,
   getPhotoFullUrl,
+  onEnsureRemotePhoto,
   onNotify,
 }: LotADetailScreenProps) {
   const [splitOpen, setSplitOpen] = useState(false);
@@ -95,6 +97,15 @@ export function LotADetailScreen({
         .sort((a, b) => b.takenAt.localeCompare(a.takenAt)),
     [photos],
   );
+
+  useEffect(() => {
+    if (!onEnsureRemotePhoto) return;
+    for (const p of lotPhotos) {
+      if (p.remotePath && !thumbUrls.has(p.id)) {
+        void onEnsureRemotePhoto(p.id);
+      }
+    }
+  }, [lotPhotos, onEnsureRemotePhoto, thumbUrls]);
 
   const handleConfirmSplit = async () => {
     setSplitError(undefined);
@@ -214,6 +225,7 @@ export function LotADetailScreen({
                   <button
                     key={p.id}
                     type="button"
+                    aria-label={`Xem ảnh Lô A ngày ${formatDateVN(p.takenAt)}`}
                     onClick={async () => {
                       const url = await getPhotoFullUrl(p.id);
                       if (url) {
@@ -222,11 +234,16 @@ export function LotADetailScreen({
                           caption: `Ảnh Lô A · ${formatDateVN(p.takenAt)}`,
                           subcaption: `${p.width}×${p.height} · ${formatBytesVN(p.bytes)}`,
                         });
+                      } else {
+                        onNotify(
+                          'Ảnh chưa có trên máy này. Hãy kết nối mạng để tải từ GitHub.',
+                          'warn',
+                        );
                       }
                     }}
-                    className="pressable aspect-square rounded-md overflow-hidden bg-surface-2 shadow-e1"
+                    className="pressable aspect-square min-w-12 min-h-12 rounded-md overflow-hidden bg-surface-2 shadow-e1"
                   >
-                    {thumb && (
+                    {thumb ? (
                       <img
                         src={thumb}
                         alt={`Ảnh Lô A ngày ${formatDateVN(p.takenAt)}`}
@@ -236,6 +253,13 @@ export function LotADetailScreen({
                         decoding="async"
                         className="w-full h-full object-cover"
                       />
+                    ) : (
+                      <span className="w-full h-full flex flex-col items-center justify-center gap-1.5 px-2 text-center text-caption font-medium text-text-2">
+                        <Camera className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
+                        <span className="leading-tight">
+                          {p.remotePath ? 'Mở để tải ảnh' : 'Chưa có ảnh'}
+                        </span>
+                      </span>
                     )}
                   </button>
                 );
