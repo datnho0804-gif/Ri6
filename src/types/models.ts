@@ -137,12 +137,21 @@ export interface PhotoBlobRecord {
   blob: Blob;
 }
 
+export interface AiChatActionSnapshot {
+  title: string;
+  dueInDays: number;
+  targetId?: string;
+}
+
 export interface AiChatMessage {
   id: string;
   role: 'user' | 'model';
   content: string;
   createdAt: ISOTime;
   photoIds?: string[];
+  /** [1.2] Preserved locally when reopening saved AI conversations. */
+  confidence?: 'thap' | 'vua' | 'cao' | null;
+  actions?: AiChatActionSnapshot[];
 }
 
 /**

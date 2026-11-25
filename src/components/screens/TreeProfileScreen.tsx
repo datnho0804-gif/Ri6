@@ -19,6 +19,7 @@ import sampleCanopyUrl from '../../assets/sample-canopy.svg';
 import { copyTextToClipboard } from '../../hooks/clipboard';
 import { formatMilestoneDates, latestPhiSprayEnd } from '../../hooks/treePresentation';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { ROTATION_ALERT } from '../../lib/agronomy';
 import { buildTreeCopyPrompt } from '../../lib/copyPrompt';
 import { formatDateVN, todayVN } from '../../lib/date';
 import { formatBytesVN, formatRelativeDateVN, formatShortDateVN } from '../../lib/format';
@@ -26,6 +27,7 @@ import { triggerHaptic } from '../../lib/haptics';
 import { HEALTH_LABEL, PHOTO_KIND_LABEL, STAGE_LABEL } from '../../lib/labels';
 import { phiMessage, phiWarning, sprayLogsWithoutPhi } from '../../lib/phi';
 import { harvestWindow, ri6Day, ri6Milestones } from '../../lib/ri6';
+import { rotationAlerts } from '../../lib/supplies';
 import type {
   ISODate,
   Log,
@@ -172,6 +174,10 @@ export function TreeProfileScreen({
   );
   const latestSprayPhi = useMemo(() => latestPhiSprayEnd(logs, tree.id), [logs, tree.id]);
   const missingPhiCount = useMemo(() => sprayLogsWithoutPhi(logs, tree.id).length, [logs, tree.id]);
+  const treeRotationAlerts = useMemo(
+    () => rotationAlerts(logs, today, ROTATION_ALERT).filter((a) => a.targetId === tree.id),
+    [logs, today, tree.id],
+  );
 
   const forecastRows = useMemo(() => {
     if (tree.flowerDate) return ri6Milestones({ kind: 'xo-nhuy', date: tree.flowerDate });
@@ -353,6 +359,23 @@ export function TreeProfileScreen({
           </Banner>
         )}
 
+        {/* IRAC/FRAC rotation alerts from last 30 days (SPEC 1.2 & T07 AC2) */}
+        {treeRotationAlerts.map((alert) => (
+          <Banner
+            key={`${alert.targetId}-${alert.group}`}
+            tone="warn"
+            icon={<AlertTriangle className="w-5 h-5" />}
+            title="Nhắc luân phiên nhóm cơ chế"
+          >
+            <span className="tabular-nums">
+              Cây {tree.code} đã phun nhóm <strong>{alert.group}</strong>{' '}
+              <strong>{alert.count} lần</strong> trong {ROTATION_ALERT.windowDays} ngày (gần nhất{' '}
+              {formatDateVN(alert.lastDate)}). Lần tới cần đổi sang nhóm cơ chế khác để tránh kháng
+              thuốc.
+            </span>
+          </Banner>
+        ))}
+
         {/* Ri6 Progress card when flowerDate is recorded (mockup #2 & T03 AC6) */}
         {daysSinceFlower !== null && tree.flowerDate && (
           <Ri6Progress day={daysSinceFlower} subtitle={`sau xổ nhụy ${formatShortDateVN(tree.flowerDate)}`}>
@@ -427,6 +450,20 @@ export function TreeProfileScreen({
             </Card>
 
             <div className="flex flex-wrap gap-2.5">
+              {onAskAiAboutTree && (
+                <Button
+                  variant="tonal"
+                  leadingIcon={<Sparkles className="w-5 h-5" />}
+                  onClick={() =>
+                    onAskAiAboutTree(
+                      tree,
+                      treePhotos.slice(0, 3).map((p) => p.id),
+                    )
+                  }
+                >
+                  Hỏi AI về cây này
+                </Button>
+              )}
               <Button
                 variant="tonal"
                 leadingIcon={<Edit3 className="w-5 h-5" />}

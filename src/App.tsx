@@ -21,17 +21,23 @@ import { usePwa } from './hooks/usePwa';
 import { useSnackbar } from './hooks/useSnackbar';
 import { useThemeColor } from './hooks/useThemeColor';
 import { type AgendaItem, buildAgenda, summarizeAgenda } from './lib/agenda/agenda';
+import type { MemoryProposal } from './lib/ai/memory';
 import { nowUTC, todayVN } from './lib/date';
 import { formatHeaderDateVN } from './lib/format';
 import { triggerHaptic } from './lib/haptics';
 import type { SyncState } from './lib/merge';
 import { effectiveSeason as resolveSeason } from './lib/season';
-import { duplicateCodes } from './lib/treeCodes';
+import { duplicateCodes, nextTreeCode } from './lib/treeCodes';
 import type { TreeFilter } from './lib/treeFilters';
-import type { ISODate, Log, PhotoKind, Season, TabId, Tree, ViewId } from './types/models';
+import type { AiMemory, ISODate, Log, PhotoKind, Season, TabId, Tree, ViewId } from './types/models';
 
 const APP_VERSION = __APP_VERSION__;
 
+const AddTreeSheet = lazy(() =>
+  import('./components/screens/AddTreeSheet').then((m) => ({
+    default: m.AddTreeSheet,
+  })),
+);
 const InstallGuideModal = lazy(() =>
   import('./components/ui/InstallGuideModal').then((m) => ({
     default: m.InstallGuideModal,
@@ -142,6 +148,7 @@ export function App() {
 
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [addTreeSheetOpen, setAddTreeSheetOpen] = useState(false);
   const [aiSheetState, setAiSheetState] = useState<{
     open: boolean;
     preset: AiLaunchPreset | null;
@@ -207,8 +214,9 @@ export function App() {
       logs: orchard.logs,
       tasks: orchard.tasks,
       photos: orchard.photos,
+      aiMemories: orchard.aiMemories,
     }),
-    [orchard.allTrees, orchard.logs, orchard.lotA, orchard.photos, orchard.tasks],
+    [orchard.aiMemories, orchard.allTrees, orchard.logs, orchard.lotA, orchard.photos, orchard.tasks],
   );
 
   const agendaItems = useMemo(() => buildAgenda(agendaState, today), [agendaState, today]);
@@ -225,6 +233,7 @@ export function App() {
     setQuickPhotoOpen(false);
     setSyncDialogOpen(false);
     setInstallGuideOpen(false);
+    setAddTreeSheetOpen(false);
     setAiSheetState((prev) => (prev.open ? { open: false, preset: null } : prev));
   }, []);
 
@@ -583,6 +592,32 @@ export function App() {
     [deviceId, orchard],
   );
 
+  const handleSaveAiMemory = useCallback(
+    async (proposal: MemoryProposal & { source: 'ai'; approved: true }) => {
+      await orchard.addAiMemory(proposal);
+    },
+    [orchard],
+  );
+
+  const handleDeleteAiMemory = useCallback(
+    async (memory: AiMemory) => {
+      const tombstone = await orchard.deleteAiMemory(memory);
+      triggerHaptic(hapticsEnabled);
+      showSnackbar('Đã xóa 1 ghi nhớ trợ lý AI', {
+        tone: 'info',
+        actionLabel: 'Hoàn tác',
+        durationMs: 5000,
+        onAction: () => {
+          void orchard.undoDeleteAiMemory(tombstone).then(() => {
+            triggerHaptic(hapticsEnabled);
+            showSnackbar('Đã khôi phục ghi nhớ trợ lý AI.', { tone: 'ok', durationMs: 3000 });
+          });
+        },
+      });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
   const treeCount = orchard.trees.length;
   const lotACount = orchard.lotA?.treeCount ?? 0;
   const showDesignEntry = import.meta.env.DEV || hasDesignFlag();
@@ -619,7 +654,7 @@ export function App() {
     barSubtitle = '3 góc chụp & chấm mức độ';
   } else if (activeView === 'reference') {
     barTitle = 'Tra cứu';
-    barSubtitle = 'Phác đồ 5 bước & máy tính Ri6';
+    barSubtitle = 'Phác đồ, vật tư & máy tính Ri6';
   }
 
   const showFab =
@@ -647,88 +682,92 @@ export function App() {
 
       {/* Mobile full-screen Tree Profile or Lot A Detail */}
       {activeMobileTree ? (
-        <Suspense
-          fallback={
-            <div className="p-4 space-y-4">
-              <Skeleton variant="card" />
-              <Skeleton variant="card" />
-            </div>
-          }
-        >
-          <TreeProfileScreen
-            tree={activeMobileTree}
-            duplicateCodeSet={dupes}
-            logs={orchard.logs}
-            photos={orchard.photos}
-            thumbUrls={orchard.thumbUrls}
-            season={effectiveSeason}
-            hapticsEnabled={hapticsEnabled}
-            canUseAi={canUseAi}
-            onBack={() => setMobileDetailTargetId(null)}
-            onUpdateTree={orchard.updateTree}
-            onDeleteTree={async (t) => {
-              await orchard.softDeleteTree(t);
-              setMobileDetailTargetId(null);
-              setSelectedTargetId(null);
-              notify(`Đã xóa cây ${t.code}.`, 'info');
-            }}
-            onOpenAddLog={() =>
-              setLogSheetTarget({
-                open: true,
-                fixedTargetId: activeMobileTree.id,
-                fixedTargetLabel: activeMobileTree.code,
-              })
+        <main className="flex-1 w-full">
+          <Suspense
+            fallback={
+              <div className="p-4 space-y-4">
+                <Skeleton variant="card" />
+                <Skeleton variant="card" />
+              </div>
             }
-            onDeleteLog={(log) => {
-              void handleDeleteSingleLog(log);
-            }}
-            onDeleteBatch={(batchId) => {
-              void handleDeleteBatch(batchId);
-            }}
-            onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
-            getPhotoFullUrl={orchard.getPhotoFullUrl}
-            onEnsureRemotePhoto={orchard.ensureRemotePhoto}
-            onAskAiAboutTree={handleAskAiAboutTree}
-            onNotify={notify}
-          />
-        </Suspense>
+          >
+            <TreeProfileScreen
+              tree={activeMobileTree}
+              duplicateCodeSet={dupes}
+              logs={orchard.logs}
+              photos={orchard.photos}
+              thumbUrls={orchard.thumbUrls}
+              season={effectiveSeason}
+              hapticsEnabled={hapticsEnabled}
+              canUseAi={canUseAi}
+              onBack={() => setMobileDetailTargetId(null)}
+              onUpdateTree={orchard.updateTree}
+              onDeleteTree={async (t) => {
+                await orchard.softDeleteTree(t);
+                setMobileDetailTargetId(null);
+                setSelectedTargetId(null);
+                notify(`Đã xóa cây ${t.code}.`, 'info');
+              }}
+              onOpenAddLog={() =>
+                setLogSheetTarget({
+                  open: true,
+                  fixedTargetId: activeMobileTree.id,
+                  fixedTargetLabel: activeMobileTree.code,
+                })
+              }
+              onDeleteLog={(log) => {
+                void handleDeleteSingleLog(log);
+              }}
+              onDeleteBatch={(batchId) => {
+                void handleDeleteBatch(batchId);
+              }}
+              onCaptureWeeklyPhoto={handleCaptureWeeklyPhoto}
+              getPhotoFullUrl={orchard.getPhotoFullUrl}
+              onEnsureRemotePhoto={orchard.ensureRemotePhoto}
+              onAskAiAboutTree={handleAskAiAboutTree}
+              onNotify={notify}
+            />
+          </Suspense>
+        </main>
       ) : isMobileLotADetail && orchard.lotA ? (
-        <Suspense
-          fallback={
-            <div className="p-4 space-y-4">
-              <Skeleton variant="card" />
-              <Skeleton variant="card" />
-            </div>
-          }
-        >
-          <LotADetailScreen
-            lotA={orchard.lotA}
-            logs={orchard.logs}
-            photos={orchard.photos}
-            thumbUrls={orchard.thumbUrls}
-            hapticsEnabled={hapticsEnabled}
-            onBack={() => setMobileDetailTargetId(null)}
-            onUpdateLotA={orchard.updateLotA}
-            onSplitTrees={orchard.splitFromLotA}
-            onOpenAddLog={() =>
-              setLogSheetTarget({
-                open: true,
-                fixedTargetId: LOT_A_ID,
-                fixedTargetLabel: 'Lô A',
-              })
+        <main className="flex-1 w-full">
+          <Suspense
+            fallback={
+              <div className="p-4 space-y-4">
+                <Skeleton variant="card" />
+                <Skeleton variant="card" />
+              </div>
             }
-            onDeleteLog={(log) => {
-              void handleDeleteSingleLog(log);
-            }}
-            onDeleteBatch={(batchId) => {
-              void handleDeleteBatch(batchId);
-            }}
-            onCaptureLotPhoto={handleCaptureLotAPhoto}
-            getPhotoFullUrl={orchard.getPhotoFullUrl}
-            onEnsureRemotePhoto={orchard.ensureRemotePhoto}
-            onNotify={notify}
-          />
-        </Suspense>
+          >
+            <LotADetailScreen
+              lotA={orchard.lotA}
+              logs={orchard.logs}
+              photos={orchard.photos}
+              thumbUrls={orchard.thumbUrls}
+              hapticsEnabled={hapticsEnabled}
+              onBack={() => setMobileDetailTargetId(null)}
+              onUpdateLotA={orchard.updateLotA}
+              onSplitTrees={orchard.splitFromLotA}
+              onOpenAddLog={() =>
+                setLogSheetTarget({
+                  open: true,
+                  fixedTargetId: LOT_A_ID,
+                  fixedTargetLabel: 'Lô A',
+                })
+              }
+              onDeleteLog={(log) => {
+                void handleDeleteSingleLog(log);
+              }}
+              onDeleteBatch={(batchId) => {
+                void handleDeleteBatch(batchId);
+              }}
+              onCaptureLotPhoto={handleCaptureLotAPhoto}
+              getPhotoFullUrl={orchard.getPhotoFullUrl}
+              onEnsureRemotePhoto={orchard.ensureRemotePhoto}
+              onNotify={notify}
+            />
+          </Suspense>
+        </main>
       ) : (
         <>
           <TopAppBar
@@ -809,6 +848,9 @@ export function App() {
                     isSyncConfigured={sync.isConfigured}
                     pendingSyncCount={sync.pendingCount}
                     lastSyncError={sync.lastErrorMessage}
+                    aiMemories={orchard.aiMemories}
+                    trees={orchard.trees}
+                    logs={orchard.logs}
                     onUpdateSettings={orchard.updateSettings}
                     onTestConnection={sync.testConnection}
                     onSyncNow={sync.syncNow}
@@ -822,6 +864,9 @@ export function App() {
                     onExportJson={orchard.exportBackupJson}
                     onGetLocalSnapshot={orchard.getOrchardStateSnapshot}
                     onApplyImport={orchard.applyImportedBackup}
+                    onAddAiMemory={orchard.addAiMemory}
+                    onEditAiMemory={orchard.editAiMemory}
+                    onDeleteAiMemory={handleDeleteAiMemory}
                     onNotify={notify}
                   />
                 </Suspense>
@@ -875,6 +920,10 @@ export function App() {
                     });
                   }}
                   onSelectTree={openTargetDetail}
+                  onOpenAddTree={() => {
+                    closeAllOverlays();
+                    setAddTreeSheetOpen(true);
+                  }}
                   onOpenQuickPhoto={() => {
                     closeAllOverlays();
                     setQuickPhotoOpen(true);
@@ -982,7 +1031,11 @@ export function App() {
                     </div>
                   }
                 >
-                  <ReferenceScreen trees={orchard.trees} lotA={orchard.lotA} />
+                  <ReferenceScreen
+                    trees={orchard.trees}
+                    lotA={orchard.lotA}
+                    logs={orchard.logs}
+                  />
                 </Suspense>
               )}
             </div>
@@ -1068,7 +1121,24 @@ export function App() {
         </Suspense>
       )}
 
-      {/* AI Assistant BottomSheet (M7, T06) */}
+      {/* Add Tree Sheet triggered from Overview "+ Thêm cây" tile (T07 AC1) */}
+      {addTreeSheetOpen && (
+        <Suspense fallback={null}>
+          <AddTreeSheet
+            open={addTreeSheetOpen}
+            suggestedCode={nextTreeCode(orchard.allTrees)}
+            hapticsEnabled={hapticsEnabled}
+            onClose={() => setAddTreeSheetOpen(false)}
+            onSubmit={async (data) => {
+              const created = await orchard.addTree(data);
+              openTargetDetail(created.id);
+              notify(`Đã thêm cây ${created.code}.`, 'ok');
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* AI Assistant BottomSheet (M7, T06 + M7.1, T07) */}
       {aiSheetState.open && (
         <Suspense fallback={null}>
           <AiChatSheet
@@ -1081,6 +1151,7 @@ export function App() {
             photos={orchard.photos}
             thumbUrls={orchard.thumbUrls}
             agendaItems={agendaItems}
+            memories={orchard.aiMemories}
             settings={orchard.settings}
             hapticsEnabled={hapticsEnabled}
             onClose={() => setAiSheetState({ open: false, preset: null })}
@@ -1091,6 +1162,7 @@ export function App() {
             onUpdateSettings={orchard.updateSettings}
             onAddAiTask={handleAddAiTask}
             onSaveAiLog={handleSaveAiLog}
+            onSaveAiMemory={handleSaveAiMemory}
             onNotify={notify}
           />
         </Suspense>

@@ -25,6 +25,7 @@ import { triggerHaptic } from '../../lib/haptics';
 import { FERT_KIND_LABEL, LOG_TYPE_LABEL } from '../../lib/labels';
 import type { LimeGapViolation } from '../../lib/logRules';
 import { phiEnd } from '../../lib/phi';
+import { filterSupplies, supplyById } from '../../lib/supplies';
 import type { FertKind, ISODate, Log, LogType, Tree } from '../../types/models';
 import {
   Banner,
@@ -79,6 +80,22 @@ const FERT_OPTIONS = [
   })),
 ];
 
+const SPRAY_SUPPLY_OPTIONS = [
+  { value: '', label: '— Chọn thuốc BVTV từ danh mục (tùy chọn) —' },
+  ...filterSupplies({ category: 'thuoc_bvtv' }).map((s) => ({
+    value: s.id,
+    label: `${s.name} · ${s.brand} (${s.activeIngredient}${s.moaGroup ? ` · ${s.moaGroup}` : ''})`,
+  })),
+];
+
+const FERT_SUPPLY_OPTIONS = [
+  { value: '', label: '— Chọn phân bón từ danh mục (tùy chọn) —' },
+  ...filterSupplies({ category: 'phan_bon' }).map((s) => ({
+    value: s.id,
+    label: `${s.name} · ${s.brand} (${s.packaging.join(', ')})`,
+  })),
+];
+
 export function LogFormSheet(props: LogFormSheetProps) {
   if (!props.open) return null;
   return <LogFormSheetContent {...props} />;
@@ -108,6 +125,8 @@ function LogFormSheetContent({
   const [activeIngredient, setActiveIngredient] = useState('');
   const [phiDays, setPhiDays] = useState(21);
   const [fertilizerKind, setFertilizerKind] = useState<FertKind | ''>('');
+  const [supplyId, setSupplyId] = useState('');
+  const [priceVndText, setPriceVndText] = useState('');
   const [soilPhText, setSoilPhText] = useState('5,8');
   const [note, setNote] = useState('');
 
@@ -117,6 +136,7 @@ function LogFormSheetContent({
   const [phError, setPhError] = useState<string | undefined>();
   const [ingredientError, setIngredientError] = useState<string | undefined>();
   const [fertError, setFertError] = useState<string | undefined>();
+  const [priceError, setPriceError] = useState<string | undefined>();
 
   const [pendingBatch, setPendingBatch] = useState<Extract<BatchResult, { ok: true }> | null>(null);
   const [showIndividualPicker, setShowIndividualPicker] = useState(false);
@@ -128,6 +148,18 @@ function LogFormSheetContent({
     if (!cleaned) return undefined;
     const num = Number(cleaned);
     return Number.isFinite(num) ? num : undefined;
+  };
+
+  const parsePriceVnd = (
+    raw: string,
+  ): { ok: true; value?: number } | { ok: false; error: string } => {
+    const cleaned = raw.replace(/[.,\s]/g, '').trim();
+    if (!cleaned) return { ok: true, value: undefined };
+    const num = Number(cleaned);
+    if (!Number.isFinite(num) || !Number.isInteger(num) || num <= 0) {
+      return { ok: false, error: 'Giá mua phải là số nguyên dương (VNĐ), ví dụ: 640000.' };
+    }
+    return { ok: true, value: num };
   };
 
   const handlePhChange = (val: string) => {
@@ -195,6 +227,18 @@ function LogFormSheetContent({
     setIngredientError(undefined);
     setFertError(undefined);
     setPhError(undefined);
+    setPriceError(undefined);
+
+    const supportsSupply = logType === 'phun-thuoc' || logType === 'bon-phan';
+    let parsedPrice: number | undefined;
+    if (supportsSupply) {
+      const priceRes = parsePriceVnd(priceVndText);
+      if (!priceRes.ok) {
+        setPriceError(priceRes.error);
+        return;
+      }
+      parsedPrice = priceRes.value;
+    }
 
     const parsedPh = logType === 'do-ph' ? parseSoilPh(soilPhText) : undefined;
     const isSingleLotA = fixedTargetId === LOT_A_TARGET;
@@ -229,17 +273,24 @@ function LogFormSheetContent({
       return;
     }
 
+    // Attach optional supplyId & learned purchase priceVnd (SPEC 1.2 & T07 AC2)
+    const enrichedLogs: Log[] = res.logs.map((log) => ({
+      ...log,
+      ...(supportsSupply && supplyId ? { supplyId } : {}),
+      ...(supportsSupply && parsedPrice !== undefined ? { priceVnd: parsedPrice } : {}),
+    }));
+
     // For single-target logs, omit batchId so it does not show "Đợt: 1 cây"
     const normalizedResult: Extract<BatchResult, { ok: true }> =
-      !isBatchMode && res.logs.length === 1
+      !isBatchMode && enrichedLogs.length === 1
         ? {
             ...res,
-            logs: res.logs.map(({ batchId: _b, ...rest }) => {
+            logs: enrichedLogs.map(({ batchId: _b, ...rest }) => {
               void _b;
               return rest;
             }),
           }
-        : res;
+        : { ...res, logs: enrichedLogs };
 
     if (normalizedResult.limeViolations.length > 0) {
       setPendingBatch(normalizedResult);
@@ -329,6 +380,8 @@ function LogFormSheetContent({
                   selected={logType === id}
                   onClick={() => {
                     setLogType(id);
+                    setSupplyId('');
+                    setPriceError(undefined);
                     setDirty(true);
                     setFormError(undefined);
                     setIngredientError(undefined);
@@ -389,24 +442,72 @@ function LogFormSheetContent({
             </div>
           )}
 
-          {/* Type-specific mandatory fields */}
+          {/* Type-specific mandatory fields + optional supply & learned purchase price (T07 AC2) */}
           {logType === 'bon-phan' && (
-            <SelectField
-              label="Loại phân (bắt buộc)"
-              value={fertilizerKind}
-              options={FERT_OPTIONS}
-              error={fertError}
-              helperText="App tự kiểm tra khoảng cách an toàn với Vôi/Dolomite (15 ngày với hữu cơ, 10 ngày với urê/lân)."
-              onChange={(e) => {
-                setFertilizerKind(e.target.value as FertKind | '');
-                setDirty(true);
-                setFertError(undefined);
-              }}
-            />
+            <div className="space-y-3">
+              <SelectField
+                label="Loại phân (bắt buộc)"
+                value={fertilizerKind}
+                options={FERT_OPTIONS}
+                error={fertError}
+                helperText="App tự kiểm tra khoảng cách an toàn với Vôi/Dolomite (15 ngày với hữu cơ, 10 ngày với urê/lân)."
+                onChange={(e) => {
+                  setFertilizerKind(e.target.value as FertKind | '');
+                  setDirty(true);
+                  setFertError(undefined);
+                }}
+              />
+              <SelectField
+                label="Vật tư / Phân bón cụ thể (tùy chọn)"
+                value={supplyId}
+                options={FERT_SUPPLY_OPTIONS}
+                helperText="Chọn sản phẩm từ danh mục để theo dõi giá vườn đã mua."
+                onChange={(e) => {
+                  setSupplyId(e.target.value);
+                  setDirty(true);
+                }}
+              />
+              <TextField
+                label="Giá mua (đ)"
+                inputMode="numeric"
+                placeholder="Ví dụ: 640000"
+                value={priceVndText}
+                error={priceError}
+                helperText="Tùy chọn — ghi giá thực trả cho 1 bao/gói để app ưu tiên dùng giá vườn thay giá tham khảo."
+                onChange={(e) => {
+                  setPriceVndText(e.target.value);
+                  setPriceError(undefined);
+                  setDirty(true);
+                }}
+              />
+            </div>
           )}
 
           {logType === 'phun-thuoc' && (
             <div className="space-y-3">
+              <SelectField
+                label="Vật tư / Thuốc BVTV từ danh mục (tùy chọn)"
+                value={supplyId}
+                options={SPRAY_SUPPLY_OPTIONS}
+                helperText="Chọn sản phẩm sẽ tự điền hoạt chất để hỗ trợ nhắc luân phiên FRAC/IRAC."
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setSupplyId(nextId);
+                  setDirty(true);
+                  const picked = supplyById(nextId);
+                  if (picked) {
+                    setActiveIngredient(
+                      picked.moaGroup
+                        ? `${picked.activeIngredient} (${picked.moaGroup})`
+                        : picked.activeIngredient,
+                    );
+                    setIngredientError(undefined);
+                    if (picked.phiDays !== undefined) {
+                      setPhiDays(picked.phiDays);
+                    }
+                  }
+                }}
+              />
               <TextField
                 label="Hoạt chất (bắt buộc)"
                 placeholder="Ví dụ: Emamectin benzoate (IRAC 6)"
@@ -441,6 +542,19 @@ function LogFormSheetContent({
                   }}
                 />
               </div>
+              <TextField
+                label="Giá mua (đ)"
+                inputMode="numeric"
+                placeholder="Ví dụ: 185000"
+                value={priceVndText}
+                error={priceError}
+                helperText="Tùy chọn — ghi giá thực trả để app và trợ lý AI nhớ giá đại lý địa phương."
+                onChange={(e) => {
+                  setPriceVndText(e.target.value);
+                  setPriceError(undefined);
+                  setDirty(true);
+                }}
+              />
               <Banner tone="warn" icon={<AlertTriangle className="w-5 h-5" />}>
                 <span className="tabular-nums">
                   Hết thời gian cách ly ngày <strong>{formatShortDateVN(phiEndDate)}</strong>. Không

@@ -32,6 +32,7 @@ import {
   type NotifyCapability,
 } from '../../lib/agenda/register';
 import { AiError, createGeminiClient } from '../../lib/ai/gemini';
+import type { MemoryProposal } from '../../lib/ai/memory';
 import { type GeminiModelInfo, modelLabel, pickDefaultModel } from '../../lib/ai/models';
 import { nowUTC, todayVN } from '../../lib/date';
 import {
@@ -49,7 +50,7 @@ import {
 } from '../../lib/merge';
 import type { SyncResult } from '../../lib/sync/engine';
 import { type GitHubConfig, REPO_SIZE_WARN_KB } from '../../lib/sync/github';
-import type { Settings } from '../../types/models';
+import type { AiMemory, Log, Settings, Tree } from '../../types/models';
 import {
   Banner,
   Button,
@@ -61,6 +62,7 @@ import {
   StatusPill,
   TextField,
 } from '../ui';
+import { AiMemoryManager } from './AiMemoryManager';
 
 interface SettingsScreenProps {
   appVersion: string;
@@ -76,6 +78,9 @@ interface SettingsScreenProps {
   isSyncConfigured: boolean;
   pendingSyncCount: number;
   lastSyncError: string | null;
+  aiMemories: AiMemory[];
+  trees: Tree[];
+  logs: Log[];
   onUpdateSettings: (patch: Partial<Settings>) => Promise<void>;
   onTestConnection: (cfg: GitHubConfig) => Promise<RepoTestOutcome>;
   onSyncNow: () => Promise<SyncResult | null>;
@@ -85,6 +90,14 @@ interface SettingsScreenProps {
   onExportJson: (includePhotos: boolean) => Promise<string>;
   onGetLocalSnapshot: () => Promise<SyncState>;
   onApplyImport: (incoming: SyncState, photoData?: Record<string, string>) => Promise<void>;
+  onAddAiMemory: (
+    proposal: MemoryProposal & { source: 'manual'; approved: true },
+  ) => Promise<AiMemory>;
+  onEditAiMemory: (
+    memory: AiMemory,
+    patch: Partial<Pick<AiMemory, 'content' | 'category' | 'targetIds'>>,
+  ) => Promise<AiMemory>;
+  onDeleteAiMemory: (memory: AiMemory) => Promise<void>;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -107,6 +120,9 @@ export function SettingsScreen({
   isSyncConfigured,
   pendingSyncCount,
   lastSyncError,
+  aiMemories,
+  trees,
+  logs,
   onUpdateSettings,
   onTestConnection,
   onSyncNow,
@@ -116,6 +132,9 @@ export function SettingsScreen({
   onExportJson,
   onGetLocalSnapshot,
   onApplyImport,
+  onAddAiMemory,
+  onEditAiMemory,
+  onDeleteAiMemory,
   onNotify,
 }: SettingsScreenProps) {
   const [liveStorage, setLiveStorage] = useState<{
@@ -1186,6 +1205,18 @@ export function SettingsScreen({
         </Card>
       </section>
 
+      {/* AI Self-Learning Memory Manager (SPEC M7.1 & T07 AC3) */}
+      <AiMemoryManager
+        memories={aiMemories}
+        trees={trees}
+        logs={logs}
+        hapticsEnabled={hapticsEnabled}
+        onAddMemory={onAddAiMemory}
+        onEditMemory={onEditAiMemory}
+        onDeleteMemory={onDeleteAiMemory}
+        onNotify={onNotify}
+      />
+
       {/* Touch & Haptics (D01 AC6) */}
       <section aria-labelledby="sec-feel-heading">
         <h2 id="sec-feel-heading" className="text-title font-bold text-text px-0.5 mb-2">
@@ -1421,6 +1452,14 @@ export function SettingsScreen({
                   trailing={`+${pendingImport.counts.photos.added} mục (${pendingImport.photoBlobsCount} ảnh kèm)`}
                 />
               )}
+              {pendingImport.counts.aiMemories &&
+                pendingImport.counts.aiMemories.added + pendingImport.counts.aiMemories.updated > 0 && (
+                  <ListItem
+                    divider
+                    title="Ghi nhớ trợ lý AI"
+                    trailing={`+${pendingImport.counts.aiMemories.added} mới · ${pendingImport.counts.aiMemories.updated} cập nhật`}
+                  />
+                )}
             </Card>
           </div>
         )}
