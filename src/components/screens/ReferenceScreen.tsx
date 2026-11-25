@@ -167,7 +167,7 @@ function SuppliesSection({ logs }: { logs: Log[] }) {
       <div className="space-y-3">
         <TextField
           label="Tìm thuốc BVTV, phân bón, hoạt chất hoặc thương hiệu"
-          placeholder="Ví dụ: nhen do, phu my ure, Ridomil, IRAC 6…"
+          placeholder="Ví dụ: nhện đỏ, Ridomil, IRAC 6"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -211,7 +211,7 @@ function SuppliesSection({ logs }: { logs: Log[] }) {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 rail:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 rail:grid-cols-2 gap-3 pb-24">
           {filtered.map((item) => {
             const gardenPrice = learnedPrice(logs, item.id);
             const priceText = priceLine(item, logs);
