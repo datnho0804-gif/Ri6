@@ -6,6 +6,7 @@ import {
   Clock,
   CloudRain,
   FlaskConical,
+  Plus,
   RefreshCw,
   Sun,
 } from 'lucide-react';
@@ -47,6 +48,7 @@ interface OverviewScreenProps {
   onPullToSync?: () => Promise<void>;
   onToggleSeason: (next: Season) => void;
   onSelectTree: (treeId: string) => void;
+  onOpenAddTree: () => void;
   onOpenQuickPhoto: () => void;
   onOpenAgenda: () => void;
   onOpenTreesFiltered: (filter: TreeFilter) => void;
@@ -57,13 +59,13 @@ const PULL_MAX = 96;
 const PULL_DEADZONE = 8;
 
 /**
- * M1 Overview screen (SPEC M1, T02 AC1, T03 AC6, T05 AC2, DESIGN §6 pull-to-refresh):
+ * M1 Overview screen (SPEC M1, T02 AC1, T03 AC6, T05 AC2, T07 AC1, DESIGN §6 pull-to-refresh):
  * - Pull-to-refresh at scroll top triggering GitHub sync
  * - Dynamic total tree count KPI, overdue photo count, union pruning/disease watch count, pH target
- * - Season toggle (Dry/Rainy) with Southeast Vietnam agronomic recommendations
+ * - Season toggle (Dry/Rainy) with Southeast Vietnam agronomic recommendations (SEASON_ADVICE)
  * - Active PHI harvest conflict alerts computed via src/lib/phi.ts
  * - "Hôm nay cần làm" top-5 agenda summary card linking to M6 Việc cần làm
- * - Photo grid for ALL active individual trees (3 cols mobile, 5 cols desktop) opening tree profiles
+ * - Photo grid for ALL active individual trees (3 cols mobile, 5 cols desktop) + "+ Thêm cây" last tile
  */
 export function OverviewScreen({
   loading,
@@ -80,6 +82,7 @@ export function OverviewScreen({
   onPullToSync,
   onToggleSeason,
   onSelectTree,
+  onOpenAddTree,
   onOpenQuickPhoto,
   onOpenAgenda,
   onOpenTreesFiltered,
@@ -438,16 +441,10 @@ export function OverviewScreen({
 
         {loading ? (
           <div className="grid grid-cols-3 rail:grid-cols-5 gap-2" aria-label="Đang tải lưới ảnh">
-            {Array.from({ length: 6 }).map((_, idx) => (
+            {Array.from({ length: 4 }).map((_, idx) => (
               <Skeleton key={idx} variant="tile" />
             ))}
           </div>
-        ) : trees.length === 0 ? (
-          <Card padding="md">
-            <p className="text-body text-text-2">
-              Chưa có cây cá thể nào. Vào mục Cây để thêm cây hoặc tách cây từ Lô A.
-            </p>
-          </Card>
         ) : (
           <div className="grid grid-cols-3 rail:grid-cols-5 gap-2">
             {trees.map((tree) => {
@@ -480,6 +477,21 @@ export function OverviewScreen({
                 />
               );
             })}
+
+            {/* Last tile: "+ Thêm cây" (SPEC 1.2 & T07 AC1: >= 48px, text + icon, opens AddTreeSheet) */}
+            <button
+              type="button"
+              onClick={onOpenAddTree}
+              className="pressable aspect-square min-h-14 rounded-tile border-2 border-dashed border-outline-strong bg-surface-2/60 hover:bg-primary-container/40 p-2 flex flex-col items-center justify-center gap-1.5 text-primary transition-colors"
+            >
+              <span
+                className="w-10 h-10 rounded-pill bg-primary-container text-on-primary-container flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                <Plus className="w-5.5 h-5.5" />
+              </span>
+              <span className="text-label font-bold leading-tight text-center">+ Thêm cây</span>
+            </button>
           </div>
         )}
       </section>
