@@ -7,10 +7,12 @@ import {
   Droplets,
   Info,
   Leaf,
+  Package,
   RefreshCw,
   ShieldAlert,
   Sparkles,
   Sun,
+  Tag,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatMilestoneDates } from '../../hooks/treePresentation';
@@ -26,7 +28,18 @@ import {
   type Protocol,
 } from '../../lib/protocols';
 import { harvestWindow, ri6Day, ri6Milestones } from '../../lib/ri6';
-import type { ISODate, Lot, Tree } from '../../types/models';
+import {
+  getSuppliesForProtocol,
+  learnedPrice,
+  priceLine,
+  searchSupplies,
+  SUPPLIES,
+  SUPPLY_CATEGORY_LABEL,
+  SUPPLY_LABEL_NOTE,
+  SUPPLY_PRICE_DISCLAIMER,
+  type SupplyCategory,
+} from '../../lib/supplies';
+import type { ISODate, Log, Lot, Tree } from '../../types/models';
 import {
   Banner,
   BottomSheet,
@@ -48,10 +61,12 @@ import {
 interface ReferenceScreenProps {
   trees: Tree[];
   lotA: Lot | null;
+  logs: Log[];
 }
 
-type RefSubTab = 'protocols' | 'ri6' | 'irrigation';
+type RefSubTab = 'protocols' | 'supplies' | 'ri6' | 'irrigation';
 type ProtocolKindFilter = 'all' | Protocol['kind'];
+type SupplyFilter = 'all' | SupplyCategory;
 
 const KIND_LABEL: Record<Protocol['kind'], string> = {
   benh: 'Bệnh hại',
@@ -63,6 +78,12 @@ const KIND_TONE: Record<Protocol['kind'], SemanticTone> = {
   benh: 'danger',
   sau: 'warn',
   'sinh-ly': 'ph',
+};
+
+const SUPPLY_TONE: Record<SupplyCategory, SemanticTone> = {
+  thuoc_bvtv: 'danger',
+  phan_bon: 'ok',
+  vat_tu: 'info',
 };
 
 const SEASON_TAG: Record<Protocol['season'], { label: string; tone: SemanticTone }> = {
@@ -79,28 +100,31 @@ function formatM3(value: number): string {
 }
 
 /**
- * M4 Reference & Calculators screen (SPEC M4, T03 AC3, AC4, AC5):
- * - 8 five-step disease/pest/physiology protocols with accent-insensitive search & FRAC/IRAC groups
+ * M4 Reference, Supplies Catalog & Calculators screen (SPEC M4, T03 AC3–AC5, T07 AC2):
+ * - 8 five-step disease/pest/physiology protocols with linked products
+ * - Detailed Supplies Catalog (Thuốc BVTV, Phân bón, Vật tư) with brand, packaging, reference/learned price, usage
  * - Ri6 physiological milestones calculator (mat-cua / xo-nhuy)
  * - Drip/sprinkler irrigation volume calculator with dynamic Lot A & individual tree counts
  */
-export function ReferenceScreen({ trees, lotA }: ReferenceScreenProps) {
+export function ReferenceScreen({ trees, lotA, logs }: ReferenceScreenProps) {
   const [subTab, setSubTab] = useState<RefSubTab>('protocols');
 
   return (
     <div className="space-y-4">
       <SegmentedButton
-        ariaLabel="Mục tra cứu và máy tính"
+        ariaLabel="Mục tra cứu, vật tư và máy tính"
         value={subTab}
         onChange={setSubTab}
         options={[
-          { value: 'protocols', label: `Phác đồ (${PROTOCOLS.length})` },
-          { value: 'ri6', label: 'Tính mốc Ri6' },
-          { value: 'irrigation', label: 'Tính béc tưới' },
+          { value: 'protocols', label: 'Phác đồ' },
+          { value: 'supplies', label: 'Vật tư' },
+          { value: 'ri6', label: 'Mốc Ri6' },
+          { value: 'irrigation', label: 'Béc tưới' },
         ]}
       />
 
-      {subTab === 'protocols' && <ProtocolsSection />}
+      {subTab === 'protocols' && <ProtocolsSection logs={logs} />}
+      {subTab === 'supplies' && <SuppliesSection logs={logs} />}
       {subTab === 'ri6' && <Ri6CalculatorSection trees={trees} />}
       {subTab === 'irrigation' && (
         <IrrigationCalculatorSection
@@ -113,7 +137,166 @@ export function ReferenceScreen({ trees, lotA }: ReferenceScreenProps) {
   );
 }
 
-function ProtocolsSection() {
+function SuppliesSection({ logs }: { logs: Log[] }) {
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<SupplyFilter>('all');
+
+  const filtered = useMemo(() => {
+    const byQuery = searchSupplies(query);
+    if (category === 'all') return byQuery;
+    return byQuery.filter((s) => s.category === category);
+  }, [category, query]);
+
+  const counts = useMemo(
+    () => ({
+      all: SUPPLIES.length,
+      thuoc_bvtv: SUPPLIES.filter((s) => s.category === 'thuoc_bvtv').length,
+      phan_bon: SUPPLIES.filter((s) => s.category === 'phan_bon').length,
+      vat_tu: SUPPLIES.filter((s) => s.category === 'vat_tu').length,
+    }),
+    [],
+  );
+
+  return (
+    <div className="space-y-4">
+      <Banner tone="info" icon={<Info className="w-5 h-5" />} title="Danh mục vật tư vườn Ri6">
+        <p>{SUPPLY_PRICE_DISCLAIMER}</p>
+        <p className="mt-1">{SUPPLY_LABEL_NOTE}</p>
+      </Banner>
+
+      <div className="space-y-3">
+        <TextField
+          label="Tìm thuốc BVTV, phân bón, hoạt chất hoặc thương hiệu"
+          placeholder="Ví dụ: nhện đỏ, Ridomil, IRAC 6"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Lọc theo nhóm vật tư">
+          {(
+            [
+              { id: 'all', label: `Tất cả (${counts.all})` },
+              { id: 'thuoc_bvtv', label: `${SUPPLY_CATEGORY_LABEL.thuoc_bvtv} (${counts.thuoc_bvtv})` },
+              { id: 'phan_bon', label: `${SUPPLY_CATEGORY_LABEL.phan_bon} (${counts.phan_bon})` },
+              { id: 'vat_tu', label: `${SUPPLY_CATEGORY_LABEL.vat_tu} (${counts.vat_tu})` },
+            ] as const
+          ).map((opt) => (
+            <Chip
+              key={opt.id}
+              variant="filter"
+              selected={category === opt.id}
+              onClick={() => setCategory(opt.id)}
+            >
+              {opt.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          illustration="durian"
+          title="Không tìm thấy vật tư phù hợp"
+          description="Thử tìm không dấu (ví dụ: nhen do, phu my ure, dolomite) hoặc xem lại toàn bộ danh mục."
+          action={
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setQuery('');
+                setCategory('all');
+              }}
+            >
+              Xem tất cả ({SUPPLIES.length})
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 rail:grid-cols-2 gap-3 pb-24">
+          {filtered.map((item) => {
+            const gardenPrice = learnedPrice(logs, item.id);
+            const priceText = priceLine(item, logs);
+
+            return (
+              <Card key={item.id} padding="md" className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-title font-bold text-text leading-snug">{item.name}</h2>
+                    <p className="text-caption text-text-3 mt-0.5">
+                      Hãng / Thương hiệu: <strong className="text-text-2">{item.brand}</strong>
+                    </p>
+                  </div>
+                  <StatusPill tone={SUPPLY_TONE[item.category]}>
+                    {SUPPLY_CATEGORY_LABEL[item.category]}
+                  </StatusPill>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {item.moaGroup && <StatusPill tone="info">{item.moaGroup}</StatusPill>}
+                  <StatusPill tone="neutral" icon={<Package className="w-4 h-4" />}>
+                    {item.packaging.join(' · ')}
+                  </StatusPill>
+                  {item.category === 'thuoc_bvtv' && (
+                    <StatusPill tone="warn">
+                      PHI: {item.phiDays !== undefined ? `${item.phiDays} ngày` : 'Theo nhãn'}
+                    </StatusPill>
+                  )}
+                </div>
+
+                {/* Price row: garden learned price prioritized over reference price */}
+                <div
+                  className={[
+                    'rounded-sm px-3 py-2 text-label flex items-start gap-2',
+                    gardenPrice
+                      ? 'bg-primary-container/50 text-on-primary-container font-semibold'
+                      : 'bg-surface-2 text-text-2',
+                  ].join(' ')}
+                >
+                  <Tag className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <div className="tabular-nums">{priceText}</div>
+                    {!gardenPrice && item.price?.source && (
+                      <div className="text-caption text-text-3 mt-0.5">
+                        Nguồn: {item.price.source}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <dl className="space-y-1.5 text-body text-text-2 leading-relaxed">
+                  <div>
+                    <dt className="inline font-semibold text-text">Hoạt chất / Thành phần: </dt>
+                    <dd className="inline">{item.activeIngredient}</dd>
+                  </div>
+                  {item.targets.length > 0 && (
+                    <div>
+                      <dt className="inline font-semibold text-text">Đối tượng: </dt>
+                      <dd className="inline">{item.targets.join(', ')}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="inline font-semibold text-text">Cách dùng: </dt>
+                    <dd className="inline">{item.usageGuide}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-semibold text-text">Liều lượng: </dt>
+                    <dd className="inline">{item.doseNote}</dd>
+                  </div>
+                </dl>
+
+                <div className="rounded-sm bg-warn-container/50 px-3 py-2 text-caption text-text-2 flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 text-warn shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{item.safetyNote}</span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProtocolsSection({ logs }: { logs: Log[] }) {
   const [query, setQuery] = useState('');
   const [kindFilter, setKindFilter] = useState<ProtocolKindFilter>('all');
   const [selectedId, setSelectedId] = useState<string>(PROTOCOLS[0]?.id ?? '');
@@ -260,7 +443,7 @@ function ProtocolsSection() {
         {/* Right detail pane on >=840px desktop */}
         <div className="hidden rail:block rail:col-span-7">
           {selectedProtocol ? (
-            <ProtocolDetailView protocol={selectedProtocol} />
+            <ProtocolDetailView protocol={selectedProtocol} logs={logs} />
           ) : (
             <Card padding="lg">
               <EmptyState
@@ -285,7 +468,7 @@ function ProtocolsSection() {
           </Button>
         }
       >
-        {selectedProtocol && <ProtocolDetailView protocol={selectedProtocol} compactHeader />}
+        {selectedProtocol && <ProtocolDetailView protocol={selectedProtocol} logs={logs} compactHeader />}
       </BottomSheet>
     </div>
   );
@@ -293,12 +476,15 @@ function ProtocolsSection() {
 
 function ProtocolDetailView({
   protocol,
+  logs,
   compactHeader = false,
 }: {
   protocol: Protocol;
+  logs: Log[];
   compactHeader?: boolean;
 }) {
   const seasonTag = SEASON_TAG[protocol.season];
+  const relatedSupplies = useMemo(() => getSuppliesForProtocol(protocol.id), [protocol.id]);
 
   return (
     <div className="space-y-4">
@@ -352,7 +538,7 @@ function ProtocolDetailView({
         ))}
       </div>
 
-      {/* Active ingredient FRAC/IRAC rotation summary (no doses, no brand names) */}
+      {/* Active ingredient FRAC/IRAC rotation summary */}
       {protocol.actives.length > 0 && (
         <Card padding="none">
           <div className="px-4 py-3 border-b border-surface-2 flex items-center gap-2">
@@ -370,6 +556,33 @@ function ProtocolDetailView({
                 [act.target, act.note, 'Liều lượng và PHI theo nhãn'].filter(Boolean).join(' · ')
               }
               trailing={<StatusPill tone="info">{act.group}</StatusPill>}
+            />
+          ))}
+        </Card>
+      )}
+
+      {/* Linked popular products from Supplies Catalog (SPEC 1.2 & T07 AC2) */}
+      {relatedSupplies.length > 0 && (
+        <Card padding="none">
+          <div className="px-4 py-3 border-b border-surface-2 flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
+            <h3 className="text-title font-bold text-text">
+              Sản phẩm phổ biến liên quan ({relatedSupplies.length})
+            </h3>
+          </div>
+          {relatedSupplies.map((item, idx) => (
+            <ListItem
+              key={item.id}
+              divider={idx > 0}
+              title={`${item.name} · ${item.brand}`}
+              subtitle={[
+                `${item.activeIngredient}${item.moaGroup ? ` (${item.moaGroup})` : ''}`,
+                `Quy cách: ${item.packaging.join(', ')}`,
+                priceLine(item, logs),
+              ].join(' · ')}
+              trailing={
+                item.moaGroup ? <StatusPill tone="info">{item.moaGroup}</StatusPill> : undefined
+              }
             />
           ))}
         </Card>

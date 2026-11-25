@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { nowUTC } from '../lib/date';
 import type {
   AiChat,
+  AiMemory,
   Log,
   Lot,
   Photo,
@@ -18,7 +19,7 @@ import {
   LOT_A_ID,
 } from './seed';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export class Ri6Database extends Dexie {
   trees!: EntityTable<Tree, 'id'>;
@@ -29,12 +30,13 @@ export class Ri6Database extends Dexie {
   photoBlobs!: EntityTable<PhotoBlobRecord, 'id'>;
   settings!: EntityTable<Settings, 'id'>;
   aiChats!: EntityTable<AiChat, 'id'>;
+  aiMemories!: EntityTable<AiMemory, 'id'>;
 
   constructor(name = 'ri6-orchard-db') {
     super(name);
     // SPEC §5 (v1.1): 8 tables; boolean flags (needsPruning, diseaseWatch, done) are filtered in memory
     // because IndexedDB does not index boolean keys.
-    this.version(SCHEMA_VERSION).stores({
+    this.version(1).stores({
       trees: 'id, code, lot, health, updatedAt, deletedAt',
       lots: 'id, updatedAt, deletedAt',
       logs: 'id, targetId, date, type, batchId, updatedAt, deletedAt',
@@ -43,6 +45,11 @@ export class Ri6Database extends Dexie {
       photoBlobs: 'id',
       settings: 'id',
       aiChats: 'id, updatedAt',
+    });
+
+    // SPEC §5 (v1.2, T07 AC3): non-destructive v2 adding synced AI memories table
+    this.version(SCHEMA_VERSION).stores({
+      aiMemories: 'id, updatedAt',
     });
   }
 }

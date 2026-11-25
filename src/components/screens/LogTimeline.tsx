@@ -17,6 +17,7 @@ import { formatDateVN } from '../../lib/date';
 import { formatNumberVN, formatShortDateVN } from '../../lib/format';
 import { FERT_KIND_LABEL, LOG_TYPE_LABEL } from '../../lib/labels';
 import { phiEnd } from '../../lib/phi';
+import { supplyById } from '../../lib/supplies';
 import type { Log, LogType } from '../../types/models';
 import {
   Button,
@@ -93,17 +94,21 @@ export function LogTimeline({
         {targetLogs.map((log, idx) => {
           const Icon = LOG_ICONS[log.type];
           const countInBatch = log.batchId ? getBatchSize(allLogs, log.batchId) : 1;
+          const supply = supplyById(log.supplyId);
 
           let title = LOG_TYPE_LABEL[log.type];
           if (log.type === 'phun-thuoc') {
-            title = `${title} · ${log.activeIngredient?.trim() || 'chưa rõ hoạt chất'}`;
-          } else if (log.type === 'bon-phan' && log.fertilizerKind) {
-            title = `${title} · ${FERT_KIND_LABEL[log.fertilizerKind]}`;
+            title = `${title} · ${supply?.name ?? (log.activeIngredient?.trim() || 'chưa rõ hoạt chất')}`;
+          } else if (log.type === 'bon-phan' && (supply || log.fertilizerKind)) {
+            title = `${title} · ${supply?.name ?? (log.fertilizerKind ? FERT_KIND_LABEL[log.fertilizerKind] : '')}`;
           } else if (log.type === 'do-ph' && typeof log.soilPh === 'number') {
             title = `${title} · pH ${formatNumberVN(log.soilPh, 1)}`;
           }
 
           const metaParts: string[] = [formatDateVN(log.date)];
+          if (supply?.moaGroup) {
+            metaParts.push(supply.moaGroup);
+          }
           if (log.type === 'phun-thuoc') {
             const endIso = phiEnd(log);
             if (endIso && typeof log.phiDays === 'number') {
@@ -111,6 +116,9 @@ export function LogTimeline({
             } else {
               metaParts.push('PHI chưa rõ');
             }
+          }
+          if (typeof log.priceVnd === 'number' && log.priceVnd > 0) {
+            metaParts.push(`Giá mua ${formatNumberVN(log.priceVnd, 0)} đ`);
           }
           if (countInBatch > 1) {
             metaParts.push(`Đợt: ${countInBatch} cây`);

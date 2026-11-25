@@ -29,16 +29,17 @@ describe('Dexie SyncStore (T04)', () => {
     expect(isValidGitHubRepo('')).toBe(false);
   });
 
-  it('loads and saves all 5 sync collections and collects pending photo uploads', async () => {
+  it('loads and saves all 6 sync collections (including aiMemories) and collects pending photo uploads', async () => {
     const testDb = new Ri6Database(`ri6-sync-store-${crypto.randomUUID()}`);
     dbs.push(testDb);
-    const init = await initDatabase('0.5.0', testDb);
+    const init = await initDatabase('0.8.0', testDb);
     const store = createDexieSyncStore(testDb);
 
     const initial = await store.loadState();
-    expect(initial.trees).toHaveLength(15);
+    expect(initial.trees).toHaveLength(3);
     expect(initial.lots).toHaveLength(1);
     expect(initial.tasks).toHaveLength(0);
+    expect(initial.aiMemories).toEqual([]);
 
     // Add a local photo with full + thumb blobs (pending upload), an already-uploaded photo,
     // a soft-deleted photo, and a photo with only a thumb: record (no full blob).
@@ -54,6 +55,18 @@ describe('Dexie SyncStore (T04)', () => {
 
     await store.saveState({
       ...initial,
+      aiMemories: [
+        {
+          id: 'mem-sync-1',
+          category: 'vat-tu',
+          content: 'Mua phân tại đại lý gần chợ Lộc Tấn',
+          source: 'manual',
+          approved: true,
+          createdAt: '2026-11-25T05:00:00.000Z',
+          updatedAt: '2026-11-25T05:00:00.000Z',
+          updatedBy: init.settings.deviceId,
+        },
+      ],
       tasks: [
         {
           id: 'task-1',
@@ -117,6 +130,8 @@ describe('Dexie SyncStore (T04)', () => {
     const reloaded = await store.loadState();
     expect(reloaded.tasks).toHaveLength(1);
     expect(reloaded.tasks[0].title).toBe('Kiểm tra béc tưới');
+    expect(reloaded.aiMemories).toHaveLength(1);
+    expect(reloaded.aiMemories?.[0].content).toBe('Mua phân tại đại lý gần chợ Lộc Tấn');
 
     const uploads = await store.pendingPhotoUploads();
     expect(uploads).toHaveLength(1);

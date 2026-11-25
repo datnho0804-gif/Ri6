@@ -39,7 +39,7 @@ export function SelectField({
     <div className={containerClassName}>
       <div
         className={[
-          'relative rounded-sm px-3.5 py-2 min-h-14 transition-colors',
+          'relative rounded-sm min-h-14 transition-colors',
           disabled
             ? 'bg-surface-2 border border-dashed border-outline-strong text-text-2 cursor-not-allowed'
             : error
@@ -50,20 +50,20 @@ export function SelectField({
         <label
           htmlFor={fieldId}
           className={[
-            'block text-label font-semibold leading-tight',
+            'block px-3.5 pt-2 text-label font-semibold leading-tight',
             error ? 'text-danger' : disabled ? 'text-text-3' : 'text-primary',
           ].join(' ')}
         >
           {label}
         </label>
-        <div className="relative flex items-center mt-0.5">
+        <div className="relative flex items-center">
           <select
             id={fieldId}
             disabled={disabled}
             aria-invalid={Boolean(error) || undefined}
             aria-describedby={describedBy}
             className={[
-              'w-full appearance-none bg-transparent pr-7 text-body font-medium text-text focus:outline-none cursor-pointer disabled:cursor-not-allowed',
+              'w-full min-h-12 pl-3.5 pr-10 pb-1 appearance-none bg-transparent text-body font-medium text-text focus:outline-none cursor-pointer disabled:cursor-not-allowed',
               className,
             ]
               .filter(Boolean)
@@ -77,7 +77,7 @@ export function SelectField({
             ))}
           </select>
           <ChevronDown
-            className="w-5 h-5 text-text-3 pointer-events-none absolute right-0"
+            className="w-5 h-5 text-text-3 pointer-events-none absolute right-3.5"
             aria-hidden="true"
           />
         </div>

@@ -1,10 +1,12 @@
 import {
   AlertTriangle,
   BookMarked,
+  Brain,
   CalendarPlus,
   Camera,
   Check,
   Copy,
+  Edit3,
   History,
   ImagePlus,
   MessageSquarePlus,
@@ -27,6 +29,13 @@ import {
   createGeminiClient,
   rememberSchemaUnsupported,
 } from '../../lib/ai/gemini';
+import {
+  AI_MEMORY_CATEGORIES,
+  AI_MEMORY_CATEGORY_LABEL,
+  deduplicateMemories,
+  looksSensitive,
+  type MemoryProposal,
+} from '../../lib/ai/memory';
 import { modelLabel, pickDefaultModel } from '../../lib/ai/models';
 import type { AiAction, AiConfidence } from '../../lib/ai/parse';
 import { AI_DISCLAIMER, buildCopyPromptFallback, buildSystemPrompt } from '../../lib/ai/prompt';
@@ -36,6 +45,8 @@ import { PHOTO_KIND_LABEL } from '../../lib/labels';
 import type {
   AiChat,
   AiChatMessage,
+  AiMemory,
+  AiMemoryCategory,
   ISODate,
   Log,
   Photo,
@@ -59,6 +70,11 @@ import {
 
 const MAX_ATTACHMENTS = 3;
 
+const MEMORY_CATEGORY_OPTIONS = AI_MEMORY_CATEGORIES.map((cat) => ({
+  value: cat,
+  label: AI_MEMORY_CATEGORY_LABEL[cat],
+}));
+
 export interface AiLaunchPreset {
   targetId?: string;
   initialQuestion?: string;
@@ -78,6 +94,7 @@ interface AttachedAiPhoto {
 interface RenderedTurn extends AiChatMessage {
   confidence?: AiConfidence | null;
   actions?: AiAction[];
+  learnedMemories?: MemoryProposal[];
   usedSchema?: boolean;
 }
 
@@ -91,6 +108,7 @@ export interface AiChatSheetProps {
   photos: Photo[];
   thumbUrls: Map<string, string>;
   agendaItems: AgendaItem[];
+  memories: AiMemory[];
   settings: Settings | null;
   hapticsEnabled: boolean;
   onClose: () => void;
@@ -98,6 +116,7 @@ export interface AiChatSheetProps {
   onUpdateSettings: (patch: Partial<Settings>) => Promise<void>;
   onAddAiTask: (input: { title: string; dueDate: ISODate; targetId?: string }) => Promise<void>;
   onSaveAiLog: (input: { targetId: string; note: string }) => Promise<void>;
+  onSaveAiMemory: (proposal: MemoryProposal & { source: 'ai'; approved: true }) => Promise<void>;
   onNotify: (message: string, tone?: 'ok' | 'info' | 'warn' | 'danger') => void;
 }
 
@@ -166,6 +185,7 @@ function AiChatSheetInner({
   photos,
   thumbUrls,
   agendaItems,
+  memories,
   settings,
   hapticsEnabled,
   onClose,
@@ -173,6 +193,7 @@ function AiChatSheetInner({
   onUpdateSettings,
   onAddAiTask,
   onSaveAiLog,
+  onSaveAiMemory,
   onNotify,
 }: AiChatSheetProps) {
   const today = todayVN();
@@ -187,6 +208,16 @@ function AiChatSheetInner({
   const [historyList, setHistoryList] = useState<AiChat[]>([]);
   const [addedActionKeys, setAddedActionKeys] = useState<Set<string>>(() => new Set());
   const [savedLogMessageIds, setSavedLogMessageIds] = useState<Set<string>>(() => new Set());
+  const [dismissedMemoryKeys, setDismissedMemoryKeys] = useState<Set<string>>(() => new Set());
+  const [savedMemoryKeys, setSavedMemoryKeys] = useState<Set<string>>(() => new Set());
+  const [editingMemory, setEditingMemory] = useState<{
+    key: string;
+    content: string;
+    category: AiMemoryCategory;
+    targetIds?: string[];
+    confidence?: 'thap' | 'vua' | 'cao';
+    error?: string;
+  } | null>(null);
   const [fallbackPromptText, setFallbackPromptText] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -277,8 +308,9 @@ function AiChatSheetInner({
         trees,
         logs,
         agenda: agendaItems,
+        memories,
       }),
-    [agendaItems, logs, season, selectedTree, today, trees],
+    [agendaItems, logs, memories, season, selectedTree, today, trees],
   );
 
   const handleAttachFiles = async (fileList: FileList | null) => {
@@ -425,6 +457,7 @@ function AiChatSheetInner({
         createdAt: nowUTC(),
         confidence: res.confidence,
         actions: res.actions,
+        learnedMemories: res.learnedMemories,
         usedSchema: res.usedSchema,
       };
 
@@ -439,6 +472,8 @@ function AiChatSheetInner({
         content: m.content,
         createdAt: m.createdAt,
         ...(m.photoIds?.length ? { photoIds: m.photoIds } : {}),
+        ...(m.role === 'model' && m.confidence ? { confidence: m.confidence } : {}),
+        ...(m.role === 'model' && m.actions?.length ? { actions: m.actions } : {}),
       }));
       const chatRecord: AiChat = {
         id: chatId,
@@ -851,6 +886,188 @@ function AiChatSheetInner({
                         })}
                       </div>
                     )}
+
+                    {/* AI Self-Learning Memory Proposals (SPEC M7.1 & T07 AC3) */}
+                    {(() => {
+                      const rawProposals = turn.learnedMemories ?? [];
+                      if (rawProposals.length === 0) return null;
+                      const visibleProposals = deduplicateMemories(rawProposals, memories).filter(
+                        (p) => !dismissedMemoryKeys.has(`${turn.id}:${p.content}`),
+                      );
+                      if (visibleProposals.length === 0) return null;
+
+                      return (
+                        <div className="space-y-2 pt-2 border-t border-surface-2">
+                          <p className="inline-flex items-center gap-1.5 text-label font-bold text-primary">
+                            <Brain className="w-4 h-4 shrink-0" aria-hidden="true" />
+                            Trợ lý đề xuất ghi nhớ cho vườn ({visibleProposals.length}):
+                          </p>
+                          {visibleProposals.map((proposal, pIdx) => {
+                            const memKey = `${turn.id}:${proposal.content}`;
+                            const isSaved = savedMemoryKeys.has(memKey);
+                            const isEditing = editingMemory?.key === memKey;
+                            const scopeLabel = proposal.targetIds?.length
+                              ? proposal.targetIds
+                                  .map((id) =>
+                                    id === LOT_A_ID
+                                      ? 'Lô A'
+                                      : (trees.find((t) => t.id === id)?.code ?? id),
+                                  )
+                                  .join(', ')
+                              : 'Cả vườn';
+
+                            if (isEditing && editingMemory) {
+                              return (
+                                <div
+                                  key={`${memKey}-${pIdx}`}
+                                  className="rounded-sm border border-primary bg-bg p-3 space-y-2.5"
+                                >
+                                  <TextField
+                                    label="Chỉnh sửa nội dung ghi nhớ"
+                                    multiline
+                                    rows={2}
+                                    value={editingMemory.content}
+                                    error={editingMemory.error}
+                                    onChange={(e) =>
+                                      setEditingMemory((cur) =>
+                                        cur ? { ...cur, content: e.target.value, error: undefined } : null,
+                                      )
+                                    }
+                                  />
+                                  <SelectField
+                                    label="Nhóm ghi nhớ"
+                                    value={editingMemory.category}
+                                    options={MEMORY_CATEGORY_OPTIONS}
+                                    onChange={(e) =>
+                                      setEditingMemory((cur) =>
+                                        cur
+                                          ? { ...cur, category: e.target.value as AiMemoryCategory }
+                                          : null,
+                                      )
+                                    }
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="filled"
+                                      leadingIcon={<Check className="w-5 h-5" />}
+                                      onClick={() => {
+                                        const clean = editingMemory.content.trim();
+                                        if (!clean) {
+                                          setEditingMemory((cur) =>
+                                            cur ? { ...cur, error: 'Nội dung ghi nhớ không được để trống.' } : null,
+                                          );
+                                          return;
+                                        }
+                                        if (looksSensitive(clean)) {
+                                          setEditingMemory((cur) =>
+                                            cur
+                                              ? {
+                                                  ...cur,
+                                                  error: 'Không được ghi nhớ mật khẩu, token hay API key.',
+                                                }
+                                              : null,
+                                          );
+                                          return;
+                                        }
+                                        void onSaveAiMemory({
+                                          content: clean,
+                                          category: editingMemory.category,
+                                          targetIds: editingMemory.targetIds,
+                                          confidence: editingMemory.confidence,
+                                          source: 'ai',
+                                          approved: true,
+                                        }).then(() => {
+                                          setSavedMemoryKeys((prev) => new Set(prev).add(memKey));
+                                          setEditingMemory(null);
+                                          triggerHaptic(hapticsEnabled);
+                                          onNotify('Đã lưu ghi nhớ cho trợ lý AI.', 'ok');
+                                        });
+                                      }}
+                                    >
+                                      Lưu ghi nhớ
+                                    </Button>
+                                    <Button variant="text" onClick={() => setEditingMemory(null)}>
+                                      Hủy
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                key={`${memKey}-${pIdx}`}
+                                className="rounded-sm border border-outline bg-bg p-3 space-y-2"
+                              >
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <StatusPill tone="info">
+                                    {AI_MEMORY_CATEGORY_LABEL[proposal.category]}
+                                  </StatusPill>
+                                  <StatusPill tone="neutral">{scopeLabel}</StatusPill>
+                                </div>
+                                <p className="text-body text-text leading-snug">{proposal.content}</p>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    variant={isSaved ? 'tonal' : 'filled'}
+                                    disabled={isSaved}
+                                    leadingIcon={<Check className="w-5 h-5" />}
+                                    onClick={() => {
+                                      void onSaveAiMemory({
+                                        ...proposal,
+                                        source: 'ai',
+                                        approved: true,
+                                      })
+                                        .then(() => {
+                                          setSavedMemoryKeys((prev) => new Set(prev).add(memKey));
+                                          triggerHaptic(hapticsEnabled);
+                                          onNotify('Đã lưu ghi nhớ cho trợ lý AI.', 'ok');
+                                        })
+                                        .catch((err) => {
+                                          onNotify(
+                                            err instanceof Error
+                                              ? err.message
+                                              : 'Không lưu được ghi nhớ này.',
+                                            'danger',
+                                          );
+                                        });
+                                    }}
+                                  >
+                                    {isSaved ? 'Đã ghi nhớ' : 'Ghi nhớ'}
+                                  </Button>
+                                  {!isSaved && (
+                                    <>
+                                      <Button
+                                        variant="tonal"
+                                        leadingIcon={<Edit3 className="w-5 h-5" />}
+                                        onClick={() =>
+                                          setEditingMemory({
+                                            key: memKey,
+                                            content: proposal.content,
+                                            category: proposal.category,
+                                            targetIds: proposal.targetIds,
+                                            confidence: proposal.confidence,
+                                          })
+                                        }
+                                      >
+                                        Sửa
+                                      </Button>
+                                      <Button
+                                        variant="text"
+                                        onClick={() =>
+                                          setDismissedMemoryKeys((prev) => new Set(prev).add(memKey))
+                                        }
+                                      >
+                                        Bỏ qua
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
 
                     {/* Save AI result to synced orchard log (type: 'ai') */}
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-surface-2">
