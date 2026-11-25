@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useId, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useOverlayBack } from '../../hooks/useOverlayBack';
 import { IconButton } from './IconButton';
@@ -18,6 +19,7 @@ export interface DialogProps {
 
 /**
  * Material 3 accessible centered Dialog with focus trap, Esc, and Android Back support (DESIGN §3 & §4).
+ * Portaled to document.body at z-60 so dialogs triggered inside a BottomSheet (z-50) are never obscured.
  */
 export function Dialog({
   open,
@@ -38,9 +40,9 @@ export function Dialog({
 
   if (!open) return null;
 
-  return (
+  const content = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-scrim backdrop-blur-xs animate-fade-in"
       onMouseDown={(e) => {
         if (dismissOnBackdrop && e.target === e.currentTarget) {
           onClose();
@@ -87,4 +89,6 @@ export function Dialog({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

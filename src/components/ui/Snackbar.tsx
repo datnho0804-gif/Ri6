@@ -1,4 +1,5 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import type { SnackbarItem, SnackbarTone } from '../../hooks/useSnackbar';
 
 interface SnackbarProps {
@@ -22,15 +23,16 @@ const TONE_ICON_CLASSES: Record<SnackbarTone, string> = {
 
 /**
  * Material 3 Snackbar with high-contrast dark surface and optional "Hoàn tác" action (DESIGN §4 & §6).
+ * Portaled to document.body at z-70 so toasts remain visible above BottomSheet (z-50) and Dialog (z-60).
  */
 export function Snackbar({ items, onDismiss }: SnackbarProps) {
   if (items.length === 0) return null;
 
-  return (
+  const content = (
     <div
       aria-live="polite"
       aria-atomic="false"
-      className="fixed bottom-24 rail:bottom-6 inset-x-4 z-50 flex flex-col items-center gap-2 pointer-events-none"
+      className="fixed bottom-24 rail:bottom-6 inset-x-4 z-70 flex flex-col items-center gap-2 pointer-events-none"
     >
       {items.map((item) => {
         const Icon = TONE_ICONS[item.tone];
@@ -69,4 +71,6 @@ export function Snackbar({ items, onDismiss }: SnackbarProps) {
       })}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
