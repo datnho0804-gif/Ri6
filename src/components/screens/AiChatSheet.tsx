@@ -10,6 +10,7 @@ import {
   History,
   ImagePlus,
   MessageSquarePlus,
+  RefreshCw,
   Send,
   ShieldAlert,
   Sparkles,
@@ -21,10 +22,15 @@ import { deleteAiChat, listAiChats, saveAiChat } from '../../db/aiChats';
 import { db } from '../../db/database';
 import { generateDeviceId, LOT_A_ID } from '../../db/seed';
 import { copyTextToClipboard } from '../../hooks/clipboard';
+import {
+  createRetryingGeminiFetch,
+  formatGeminiErrorMessage,
+  isGeminiOverloadedError,
+  pickFallbackGeminiModel,
+} from '../../hooks/geminiRetry';
 import { compressForAi } from '../../hooks/photoCapture';
 import type { AgendaItem } from '../../lib/agenda/agenda';
 import {
-  AiError,
   type ChatTurn,
   createGeminiClient,
   rememberSchemaUnsupported,
@@ -203,6 +209,12 @@ function AiChatSheetInner({
   const [turns, setTurns] = useState<RenderedTurn[]>([]);
   const [attachments, setAttachments] = useState<AttachedAiPhoto[]>([]);
   const [sending, setSending] = useState(false);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
+  const [overloadNotice, setOverloadNotice] = useState<{
+    status: number;
+    model: string;
+    fallbackModel: string | null;
+  } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [treePickerOpen, setTreePickerOpen] = useState(false);
   const [historyList, setHistoryList] = useState<AiChat[]>([]);
@@ -388,7 +400,7 @@ function AiChatSheetInner({
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (overrideModel?: string) => {
     const cleanQ = question.trim();
     if (!cleanQ) {
       onNotify('Hãy nhập câu hỏi trước khi gửi.', 'warn');
@@ -401,18 +413,30 @@ function AiChatSheetInner({
 
     const apiKey = settings?.geminiApiKey?.trim() ?? '';
     setSending(true);
+    setRetryStatus(null);
+    setOverloadNotice(null);
+
+    let activeModel = overrideModel?.trim() || settings?.geminiModel?.trim() || '';
+    const retryingFetch = createRetryingGeminiFetch({
+      onRetry: (attempt, maxRetries) => {
+        setRetryStatus(`Thử lại (${attempt}/${maxRetries})…`);
+      },
+    });
+    const client = createGeminiClient(apiKey, retryingFetch);
+
     try {
-      const client = createGeminiClient(apiKey);
-      let model = settings?.geminiModel?.trim() ?? '';
-      if (!model) {
+      if (overrideModel?.trim()) {
+        await onUpdateSettings({ geminiModel: overrideModel.trim() });
+      }
+      if (!activeModel) {
         const models = await client.listChatModels();
         const picked = pickDefaultModel(models);
         if (!picked) {
           onNotify('Không tìm thấy model Gemini phù hợp cho API key này.', 'danger');
           return;
         }
-        model = picked;
-        await onUpdateSettings({ geminiModel: model });
+        activeModel = picked;
+        await onUpdateSettings({ geminiModel: activeModel });
       }
 
       const apiTurns: ChatTurn[] = [
@@ -427,7 +451,7 @@ function AiChatSheetInner({
       ];
 
       const res = await client.generate({
-        model,
+        model: activeModel,
         systemPrompt,
         turns: apiTurns,
         validTargetIds,
@@ -437,7 +461,7 @@ function AiChatSheetInner({
       if (res.schemaUnsupportedDetected) {
         const nextUnsupported = rememberSchemaUnsupported(
           settings?.geminiSchemaUnsupported,
-          model,
+          activeModel,
         );
         await onUpdateSettings({ geminiSchemaUnsupported: nextUnsupported });
       }
@@ -465,6 +489,7 @@ function AiChatSheetInner({
       setTurns(nextTurns);
       setQuestion('');
       setAttachments([]);
+      setOverloadNotice(null);
 
       const persistedMessages: AiChatMessage[] = nextTurns.map((m) => ({
         id: m.id,
@@ -489,14 +514,27 @@ function AiChatSheetInner({
       setHistoryList(await listAiChats());
       triggerHaptic(hapticsEnabled);
     } catch (err) {
-      // AC7: On 401/429/network errors, keep user's question & attachments intact for retry!
-      if (err instanceof AiError) {
-        onNotify(err.message, 'danger');
-      } else {
-        onNotify('Không gửi được câu hỏi tới Gemini. Câu hỏi của bạn vẫn được giữ nguyên.', 'danger');
+      // AC7: On 401/429/503/network errors, keep user's question & attachments intact for retry!
+      const msg = formatGeminiErrorMessage(err);
+      onNotify(msg, 'danger');
+      if (isGeminiOverloadedError(err)) {
+        let fallbackModel: string | null = null;
+        try {
+          const fastClient = createGeminiClient(apiKey);
+          const list = await fastClient.listChatModels();
+          fallbackModel = pickFallbackGeminiModel(list, activeModel);
+        } catch {
+          // Best-effort model discovery; fall back to opening Settings
+        }
+        setOverloadNotice({
+          status: err.status ?? 503,
+          model: activeModel,
+          fallbackModel,
+        });
       }
     } finally {
       setSending(false);
+      setRetryStatus(null);
     }
   };
 
@@ -524,6 +562,7 @@ function AiChatSheetInner({
     setAttachments([]);
     setQuestion('');
     setHistoryOpen(false);
+    setOverloadNotice(null);
   };
 
   const activeModelName = settings?.geminiModel ? modelLabel(settings.geminiModel) : 'Tự chọn từ API';
@@ -626,7 +665,7 @@ function AiChatSheetInner({
                     void handleSend();
                   }}
                 >
-                  Gửi AI
+                  {retryStatus ?? 'Gửi AI'}
                 </Button>
               ) : (
                 <Button
@@ -1111,8 +1150,62 @@ function AiChatSheetInner({
           )}
 
           {sending && (
-            <Banner tone="info" icon={<AlertTriangle className="w-5 h-5" />}>
-              Đang hỏi Gemini và phân tích dữ liệu vườn…
+            <Banner tone="info" icon={<Sparkles className="w-5 h-5" />}>
+              {retryStatus
+                ? `Máy chủ Gemini đang bận — đang tự động ${retryStatus.toLowerCase()}`
+                : 'Đang hỏi Gemini và phân tích dữ liệu vườn…'}
+            </Banner>
+          )}
+
+          {/* Transient HTTP 503 / 5xx overload recovery banner (keeps question & photos intact) */}
+          {overloadNotice && !sending && (
+            <Banner
+              tone="warn"
+              icon={<AlertTriangle className="w-5 h-5" />}
+              title={`Máy chủ Gemini đang quá tải (HTTP ${overloadNotice.status})`}
+              action={
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="filled"
+                    leadingIcon={<RefreshCw className="w-4 h-4" />}
+                    onClick={() => {
+                      void handleSend();
+                    }}
+                  >
+                    Thử gửi lại
+                  </Button>
+                  {overloadNotice.fallbackModel ? (
+                    <Button
+                      variant="tonal"
+                      onClick={() => {
+                        void handleSend(overloadNotice.fallbackModel ?? undefined);
+                      }}
+                    >
+                      Đổi sang {modelLabel(overloadNotice.fallbackModel)} &amp; gửi
+                    </Button>
+                  ) : (
+                    <Button variant="outlined" onClick={onOpenSettings}>
+                      Đổi model
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    leadingIcon={<Copy className="w-4 h-4" />}
+                    onClick={() => {
+                      void handleCopyPromptFallback();
+                    }}
+                  >
+                    Copy Prompt
+                  </Button>
+                </div>
+              }
+            >
+              Model{' '}
+              <strong>
+                {overloadNotice.model ? modelLabel(overloadNotice.model) : activeModelName}
+              </strong>{' '}
+              đang quá tải tạm thời phía Google (đã tự thử lại 2 lần). Câu hỏi và ảnh của bạn vẫn
+              được giữ nguyên.
             </Banner>
           )}
         </div>

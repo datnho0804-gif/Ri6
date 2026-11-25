@@ -24,6 +24,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { type DatabaseInitResult, requestPersistentStorage } from '../../db/database';
 import { isValidGitHubRepo } from '../../db/syncStore';
+import { createRetryingGeminiFetch, formatGeminiErrorMessage } from '../../hooks/geminiRetry';
 import type { RepoTestOutcome, SyncHeaderStatus } from '../../hooks/useGitHubSync';
 import {
   disableAgendaReminders,
@@ -31,7 +32,7 @@ import {
   notifyCapability,
   type NotifyCapability,
 } from '../../lib/agenda/register';
-import { AiError, createGeminiClient } from '../../lib/ai/gemini';
+import { createGeminiClient } from '../../lib/ai/gemini';
 import type { MemoryProposal } from '../../lib/ai/memory';
 import { type GeminiModelInfo, modelLabel, pickDefaultModel } from '../../lib/ai/models';
 import { nowUTC, todayVN } from '../../lib/date';
@@ -318,7 +319,7 @@ export function SettingsScreen({
     setLoadingModels(true);
     setGeminiCheck(null);
     try {
-      const client = createGeminiClient(cleanKey);
+      const client = createGeminiClient(cleanKey, createRetryingGeminiFetch());
       const list = await client.listChatModels();
       setGeminiModels(list);
       if (list.length === 0) {
@@ -340,10 +341,7 @@ export function SettingsScreen({
       triggerHaptic(hapticsEnabled);
       onNotify(`Đã tải ${list.length} model Gemini từ API.`, 'ok');
     } catch (err) {
-      const msg =
-        err instanceof AiError
-          ? err.message
-          : 'Không kiểm tra được Gemini API key lúc này.';
+      const msg = formatGeminiErrorMessage(err);
       setGeminiCheck({ ok: false, message: msg });
       onNotify(msg, 'danger');
     } finally {
@@ -1154,7 +1152,7 @@ export function SettingsScreen({
                   ? [{ value: geminiModel, label: modelLabel(geminiModel) }]
                   : [{ value: '', label: '— Bấm "Kiểm tra & tải model" để lấy danh sách —' }]
             }
-            helperText="Danh sách được lọc tự động từ GET /v1beta/models (bỏ model âm thanh, TTS, embedding, sinh ảnh)."
+            helperText="Danh sách lấy từ GET /v1beta/models. Khi model đang chọn báo quá tải (HTTP 503), hãy đổi sang bản nhẹ hơn (ví dụ Flash-Lite) rồi bấm Lưu cài đặt AI."
             onChange={(e) => setDraftGeminiModel(e.target.value)}
           />
 
