@@ -19,9 +19,11 @@ import { useOrchardData } from './hooks/useOrchardData';
 import { usePwa } from './hooks/usePwa';
 import { useSnackbar } from './hooks/useSnackbar';
 import { useThemeColor } from './hooks/useThemeColor';
+import { type AgendaItem, buildAgenda, summarizeAgenda } from './lib/agenda/agenda';
 import { nowUTC, todayVN } from './lib/date';
 import { formatHeaderDateVN } from './lib/format';
 import { triggerHaptic } from './lib/haptics';
+import type { SyncState } from './lib/merge';
 import { effectiveSeason as resolveSeason } from './lib/season';
 import { duplicateCodes } from './lib/treeCodes';
 import type { TreeFilter } from './lib/treeFilters';
@@ -37,6 +39,11 @@ const InstallGuideModal = lazy(() =>
 const DesignShowcaseScreen = lazy(() =>
   import('./components/screens/DesignShowcaseScreen').then((m) => ({
     default: m.DesignShowcaseScreen,
+  })),
+);
+const AgendaScreen = lazy(() =>
+  import('./components/screens/AgendaScreen').then((m) => ({
+    default: m.AgendaScreen,
   })),
 );
 const TreesScreen = lazy(() =>
@@ -115,7 +122,9 @@ function useIsWideRail(): boolean {
 export function App() {
   const isWideRail = useIsWideRail();
 
-  const [activeView, setActiveView] = useState<ViewId>('overview');
+  const [activeView, setActiveView] = useState<ViewId>(() =>
+    !isDesignShowcaseUrl() && getShortcutAction() === 'agenda' ? 'agenda' : 'overview',
+  );
   const [lastTab, setLastTab] = useState<TabId>('overview');
   const [treesInitialFilter, setTreesInitialFilter] = useState<TreeFilter>('all');
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -180,6 +189,23 @@ export function App() {
 
   const dupes = useMemo(() => duplicateCodes(orchard.allTrees), [orchard.allTrees]);
 
+  const agendaState: SyncState = useMemo(
+    () => ({
+      trees: orchard.allTrees,
+      lots: orchard.lotA ? [orchard.lotA] : [],
+      logs: orchard.logs,
+      tasks: orchard.tasks,
+      photos: orchard.photos,
+    }),
+    [orchard.allTrees, orchard.logs, orchard.lotA, orchard.photos, orchard.tasks],
+  );
+
+  const agendaItems = useMemo(() => buildAgenda(agendaState, today), [agendaState, today]);
+  const agendaSummary = useMemo(
+    () => summarizeAgenda(agendaItems, agendaState, 5),
+    [agendaItems, agendaState],
+  );
+
   // Default light theme-color (TreeProfileScreen overrides to dark when full-bleed hero is open on mobile)
   useThemeColor('bg');
 
@@ -211,8 +237,7 @@ export function App() {
         setQuickPhotoOpen(true);
       } else if (shortcut === 'agenda') {
         setMobileDetailTargetId(null);
-        setActiveView('overview');
-        setLastTab('overview');
+        setActiveView('agenda');
       }
     };
 
@@ -263,7 +288,10 @@ export function App() {
           window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
         }
       }
-      if (next !== 'settings') {
+      if (next !== 'agenda' && window.location.hash === '#/agenda') {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      }
+      if (next !== 'settings' && next !== 'agenda') {
         setLastTab(next);
       }
       setFabHidden(false);
@@ -446,6 +474,42 @@ export function App() {
     [hapticsEnabled, showSnackbar],
   );
 
+  const handleMarkAgendaDone = useCallback(
+    async (item: AgendaItem) => {
+      const { prev, saved } = await orchard.markAgendaItemDone(item);
+      triggerHaptic(hapticsEnabled);
+      showSnackbar(`Đã hoàn thành: ${item.title}`, {
+        tone: 'ok',
+        actionLabel: 'Hoàn tác',
+        durationMs: 5000,
+        onAction: () => {
+          void orchard.restoreTaskSnapshot(prev, saved.id).then(() => {
+            showSnackbar('Đã khôi phục việc cần làm.', { tone: 'info', durationMs: 3000 });
+          });
+        },
+      });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
+  const handleSnoozeAgenda = useCallback(
+    async (item: AgendaItem) => {
+      const { prev, saved } = await orchard.snoozeAgendaItem(item, 1);
+      triggerHaptic(hapticsEnabled);
+      showSnackbar(`Đã hoãn 1 ngày: ${item.title}`, {
+        tone: 'info',
+        actionLabel: 'Hoàn tác',
+        durationMs: 5000,
+        onAction: () => {
+          void orchard.restoreTaskSnapshot(prev, saved.id).then(() => {
+            showSnackbar('Đã hủy hoãn việc cần làm.', { tone: 'info', durationMs: 3000 });
+          });
+        },
+      });
+    },
+    [hapticsEnabled, orchard, showSnackbar],
+  );
+
   const treeCount = orchard.trees.length;
   const lotACount = orchard.lotA?.treeCount ?? 0;
   const showDesignEntry = import.meta.env.DEV || hasDesignFlag();
@@ -469,6 +533,10 @@ export function App() {
   } else if (activeView === 'settings') {
     barTitle = 'Cài đặt';
     barSubtitle = `Phiên bản v${APP_VERSION}`;
+    barOnBack = () => navigateToView(lastTab);
+  } else if (activeView === 'agenda') {
+    barTitle = 'Việc cần làm';
+    barSubtitle = `${agendaItems.length} việc trong 7 ngày tới`;
     barOnBack = () => navigateToView(lastTab);
   } else if (activeView === 'trees') {
     barTitle = 'Cây';
@@ -498,6 +566,7 @@ export function App() {
       {!designShowcaseOpen && (
         <NavRail
           activeView={activeView}
+          overviewBadgeCount={agendaItems.length}
           onSelectTab={navigateToView}
           onSelectSettings={() => navigateToView('settings')}
         />
@@ -681,6 +750,30 @@ export function App() {
                     onNotify={notify}
                   />
                 </Suspense>
+              ) : activeView === 'agenda' ? (
+                <Suspense
+                  fallback={
+                    <div className="space-y-3">
+                      <Skeleton variant="card" />
+                      <Skeleton variant="card" />
+                    </div>
+                  }
+                >
+                  <AgendaScreen
+                    items={agendaItems}
+                    trees={orchard.trees}
+                    settings={orchard.settings}
+                    hapticsEnabled={hapticsEnabled}
+                    onMarkDone={handleMarkAgendaDone}
+                    onSnooze={handleSnoozeAgenda}
+                    onAddManualTask={async (input) => {
+                      await orchard.addManualTask(input);
+                    }}
+                    onSelectTarget={openTargetDetail}
+                    onUpdateSettings={orchard.updateSettings}
+                    onNotify={notify}
+                  />
+                </Suspense>
               ) : activeView === 'overview' ? (
                 <OverviewScreen
                   loading={orchard.loading}
@@ -690,6 +783,8 @@ export function App() {
                   logs={orchard.logs}
                   photos={orchard.photos}
                   thumbUrls={orchard.thumbUrls}
+                  agendaSummary={agendaSummary}
+                  totalAgendaCount={agendaItems.length}
                   isSyncConfigured={sync.isConfigured}
                   isSyncing={sync.isSyncing}
                   onPullToSync={handleManualSyncNow}
@@ -709,6 +804,7 @@ export function App() {
                     closeAllOverlays();
                     setQuickPhotoOpen(true);
                   }}
+                  onOpenAgenda={() => navigateToView('agenda')}
                   onOpenTreesFiltered={(filter) => {
                     setTreesInitialFilter(filter);
                     navigateToView('trees');
@@ -827,7 +923,13 @@ export function App() {
             </div>
           )}
 
-          {!designShowcaseOpen && <NavBar activeView={activeView} onSelectTab={navigateToView} />}
+          {!designShowcaseOpen && (
+            <NavBar
+              activeView={activeView}
+              overviewBadgeCount={agendaItems.length}
+              onSelectTab={navigateToView}
+            />
+          )}
         </>
       )}
 

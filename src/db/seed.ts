@@ -21,10 +21,11 @@ export function generateDeviceId(): string {
 }
 
 export function createInitialSettings(deviceId: string, appVersion: string): Settings {
+  const shortTag = deviceId.replace(/-/g, '').slice(-4).toUpperCase() || '0000';
   return {
     id: 'app',
     deviceId,
-    deviceName: 'Thiết bị vườn Ri6',
+    deviceName: `Thiết bị Ri6-${shortTag}`,
     dataRepo: DEFAULT_DATA_REPO,
     dataBranch: DEFAULT_DATA_BRANCH,
     autoSync: true,

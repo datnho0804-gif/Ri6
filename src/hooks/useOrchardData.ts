@@ -2,12 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { type DatabaseInitResult, db, initDatabase } from '../db/database';
 import { generateDeviceId, LOT_A_ID } from '../db/seed';
 import { isValidGitHubRepo } from '../db/syncStore';
+import {
+  type AgendaItem,
+  markDone as markAgendaDonePure,
+  newTask as newTaskPure,
+  snooze as snoozeAgendaPure,
+} from '../lib/agenda/agenda';
 import { tombstoneBatch } from '../lib/batchLogs';
 import { nowUTC, todayVN } from '../lib/date';
 import { splitFromLotA as splitFromLotAPure } from '../lib/lotSplit';
 import type { SyncState } from '../lib/merge';
 import { filterTrees } from '../lib/treeFilters';
 import type {
+  ISODate,
   Log,
   Lot,
   Photo,
@@ -15,6 +22,8 @@ import type {
   Season,
   Settings,
   Stage,
+  Task,
+  TaskSource,
   Tree,
 } from '../types/models';
 
@@ -29,6 +38,7 @@ export interface OrchardDataHook {
   allTrees: Tree[];
   lotA: Lot | null;
   logs: Log[];
+  tasks: Task[];
   photos: Photo[];
   thumbUrls: Map<string, string>;
   refresh: (opts?: { resetPhotoErrors?: boolean }) => Promise<void>;
@@ -43,6 +53,15 @@ export interface OrchardDataHook {
   deleteSingleLog: (log: Log) => Promise<Log>;
   undoDeleteLog: (deletedLog: Log) => Promise<void>;
   deleteBatchById: (batchId: string) => Promise<number>;
+  markAgendaItemDone: (item: AgendaItem) => Promise<{ prev: Task | undefined; saved: Task }>;
+  snoozeAgendaItem: (item: AgendaItem, days?: number) => Promise<{ prev: Task | undefined; saved: Task }>;
+  addManualTask: (input: {
+    title: string;
+    dueDate: ISODate;
+    targetId?: string;
+    source?: Exclude<TaskSource, 'rule'>;
+  }) => Promise<Task>;
+  restoreTaskSnapshot: (prev: Task | undefined, taskId: string) => Promise<void>;
   saveCapturedPhoto: (targetId: string, file: File, kind?: PhotoKind) => Promise<Photo>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   setSeasonOverride: (season: Season | null) => Promise<void>;
@@ -74,6 +93,7 @@ export function useOrchardData(
   const [allTrees, setAllTrees] = useState<Tree[]>([]);
   const [lotA, setLotA] = useState<Lot | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Map<string, string>>(() => new Map());
 
@@ -96,11 +116,12 @@ export function useOrchardData(
     if (opts?.resetPhotoErrors) {
       remoteFetchFailedRef.current.clear();
     }
-    const [s, tList, lot, lList, pList] = await Promise.all([
+    const [s, tList, lot, lList, tkList, pList] = await Promise.all([
       db.settings.get('app'),
       db.trees.toArray(),
       db.lots.get(LOT_A_ID),
       db.logs.toArray(),
+      db.tasks.toArray(),
       db.photos.toArray(),
     ]);
 
@@ -108,6 +129,7 @@ export function useOrchardData(
     setAllTrees(tList);
     setLotA(lot ?? null);
     setLogs(lList);
+    setTasks(tkList);
     setPhotos(pList);
 
     // Load local 480px thumbnails (or fallback to full blob if thumb missing) for active photos
@@ -578,6 +600,74 @@ export function useOrchardData(
     [emitDataChanged, getOrchardStateSnapshot, loadAll],
   );
 
+  const markAgendaItemDone = useCallback(
+    async (item: AgendaItem) => {
+      const taskId = item.category === 'task' ? item.key.slice(5) : item.key;
+      const prev = await db.tasks.get(taskId);
+      const saved = markAgendaDonePure(item, prev, { deviceId, now: nowUTC() });
+      await db.tasks.put(saved);
+      await loadAll();
+      emitDataChanged();
+      return { prev, saved };
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const snoozeAgendaItem = useCallback(
+    async (item: AgendaItem, days = 1) => {
+      const taskId = item.category === 'task' ? item.key.slice(5) : item.key;
+      const prev = await db.tasks.get(taskId);
+      const saved = snoozeAgendaPure(
+        item,
+        prev,
+        { deviceId, now: nowUTC(), today: todayVN() },
+        days,
+      );
+      await db.tasks.put(saved);
+      await loadAll();
+      emitDataChanged();
+      return { prev, saved };
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const addManualTask = useCallback(
+    async (input: {
+      title: string;
+      dueDate: ISODate;
+      targetId?: string;
+      source?: Exclude<TaskSource, 'rule'>;
+    }) => {
+      const created = newTaskPure(
+        {
+          title: input.title,
+          dueDate: input.dueDate,
+          targetId: input.targetId || undefined,
+          source: input.source ?? 'manual',
+        },
+        { deviceId, now: nowUTC(), newId: generateDeviceId },
+      );
+      await db.tasks.put(created);
+      await loadAll();
+      emitDataChanged();
+      return created;
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const restoreTaskSnapshot = useCallback(
+    async (prev: Task | undefined, taskId: string) => {
+      if (prev) {
+        await db.tasks.put({ ...prev, updatedAt: nowUTC(), updatedBy: deviceId });
+      } else {
+        await db.tasks.delete(taskId);
+      }
+      await loadAll();
+      emitDataChanged();
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
   const activeTrees = filterTrees(
     allTrees,
     { filter: 'all' },
@@ -592,6 +682,7 @@ export function useOrchardData(
     allTrees,
     lotA,
     logs,
+    tasks,
     photos,
     thumbUrls,
     refresh: loadAll,
@@ -606,6 +697,10 @@ export function useOrchardData(
     deleteSingleLog,
     undoDeleteLog,
     deleteBatchById,
+    markAgendaItemDone,
+    snoozeAgendaItem,
+    addManualTask,
+    restoreTaskSnapshot,
     saveCapturedPhoto,
     updateSettings,
     setSeasonOverride,

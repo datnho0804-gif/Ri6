@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  Bell,
+  BellOff,
   Check,
   CheckCircle2,
   Cloud,
@@ -12,6 +14,7 @@ import {
   KeyRound,
   Palette,
   RefreshCw,
+  Send,
   ShieldAlert,
   Smartphone,
   Upload,
@@ -21,6 +24,12 @@ import { useEffect, useRef, useState } from 'react';
 import { type DatabaseInitResult, requestPersistentStorage } from '../../db/database';
 import { isValidGitHubRepo } from '../../db/syncStore';
 import type { RepoTestOutcome, SyncHeaderStatus } from '../../hooks/useGitHubSync';
+import {
+  disableAgendaReminders,
+  enableAgendaReminders,
+  notifyCapability,
+  type NotifyCapability,
+} from '../../lib/agenda/register';
 import { nowUTC, todayVN } from '../../lib/date';
 import {
   exportFileName,
@@ -101,6 +110,9 @@ export function SettingsScreen({
     usage: number | null;
     quota: number | null;
   } | null>(null);
+  const [notifyCap, setNotifyCap] = useState<NotifyCapability | null>(null);
+  const [updatingNotify, setUpdatingNotify] = useState(false);
+  const [sendingTestNotify, setSendingTestNotify] = useState(false);
 
   // Device & GitHub sync form draft overrides (persisted in Dexie `settings`, never localStorage)
   const [draftDeviceName, setDeviceName] = useState<string | null>(null);
@@ -140,10 +152,118 @@ export function SettingsScreen({
     void requestPersistentStorage().then((info) => {
       if (active) setLiveStorage(info);
     });
+    void notifyCapability().then((cap) => {
+      if (active) setNotifyCap(cap);
+    });
     return () => {
       active = false;
     };
   }, []);
+
+  const formatDateTimeVN = (iso: string | undefined): string => {
+    if (!iso) return 'Chưa gửi lần nào';
+    try {
+      return new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour12: false,
+      }).format(new Date(iso));
+    } catch {
+      return iso;
+    }
+  };
+
+  const handleEnableNotify = async () => {
+    setUpdatingNotify(true);
+    try {
+      const res = await enableAgendaReminders();
+      setNotifyCap(await notifyCapability());
+      if (res.permission === 'granted') {
+        await onUpdateSettings({
+          notify: {
+            enabled: true,
+            lastNotifiedAt: settings?.notify?.lastNotifiedAt,
+            lastKeys: settings?.notify?.lastKeys ?? [],
+          },
+        });
+        triggerHaptic(hapticsEnabled);
+        onNotify(
+          res.periodic
+            ? 'Đã bật nhắc nhở hằng ngày (periodicsync ri6-agenda).'
+            : 'Đã cấp quyền thông báo. Với mốc quan trọng hãy dùng thêm Google Calendar.',
+          'ok',
+        );
+      } else if (res.permission === 'denied') {
+        onNotify('Quyền thông báo đang bị chặn. Hãy mở lại trong Cài đặt trang của Chrome.', 'warn');
+      } else {
+        onNotify('Trình duyệt không hỗ trợ thông báo — hãy dùng Google Calendar trong Việc cần làm.', 'info');
+      }
+    } finally {
+      setUpdatingNotify(false);
+    }
+  };
+
+  const handleDisableNotify = async () => {
+    setUpdatingNotify(true);
+    try {
+      await disableAgendaReminders();
+      await onUpdateSettings({
+        notify: {
+          enabled: false,
+          lastNotifiedAt: settings?.notify?.lastNotifiedAt,
+          lastKeys: settings?.notify?.lastKeys ?? [],
+        },
+      });
+      setNotifyCap(await notifyCapability());
+      onNotify('Đã tắt nhắc việc định kỳ.', 'info');
+    } finally {
+      setUpdatingNotify(false);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setSendingTestNotify(true);
+    try {
+      let cap = await notifyCapability();
+      setNotifyCap(cap);
+      if (!cap.notificationSupported) {
+        onNotify('Trình duyệt này không hỗ trợ gửi thông báo.', 'warn');
+        return;
+      }
+      if (cap.permission !== 'granted') {
+        const res = await enableAgendaReminders();
+        cap = await notifyCapability();
+        setNotifyCap(cap);
+        if (res.permission !== 'granted') {
+          onNotify('Cần cấp quyền thông báo trước khi gửi thông báo thử.', 'warn');
+          return;
+        }
+      }
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        const worker = reg.active ?? navigator.serviceWorker.controller;
+        if (worker) {
+          worker.postMessage({ type: 'ri6-test-notification' });
+          triggerHaptic(hapticsEnabled);
+          onNotify('Đã gửi yêu cầu thông báo thử từ Service Worker!', 'ok');
+          return;
+        }
+      }
+      // Fallback when running without active SW (e.g. dev mode)
+      new Notification('Vườn Ri6 · Thông báo thử', {
+        body: 'Nhắc việc đang hoạt động trên thiết bị này.',
+      });
+      onNotify('Đã gửi thông báo thử trực tiếp.', 'ok');
+    } catch {
+      onNotify('Không gửi được thông báo thử lúc này.', 'danger');
+    } finally {
+      setSendingTestNotify(false);
+    }
+  };
 
   const persisted = liveStorage?.persisted ?? dbState?.persistentGranted ?? false;
   const usageBytes = liveStorage ? liveStorage.usage : (dbState?.storageUsageBytes ?? null);
@@ -426,7 +546,7 @@ export function SettingsScreen({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField
               label="Tên thiết bị"
-              placeholder="Ví dụ: Redmi K90 – Đạt"
+              placeholder="Ví dụ: Điện thoại vườn 1"
               value={deviceName}
               helperText="Hiện trong lịch sử commit đồng bộ để phân biệt từng điện thoại."
               onChange={(e) => setDeviceName(e.target.value)}
@@ -442,7 +562,7 @@ export function SettingsScreen({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TextField
               label="Repo dữ liệu riêng tư"
-              placeholder="datnho0804-gif/Ri6-data"
+              placeholder="Ví dụ: ten-ban/Ri6-data"
               value={dataRepo}
               error={repoError}
               containerClassName="sm:col-span-2"
@@ -761,6 +881,109 @@ export function SettingsScreen({
         </Card>
       </section>
 
+      {/* Notifications & Reminders (SPEC M6, T05 AC5 & AC6) */}
+      <section aria-labelledby="sec-notify-heading">
+        <h2 id="sec-notify-heading" className="text-title font-bold text-text px-0.5 mb-2">
+          Nhắc nhở &amp; Thông báo việc cần làm
+        </h2>
+        <Card padding="none">
+          <ListItem
+            leadingIcon={<Bell className="w-5.5 h-5.5" />}
+            leadingTone={notifyCap?.permission === 'granted' ? 'ok' : notifyCap?.permission === 'denied' ? 'danger' : 'info'}
+            title="Quyền thông báo"
+            subtitle="Tối đa 1 thông báo/ngày, không làm phiền 21:00–06:00 giờ VN"
+            trailing={
+              <StatusPill
+                tone={
+                  notifyCap?.permission === 'granted'
+                    ? 'ok'
+                    : notifyCap?.permission === 'denied'
+                      ? 'danger'
+                      : 'neutral'
+                }
+                icon={
+                  notifyCap?.permission === 'granted' ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Bell className="w-4 h-4" />
+                  )
+                }
+              >
+                {notifyCap?.permission === 'granted'
+                  ? 'Đã cấp'
+                  : notifyCap?.permission === 'denied'
+                    ? 'Đã chặn'
+                    : notifyCap?.permission === 'unsupported'
+                      ? 'Không hỗ trợ'
+                      : 'Chưa bật'}
+              </StatusPill>
+            }
+          />
+          <ListItem
+            divider
+            title="Nhắc việc nền (periodicsync)"
+            subtitle="Tự kiểm tra danh sách việc mỗi 12 giờ khi cài app từ Chrome Android"
+            trailing={
+              <StatusPill
+                tone={notifyCap?.periodicSyncSupported ? 'ok' : 'warn'}
+                icon={
+                  notifyCap?.periodicSyncSupported ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Info className="w-4 h-4" />
+                  )
+                }
+              >
+                {notifyCap?.periodicSyncSupported ? 'Hỗ trợ' : 'Chưa hỗ trợ'}
+              </StatusPill>
+            }
+          />
+          <ListItem
+            divider
+            title="Lần thông báo gần nhất"
+            subtitle={formatDateTimeVN(settings?.notify?.lastNotifiedAt)}
+          />
+          <div className="px-4 py-3.5 border-t border-surface-2 flex flex-wrap gap-2.5">
+            {settings?.notify?.enabled && notifyCap?.permission === 'granted' ? (
+              <Button
+                variant="tonal"
+                size="lg"
+                loading={updatingNotify}
+                leadingIcon={<BellOff className="w-5 h-5" />}
+                onClick={() => {
+                  void handleDisableNotify();
+                }}
+              >
+                Tắt nhắc nhở
+              </Button>
+            ) : (
+              <Button
+                variant="filled"
+                size="lg"
+                loading={updatingNotify}
+                leadingIcon={<Bell className="w-5 h-5" />}
+                onClick={() => {
+                  void handleEnableNotify();
+                }}
+              >
+                Bật nhắc nhở
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              size="lg"
+              loading={sendingTestNotify}
+              leadingIcon={<Send className="w-5 h-5" />}
+              onClick={() => {
+                void handleSendTestNotification();
+              }}
+            >
+              Gửi thông báo thử
+            </Button>
+          </div>
+        </Card>
+      </section>
+
       {/* Touch & Haptics (D01 AC6) */}
       <section aria-labelledby="sec-feel-heading">
         <h2 id="sec-feel-heading" className="text-title font-bold text-text px-0.5 mb-2">
@@ -928,8 +1151,8 @@ export function SettingsScreen({
         <ListItem
           leadingIcon={<Info className="w-5.5 h-5.5" />}
           leadingTone="info"
-          title="Nhắc nhở tự động & Trợ lý AI (Gemini)"
-          subtitle="Sẽ mở ở các bước tiếp theo: thông báo việc cần làm định kỳ và trợ lý AI nông học (nhập khóa cục bộ trên máy)."
+          title="Trợ lý AI nông học (Gemini)"
+          subtitle="Sẽ mở ở bước tiếp theo (T06): hỏi đáp tiếng Việt kèm ảnh lá/tán và đề xuất việc cần làm (API key chỉ lưu cục bộ trên máy)."
         />
         {showDesignEntry && (
           <ListItem

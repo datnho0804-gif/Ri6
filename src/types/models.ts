@@ -189,4 +189,4 @@ export interface Settings {
 }
 
 export type TabId = 'overview' | 'trees' | 'pruning' | 'reference';
-export type ViewId = TabId | 'settings';
+export type ViewId = TabId | 'settings' | 'agenda';
