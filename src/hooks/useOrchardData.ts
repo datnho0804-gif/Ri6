@@ -8,12 +8,20 @@ import {
   newTask as newTaskPure,
   snooze as snoozeAgendaPure,
 } from '../lib/agenda/agenda';
+import {
+  approveMemory as approveMemoryPure,
+  createMemory as createMemoryPure,
+  deleteMemory as deleteMemoryPure,
+  editMemory as editMemoryPure,
+  type MemoryProposal,
+} from '../lib/ai/memory';
 import { tombstoneBatch } from '../lib/batchLogs';
 import { nowUTC, todayVN } from '../lib/date';
 import { splitFromLotA as splitFromLotAPure } from '../lib/lotSplit';
 import type { SyncState } from '../lib/merge';
 import { filterTrees } from '../lib/treeFilters';
 import type {
+  AiMemory,
   ISODate,
   Log,
   Lot,
@@ -40,6 +48,7 @@ export interface OrchardDataHook {
   logs: Log[];
   tasks: Task[];
   photos: Photo[];
+  aiMemories: AiMemory[];
   thumbUrls: Map<string, string>;
   refresh: (opts?: { resetPhotoErrors?: boolean }) => Promise<void>;
   getPhotoFullUrl: (photoId: string) => Promise<string | null>;
@@ -62,6 +71,16 @@ export interface OrchardDataHook {
     source?: Exclude<TaskSource, 'rule'>;
   }) => Promise<Task>;
   restoreTaskSnapshot: (prev: Task | undefined, taskId: string) => Promise<void>;
+  addAiMemory: (
+    proposal: MemoryProposal & { source: AiMemory['source']; approved?: boolean },
+  ) => Promise<AiMemory>;
+  approveAiMemory: (memory: AiMemory) => Promise<AiMemory>;
+  editAiMemory: (
+    memory: AiMemory,
+    patch: Partial<Pick<AiMemory, 'content' | 'category' | 'targetIds'>>,
+  ) => Promise<AiMemory>;
+  deleteAiMemory: (memory: AiMemory) => Promise<AiMemory>;
+  undoDeleteAiMemory: (deletedMemory: AiMemory) => Promise<void>;
   saveCapturedPhoto: (targetId: string, file: File, kind?: PhotoKind) => Promise<Photo>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   setSeasonOverride: (season: Season | null) => Promise<void>;
@@ -95,6 +114,7 @@ export function useOrchardData(
   const [logs, setLogs] = useState<Log[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [aiMemories, setAiMemories] = useState<AiMemory[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Map<string, string>>(() => new Map());
 
   const thumbUrlCacheRef = useRef<Map<string, string>>(new Map());
@@ -116,13 +136,14 @@ export function useOrchardData(
     if (opts?.resetPhotoErrors) {
       remoteFetchFailedRef.current.clear();
     }
-    const [s, tList, lot, lList, tkList, pList] = await Promise.all([
+    const [s, tList, lot, lList, tkList, pList, mList] = await Promise.all([
       db.settings.get('app'),
       db.trees.toArray(),
       db.lots.get(LOT_A_ID),
       db.logs.toArray(),
       db.tasks.toArray(),
       db.photos.toArray(),
+      db.aiMemories.toArray(),
     ]);
 
     if (s) setSettings(s);
@@ -131,6 +152,7 @@ export function useOrchardData(
     setLogs(lList);
     setTasks(tkList);
     setPhotos(pList);
+    setAiMemories(mList.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
 
     // Load local 480px thumbnails (or fallback to full blob if thumb missing) for active photos
     const activePhotos = pList.filter((p) => !p.deletedAt);
@@ -518,12 +540,13 @@ export function useOrchardData(
   );
 
   const getOrchardStateSnapshot = useCallback(async (): Promise<SyncState> => {
-    const [tList, lotList, lList, tkList, pList] = await Promise.all([
+    const [tList, lotList, lList, tkList, pList, mList] = await Promise.all([
       db.trees.toArray(),
       db.lots.toArray(),
       db.logs.toArray(),
       db.tasks.toArray(),
       db.photos.toArray(),
+      db.aiMemories.toArray(),
     ]);
     return {
       trees: tList,
@@ -531,6 +554,7 @@ export function useOrchardData(
       logs: lList,
       tasks: tkList,
       photos: pList,
+      aiMemories: mList,
     };
   }, []);
 
@@ -583,13 +607,16 @@ export function useOrchardData(
 
       await db.transaction(
         'rw',
-        [db.trees, db.lots, db.logs, db.tasks, db.photos, db.photoBlobs],
+        [db.trees, db.lots, db.logs, db.tasks, db.photos, db.photoBlobs, db.aiMemories],
         async () => {
           if (merged.trees.length > 0) await db.trees.bulkPut(merged.trees);
           if (merged.lots.length > 0) await db.lots.bulkPut(merged.lots);
           if (merged.logs.length > 0) await db.logs.bulkPut(merged.logs);
           if (merged.tasks.length > 0) await db.tasks.bulkPut(merged.tasks);
           if (merged.photos.length > 0) await db.photos.bulkPut(merged.photos);
+          if (merged.aiMemories && merged.aiMemories.length > 0) {
+            await db.aiMemories.bulkPut(merged.aiMemories);
+          }
           if (blobRecords.length > 0) await db.photoBlobs.bulkPut(blobRecords);
         },
       );
@@ -668,6 +695,69 @@ export function useOrchardData(
     [deviceId, emitDataChanged, loadAll],
   );
 
+  const addAiMemory = useCallback(
+    async (proposal: MemoryProposal & { source: AiMemory['source']; approved?: boolean }) => {
+      const created = createMemoryPure(proposal, {
+        id: generateDeviceId(),
+        now: nowUTC(),
+        deviceId,
+      });
+      await db.aiMemories.put(created);
+      await loadAll();
+      emitDataChanged();
+      return created;
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const approveAiMemory = useCallback(
+    async (memory: AiMemory) => {
+      const updated = approveMemoryPure(memory, { now: nowUTC(), deviceId });
+      await db.aiMemories.put(updated);
+      await loadAll();
+      emitDataChanged();
+      return updated;
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const editAiMemory = useCallback(
+    async (
+      memory: AiMemory,
+      patch: Partial<Pick<AiMemory, 'content' | 'category' | 'targetIds'>>,
+    ) => {
+      const updated = editMemoryPure(memory, patch, { now: nowUTC(), deviceId });
+      await db.aiMemories.put(updated);
+      await loadAll();
+      emitDataChanged();
+      return updated;
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const deleteAiMemory = useCallback(
+    async (memory: AiMemory) => {
+      const tomb = deleteMemoryPure(memory, { now: nowUTC(), deviceId });
+      await db.aiMemories.put(tomb);
+      await loadAll();
+      emitDataChanged();
+      return tomb;
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
+  const undoDeleteAiMemory = useCallback(
+    async (deletedMemory: AiMemory) => {
+      const { deletedAt: _removed, ...rest } = deletedMemory;
+      void _removed;
+      const restored: AiMemory = { ...rest, updatedAt: nowUTC(), updatedBy: deviceId };
+      await db.aiMemories.put(restored);
+      await loadAll();
+      emitDataChanged();
+    },
+    [deviceId, emitDataChanged, loadAll],
+  );
+
   const activeTrees = filterTrees(
     allTrees,
     { filter: 'all' },
@@ -684,6 +774,7 @@ export function useOrchardData(
     logs,
     tasks,
     photos,
+    aiMemories,
     thumbUrls,
     refresh: loadAll,
     getPhotoFullUrl,
@@ -701,6 +792,11 @@ export function useOrchardData(
     snoozeAgendaItem,
     addManualTask,
     restoreTaskSnapshot,
+    addAiMemory,
+    approveAiMemory,
+    editAiMemory,
+    deleteAiMemory,
+    undoDeleteAiMemory,
     saveCapturedPhoto,
     updateSettings,
     setSeasonOverride,

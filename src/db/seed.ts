@@ -1,3 +1,4 @@
+import { DEFAULT_INITIAL_TREES } from '../lib/agronomy';
 import { nowUTC } from '../lib/date';
 import type { Lot, Settings, Tree } from '../types/models';
 
@@ -5,8 +6,8 @@ export const DEFAULT_DATA_REPO = 'datnho0804-gif/Ri6-data';
 export const DEFAULT_DATA_BRANCH = 'main';
 export const LOT_A_ID = 'LOT_A';
 
-// SPEC 1.1 (T01 AC6): initial tree counts live exclusively in these two seed constants
-export const INITIAL_INDIVIDUAL_TREES = 15;
+// SPEC 1.2 (T07 AC1): brand-new orchards start with 3 default trees (SR01–SR03) + LOT_A 50; existing DBs are untouched
+export const INITIAL_INDIVIDUAL_TREES = DEFAULT_INITIAL_TREES;
 export const INITIAL_LOT_A_COUNT = 50;
 
 export function generateDeviceId(): string {

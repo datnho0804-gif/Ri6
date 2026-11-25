@@ -11,26 +11,37 @@ import { db, type Ri6Database } from './database';
 export function createDexieSyncStore(database: Ri6Database = db): SyncStore {
   return {
     async loadState(): Promise<SyncState> {
-      const [trees, lots, logs, tasks, photos] = await Promise.all([
+      const [trees, lots, logs, tasks, photos, aiMemories] = await Promise.all([
         database.trees.toArray(),
         database.lots.toArray(),
         database.logs.toArray(),
         database.tasks.toArray(),
         database.photos.toArray(),
+        database.aiMemories.toArray(),
       ]);
-      return { trees, lots, logs, tasks, photos };
+      return { trees, lots, logs, tasks, photos, aiMemories };
     },
 
     async saveState(state: SyncState): Promise<void> {
       await database.transaction(
         'rw',
-        [database.trees, database.lots, database.logs, database.tasks, database.photos],
+        [
+          database.trees,
+          database.lots,
+          database.logs,
+          database.tasks,
+          database.photos,
+          database.aiMemories,
+        ],
         async () => {
           if (state.trees.length > 0) await database.trees.bulkPut(state.trees);
           if (state.lots.length > 0) await database.lots.bulkPut(state.lots);
           if (state.logs.length > 0) await database.logs.bulkPut(state.logs);
           if (state.tasks.length > 0) await database.tasks.bulkPut(state.tasks);
           if (state.photos.length > 0) await database.photos.bulkPut(state.photos);
+          if (state.aiMemories && state.aiMemories.length > 0) {
+            await database.aiMemories.bulkPut(state.aiMemories);
+          }
         },
       );
     },
